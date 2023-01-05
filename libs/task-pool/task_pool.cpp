@@ -12,18 +12,18 @@ namespace be {
 
 struct task_pool::Impl
 {
-    std::atomic<bool> paused{ false };
-    std::atomic<bool> running{ false };
-    std::condition_variable task_available_cv = {};
-    std::condition_variable task_done_cv = {};
-    std::queue<task_t> tasks_ = {};
-    std::atomic<std::size_t> tasks_total{ 0 };
-    mutable std::mutex tasks_mutex = {};
-    unsigned thread_count = 0;
-    std::vector<std::thread> threads;
-    std::atomic<bool> waiting{ false };
+    mutable std::mutex tasks_mutex_ = {};
+    std::queue<task_proxy> tasks_ = {};
+    std::condition_variable task_added_ = {};
+    std::atomic<bool> paused_{ false };
+    std::atomic<bool> running_{ false };
+    std::condition_variable task_completed_ = {};
+    std::atomic<std::size_t> tasks_queued_{ 0 };
+    unsigned thread_count_ = 0;
+    std::vector<std::thread> threads_;
+    std::atomic<bool> waiting_{ false };
 
-    explicit Impl(unsigned thread_count_) : thread_count(determine_thread_count(thread_count_)), threads(thread_count)
+    explicit Impl(unsigned thread_count) : thread_count_(determine_thread_count(thread_count)), threads_(thread_count)
     {
         create_threads();
     }
@@ -36,24 +36,24 @@ struct task_pool::Impl
 
     void create_threads()
     {
-        running = true;
-        for (unsigned i = 0; i < thread_count; ++i) { threads[i] = std::thread(&Impl::worker, this); }
+        running_ = true;
+        for (unsigned i = 0; i < thread_count_; ++i) { threads_[i] = std::thread(&Impl::worker, this); }
     }
 
     void destroy_threads()
     {
-        running = false;
-        task_available_cv.notify_all();
-        for (unsigned i = 0; i < thread_count; ++i) {
-            if (threads[i].joinable()) { threads[i].join(); }
+        running_ = false;
+        task_added_.notify_all();
+        for (unsigned i = 0; i < thread_count_; ++i) {
+            if (threads_[i].joinable()) { threads_[i].join(); }
         }
-        threads.clear();
+        threads_.clear();
     }
 
-    static unsigned determine_thread_count(const unsigned thread_count_)
+    static unsigned determine_thread_count(const unsigned thread_count)
     {
-        if (thread_count_ > 0) {
-            return thread_count_;
+        if (thread_count > 0) {
+            return thread_count;
         } else {
             if (std::thread::hardware_concurrency() > 0) {
                 return std::thread::hardware_concurrency();
@@ -65,74 +65,70 @@ struct task_pool::Impl
 
     void worker()
     {
-        while (running) {
-            std::unique_lock<std::mutex> tasks_lock(tasks_mutex);
-            task_available_cv.wait(tasks_lock, [this] { return !tasks_.empty() || !running; });
-            if (running && !paused) {
-                task_model model{ nullptr, nullptr };
-                task_view view{ nullptr };
-                std::tie(model, view) = std::move(tasks_.front());
+        while (running_) {
+            std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
+            task_added_.wait(tasks_lock, [this] { return !tasks_.empty() || !running_; });
+            if (running_ && !paused_) {
+                task_proxy proxy = std::move(tasks_.front());
                 tasks_.pop();
+                --tasks_queued_;
                 tasks_lock.unlock();
-                view.execute(model);
-                tasks_lock.lock();
-                --tasks_total;
-                model.task_deleter(model.task);
-                if (waiting) { task_done_cv.notify_one(); }
+                proxy.execute_task(proxy.storage.get());
+                if (waiting_) { task_completed_.notify_one(); }
             }
         }
     }
 
-    void add_task(task_t task)
+    void add_task(task_proxy&& task)
     {
         {
-            std::unique_lock<std::mutex> tasks_lock(tasks_mutex);
+            std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
             tasks_.push(std::move(task));
         }
-        ++tasks_total;
-        task_available_cv.notify_one();
+        ++tasks_queued_;
+        task_added_.notify_one();
     }
 
     std::size_t get_tasks_queued() const
     {
-        std::unique_lock<std::mutex> tasks_lock(tasks_mutex);
+        std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
         return tasks_.size();
     }
 
     std::size_t get_tasks_running() const
     {
-        std::unique_lock<std::mutex> tasks_lock(tasks_mutex);
-        return tasks_total - tasks_.size();
+        std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
+        return tasks_queued_ - tasks_.size();
     }
 
-    std::size_t get_tasks_total() const { return tasks_total; }
+    std::size_t get_tasks_total() const { return tasks_queued_; }
 
-    unsigned get_thread_count() const { return thread_count; }
+    unsigned get_thread_count() const { return thread_count_; }
 
-    bool is_paused() const { return paused; }
+    bool is_paused() const { return paused_; }
 
-    void pause() { paused = true; }
+    void pause() { paused_ = true; }
 
-    void reset(const unsigned thread_count_)
+    void reset(const unsigned thread_count)
     {
-        const bool was_paused = paused;
-        paused = true;
+        const bool was_paused = paused_;
+        paused_ = true;
         wait_for_tasks();
         destroy_threads();
-        thread_count = determine_thread_count(thread_count_);
-        threads = std::vector<std::thread>(thread_count);
-        paused = was_paused;
+        thread_count_ = determine_thread_count(thread_count);
+        threads_ = std::vector<std::thread>(thread_count_);
+        paused_ = was_paused;
         create_threads();
     }
 
-    void unpause() { paused = false; }
+    void unpause() { paused_ = false; }
 
     void wait_for_tasks()
     {
-        waiting = true;
-        std::unique_lock<std::mutex> tasks_lock(tasks_mutex);
-        task_done_cv.wait(tasks_lock, [this] { return (tasks_total == (paused ? tasks_.size() : 0)); });
-        waiting = false;
+        waiting_ = true;
+        std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
+        task_completed_.wait(tasks_lock, [this] { return (tasks_queued_ == (paused_ ? tasks_.size() : 0)); });
+        waiting_ = false;
     }
 };
 
@@ -167,6 +163,20 @@ void task_pool::unpause() { impl_->unpause(); }
 
 void task_pool::wait_for_tasks() { impl_->wait_for_tasks(); }
 
-void task_pool::push_task(task_t &&task) { impl_->add_task(std::move(task)); }
+void task_pool::push_task(task_proxy &&task) { impl_->add_task(std::move(task)); }
+
+task_pool::task_proxy::task_proxy(task_proxy &&other) noexcept
+    : execute_task(other.execute_task), storage(std::move(other.storage))
+{
+    other.execute_task = [](void * /*unused*/) {};
+}
+
+task_pool::task_proxy &task_pool::task_proxy::operator=(task_proxy &&other) noexcept
+{
+    execute_task = other.execute_task;
+    storage = std::move(other.storage);
+    other.execute_task = [](void * /*unused*/) {};
+    return *this;
+}
 
 }// namespace be

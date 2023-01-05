@@ -3,6 +3,7 @@
 #include "task_pool_fallbacks.h"
 #include <functional>
 #include <future>
+#include <memory>
 #include <type_traits>
 #include <utility>
 
@@ -10,18 +11,23 @@ namespace be {
 
 class task_pool
 {
-    struct task_model
+    struct task_proxy
     {
-        void *task = nullptr;
-        void (*task_deleter)(void *);
-    };
+        void (*execute_task)(void *);
+        std::unique_ptr<void, void (*)(void *)> storage;
 
-    struct task_view
-    {
-        void (*execute)(task_model const &);
+        task_proxy() = delete;
+        template<typename Task>
+        explicit task_proxy(Task*task)
+            : execute_task([](void *x) { (*static_cast<Task *>(x))(); }),
+              storage(task, [](void *x) { delete static_cast<Task *>(x); })
+        {}
+        ~task_proxy() = default;
+        task_proxy(task_proxy const &) = delete;
+        task_proxy &operator=(task_proxy const &) = delete;
+        task_proxy(task_proxy &&) noexcept;
+        task_proxy &operator=(task_proxy &&) noexcept;
     };
-
-    using task_t = std::pair<task_model, task_view>;
 
     template<typename F,
         typename FuncType = std::remove_reference_t<std::remove_cv_t<F>>,
@@ -33,9 +39,7 @@ class task_pool
         {
             void operator()() const { FuncType(); }
         };
-
-        return std::make_pair(task_model{ new Task, [](void *x) { delete static_cast<Task *>(x); } },
-            task_view{ [](task_model const &model) { (*static_cast<Task *>(model.task))(); } });
+        return task_proxy(new Task);
     }
 
     template<typename F,
@@ -49,9 +53,7 @@ class task_pool
             explicit Task(FuncType &&f) : FuncType(std::forward<F>(f)) {}
             using FuncType::operator();
         };
-        return std::make_pair(
-            task_model{ new Task(std::forward<F>(task)), [](void *x) { delete static_cast<Task *>(x); } },
-            task_view{ [](task_model const &model) { (*static_cast<Task *>(model.task))(); } });
+        return task_proxy(new Task(std::forward<F>(task)));
     }
 
   public:
@@ -64,19 +66,12 @@ class task_pool
     task_pool &operator=(task_pool &&) noexcept;
 
     void reset(const unsigned = 0);
-
     BE_NODISGARD std::size_t get_tasks_queued() const;
-
     BE_NODISGARD std::size_t get_tasks_running() const;
-
     BE_NODISGARD std::size_t get_tasks_total() const;
-
     BE_NODISGARD unsigned get_thread_count() const;
-
     BE_NODISGARD bool is_paused() const;
-
     void pause();
-
     template<typename F,
         typename... A,
         typename R = be_invoke_result_t<std::decay_t<F>, std::decay_t<A>...>,
@@ -104,13 +99,14 @@ class task_pool
     BE_NODISGARD std::future<R> submit(F &&task, A &&...args)
     {
         std::shared_ptr<std::promise<R>> task_promise = std::make_shared<std::promise<R>>();
-        push_task([task_function = std::bind(std::forward<F>(task), std::forward<A>(args)...), task_promise]() mutable {
-            try {
-                task_promise->set_value(task_function());
-            } catch (...) {
-                task_promise->set_exception(std::current_exception());
-            }
-        });
+        push_task(make_task(
+            [task_function = std::bind(std::forward<F>(task), std::forward<A>(args)...), task_promise]() mutable {
+                try {
+                    task_promise->set_value(task_function());
+                } catch (...) {
+                    task_promise->set_exception(std::current_exception());
+                }
+            }));
         return task_promise->get_future();
     }
 
@@ -119,7 +115,7 @@ class task_pool
     void wait_for_tasks();
 
   private:
-    void push_task(task_t &&);
+    void push_task(task_proxy &&);
 
     struct Impl;
     Impl *impl_;
