@@ -131,15 +131,14 @@ add_library(task-pool::project_warnings INTERFACE IMPORTED)
 add_subdirectory(configured_files)
 
 # Adding the src:
-add_subdirectory(libs)
-#add_subdirectory(src)
+add_subdirectory(src)
 
 # Adding the tests:
 option(ENABLE_TESTING "Enable the tests" ${PROJECT_IS_TOP_LEVEL})
 if(ENABLE_TESTING)
   enable_testing()
   message(AUTHOR_WARNING "Building Tests. Be sure to check out test/constexpr_tests.cpp for constexpr testing")
-  #add_subdirectory(test)
+  add_subdirectory(test)
 endif()
 
 option(ENABLE_FUZZING "Enable the fuzz tests" OFF)
@@ -157,8 +156,6 @@ if(MSVC)
   set_target_properties(${all_targets} PROPERTIES VS_DEBUGGER_ENVIRONMENT "PATH=$(VC_ExecutablePath_x64);%PATH%")
 endif()
 
-# set the startup project for the "play" button in MSVC
-# set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT intro)
 
 if(CMAKE_SKIP_INSTALL_RULES)
   return()
