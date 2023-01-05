@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16...3.23)
 
 # Not ideal to use this global variable, but necessary to make sure
 # that tooling and projects use the same version
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 14)
 
 # strongly encouraged to enable this globally to avoid conflicts between
 # -Wpedantic being enabled and -std=c++20 and -std=gnu++20 for example
@@ -33,10 +33,10 @@ include(${_project_options_SOURCE_DIR}/Index.cmake)
 
 # Set the project name and language
 project(
-  myproject
+  task-pool
   VERSION 0.0.1
   DESCRIPTION ""
-  HOMEPAGE_URL "%%myurl%%"
+  HOMEPAGE_URL "%%https://github.com/benny-edlund/task-pool%%"
   LANGUAGES CXX C)
 
 # This variable is set by project() in CMake 3.21+
@@ -102,7 +102,8 @@ dynamic_project_options(
   # globally included and they can mask other errors
   PCH_HEADERS
   <vector>
-  <string> # This is a list of headers to pre-compile, here are some common ones
+  <string>
+  <memory>
   ENABLE_CONAN
   # CONAN_OPTIONS    # Extra options to pass to conan
   # MSVC_WARNINGS    # Override the defaults for the MSVC warnings
@@ -123,21 +124,22 @@ dynamic_project_options(
 
 target_compile_features(project_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 # TODO: The INTERFACE library NAMESPACE ALIAS are missing! CK
-add_library(myproject::project_options INTERFACE IMPORTED)
-add_library(myproject::project_warnings INTERFACE IMPORTED)
+add_library(task-pool::project_options INTERFACE IMPORTED)
+add_library(task-pool::project_warnings INTERFACE IMPORTED)
 
 # configure files based on CMake configuration options
 add_subdirectory(configured_files)
 
 # Adding the src:
-add_subdirectory(src)
+add_subdirectory(libs)
+#add_subdirectory(src)
 
 # Adding the tests:
 option(ENABLE_TESTING "Enable the tests" ${PROJECT_IS_TOP_LEVEL})
 if(ENABLE_TESTING)
   enable_testing()
   message(AUTHOR_WARNING "Building Tests. Be sure to check out test/constexpr_tests.cpp for constexpr testing")
-  add_subdirectory(test)
+  #add_subdirectory(test)
 endif()
 
 option(ENABLE_FUZZING "Enable the fuzz tests" OFF)
@@ -145,6 +147,7 @@ if(ENABLE_FUZZING)
   message(AUTHOR_WARNING "Building Fuzz Tests, using fuzzing sanitizer https://www.llvm.org/docs/LibFuzzer.html")
   add_subdirectory(fuzz_test)
 endif()
+
 
 # If MSVC is being used, and ASAN is enabled, we need to set the debugger environment
 # so that it behaves well with MSVC's debugger, and we can run the target from visual studio
@@ -155,7 +158,7 @@ if(MSVC)
 endif()
 
 # set the startup project for the "play" button in MSVC
-set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT intro)
+# set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT intro)
 
 if(CMAKE_SKIP_INSTALL_RULES)
   return()
@@ -165,7 +168,7 @@ endif()
 
 # Add other targets that you want installed here, be default we just package the one executable
 # we know we want to ship
-package_project(TARGETS intro project_options project_warnings
+package_project(TARGETS task_pool project_options project_warnings
   # FIXME: this does not work! CK
   # PRIVATE_DEPENDENCIES_CONFIGURED project_options project_warnings
 )
