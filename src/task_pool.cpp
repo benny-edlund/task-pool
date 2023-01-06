@@ -20,10 +20,12 @@ struct task_pool::Impl
     std::condition_variable task_completed_ = {};
     std::atomic<std::size_t> tasks_queued_{ 0 };
     unsigned thread_count_ = 0;
-    std::vector<std::thread> threads_;
+    std::unique_ptr<std::thread[]> threads_;//  NOLINT
     std::atomic<bool> waiting_{ false };
 
-    explicit Impl(unsigned thread_count) : thread_count_(determine_thread_count(thread_count)), threads_(thread_count)
+    explicit Impl(unsigned thread_count)
+        : thread_count_(determine_thread_count(thread_count)),
+          threads_(std::make_unique<std::thread[]>(thread_count))// NOLINT
     {
         create_threads();
     }
@@ -37,6 +39,7 @@ struct task_pool::Impl
     void create_threads()
     {
         running_ = true;
+        threads_ = std::make_unique<std::thread[]>(thread_count_);// NOLINT
         for (unsigned i = 0; i < thread_count_; ++i) { threads_[i] = std::thread(&Impl::worker, this); }
     }
 
@@ -47,7 +50,7 @@ struct task_pool::Impl
         for (unsigned i = 0; i < thread_count_; ++i) {
             if (threads_[i].joinable()) { threads_[i].join(); }
         }
-        threads_.clear();
+        threads_.reset();
     }
 
     static unsigned determine_thread_count(const unsigned thread_count)
@@ -71,15 +74,15 @@ struct task_pool::Impl
             if (running_ && !paused_) {
                 task_proxy proxy = std::move(tasks_.front());
                 tasks_.pop();
-                --tasks_queued_;
                 tasks_lock.unlock();
                 proxy.execute_task(proxy.storage.get());
+                --tasks_queued_;
                 if (waiting_) { task_completed_.notify_one(); }
             }
         }
     }
 
-    void add_task(task_proxy&& task)
+    void add_task(task_proxy &&task)
     {
         {
             std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
@@ -89,11 +92,7 @@ struct task_pool::Impl
         task_added_.notify_one();
     }
 
-    std::size_t get_tasks_queued() const
-    {
-        std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
-        return tasks_.size();
-    }
+    std::size_t get_tasks_queued() const { return tasks_queued_; }
 
     std::size_t get_tasks_running() const
     {
@@ -101,7 +100,11 @@ struct task_pool::Impl
         return tasks_queued_ - tasks_.size();
     }
 
-    std::size_t get_tasks_total() const { return tasks_queued_; }
+    std::size_t get_tasks_total() const
+    {
+        std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
+        return tasks_.size();
+    }
 
     unsigned get_thread_count() const { return thread_count_; }
 
@@ -116,7 +119,6 @@ struct task_pool::Impl
         wait_for_tasks();
         destroy_threads();
         thread_count_ = determine_thread_count(thread_count);
-        threads_ = std::vector<std::thread>(thread_count_);
         paused_ = was_paused;
         create_threads();
     }
@@ -134,13 +136,17 @@ struct task_pool::Impl
 
 task_pool::task_pool(const unsigned thread_count) : impl_{ new Impl(thread_count) } {}
 
-task_pool::~task_pool() { impl_->wait_for_tasks(); }
+task_pool::~task_pool()
+{
+    if (impl_ != nullptr) { impl_->wait_for_tasks(); }
+}
 
-task_pool::task_pool(task_pool &&other) noexcept : impl_(other.impl_) { other.impl_ = nullptr; }
+task_pool::task_pool(task_pool &&other) noexcept : impl_(std::move(other.impl_)) { other.impl_.reset(); }
 
 task_pool &task_pool::operator=(task_pool &&other) noexcept
 {
     wait_for_tasks();
+    impl_.reset();
     std::swap(other.impl_, impl_);
     return *this;
 }

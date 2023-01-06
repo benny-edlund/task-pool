@@ -9,6 +9,12 @@
 
 namespace be {
 
+template<typename T> struct be_is_function_pointer : public std::is_function<std::remove_pointer_t<std::decay_t<T>>>
+{
+};
+template<typename T>
+constexpr bool is_function_pointer_v = std::is_pointer<T>::value &&std::is_function<std::remove_pointer_t<T>>::value;
+
 class task_pool
 {
     struct task_proxy
@@ -18,7 +24,7 @@ class task_pool
 
         task_proxy() = delete;
         template<typename Task>
-        explicit task_proxy(Task*task)
+        explicit task_proxy(Task *task)
             : execute_task([](void *x) { (*static_cast<Task *>(x))(); }),
               storage(task, [](void *x) { delete static_cast<Task *>(x); })
         {}
@@ -31,8 +37,7 @@ class task_pool
 
     template<typename F,
         typename FuncType = std::remove_reference_t<std::remove_cv_t<F>>,
-        std::enable_if_t<std::is_function<std::remove_pointer_t<std::remove_reference_t<FuncType>>>::value, bool> =
-            true>
+        std::enable_if_t<is_function_pointer_v<FuncType>, bool> = true>
     static auto make_task(F &&)
     {
         struct Task
@@ -44,8 +49,7 @@ class task_pool
 
     template<typename F,
         typename FuncType = std::remove_reference_t<std::remove_cv_t<F>>,
-        std::enable_if_t<!std::is_function<std::remove_pointer_t<std::remove_reference_t<FuncType>>>::value, bool> =
-            true>
+        std::enable_if_t<!is_function_pointer_v<FuncType>, bool> = true>
     static auto make_task(F &&task)
     {
         struct Task : FuncType
@@ -72,6 +76,9 @@ class task_pool
     BE_NODISGARD unsigned get_thread_count() const;
     BE_NODISGARD bool is_paused() const;
     void pause();
+    void unpause();
+    void wait_for_tasks();
+
     template<typename F,
         typename... A,
         typename R = be_invoke_result_t<std::decay_t<F>, std::decay_t<A>...>,
@@ -98,27 +105,24 @@ class task_pool
         std::enable_if_t<!be_is_void_v<R>, bool> = true>
     BE_NODISGARD std::future<R> submit(F &&task, A &&...args)
     {
-        std::shared_ptr<std::promise<R>> task_promise = std::make_shared<std::promise<R>>();
-        push_task(make_task(
-            [task_function = std::bind(std::forward<F>(task), std::forward<A>(args)...), task_promise]() mutable {
-                try {
-                    task_promise->set_value(task_function());
-                } catch (...) {
-                    task_promise->set_exception(std::current_exception());
-                }
-            }));
-        return task_promise->get_future();
+        auto promise = std::promise<R>();
+        auto future = promise.get_future();
+        push_task(make_task([task_function = std::bind(std::forward<F>(task), std::forward<A>(args)...),
+                                task_promise = std::move(promise)]() mutable {
+            try {
+                task_promise->set_value(task_function());
+            } catch (...) {
+                task_promise->set_exception(std::current_exception());
+            }
+        }));
+        return future;
     }
-
-    void unpause();
-
-    void wait_for_tasks();
 
   private:
     void push_task(task_proxy &&);
 
     struct Impl;
-    Impl *impl_;
+    std::unique_ptr<Impl> impl_;
 };
 
 }// namespace be

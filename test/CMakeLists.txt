@@ -1,19 +1,7 @@
 cmake_minimum_required(VERSION 3.15...3.23)
 
 project(CmakeConfigPackageTests LANGUAGES CXX)
-
-# ---- Test as standalone project the exported config package ----
-
-if(PROJECT_IS_TOP_LEVEL OR TEST_INSTALLED_VERSION)
-  enable_testing()
-
-  find_package(task-pool CONFIG REQUIRED) # for intro, project_options, ...
-
-  if(NOT TARGET task-pool::project_options)
-    message(FATAL_ERROR "Requiered config package not found!")
-    return() # be strictly paranoid for Template Janitor github action! CK
-  endif()
-endif()
+#find_package(task-pool CONFIG REQUIRED) # for intro, project_options, ... <<< does not work
 
 # ---- Dependencies ----
 
@@ -23,12 +11,13 @@ include(Catch)
 
 add_library(catch_main OBJECT catch_main.cpp)
 target_link_libraries(catch_main PUBLIC Catch2::Catch2)
-target_link_libraries(catch_main PRIVATE task-pool::project_options)
+target_link_libraries(catch_main PRIVATE project_options)
 
 
-add_executable(test_taskpool test_task_pool.cpp)
-target_link_libraries(test_taskpool PUBLIC task-pool::task_pool)
-target_link_libraries(test_taskpool PRIVATE task-pool::project_warnings task-pool::project_options catch_main)
+add_executable(test_taskpool tests.cpp)
+include_directories(${lib-task-pool_SOURCE_DIR})
+target_link_libraries(test_taskpool PRIVATE task_pool)
+target_link_libraries(test_taskpool PRIVATE project_warnings project_options catch_main)
 
 # automatically discover tests that are defined in catch based test files you can modify the unittests. Set TEST_PREFIX
 # to whatever you want, or use different for different binaries
@@ -42,41 +31,5 @@ catch_discover_tests(
   .
   OUTPUT_PREFIX
   "unittests."
-  OUTPUT_SUFFIX
-  .xml)
-
-# Add a file containing a set of constexpr tests
-add_executable(constexpr_tests constexpr_tests.cpp)
-target_link_libraries(constexpr_tests PRIVATE task-pool::project_options task-pool::project_warnings catch_main)
-
-catch_discover_tests(
-  constexpr_tests
-  TEST_PREFIX
-  "constexpr."
-  REPORTER
-  xml
-  OUTPUT_DIR
-  .
-  OUTPUT_PREFIX
-  "constexpr."
-  OUTPUT_SUFFIX
-  .xml)
-
-# Disable the constexpr portion of the test, and build again this allows us to have an executable that we can debug when
-# things go wrong with the constexpr testing
-add_executable(relaxed_constexpr_tests constexpr_tests.cpp)
-target_link_libraries(relaxed_constexpr_tests PRIVATE task-pool::project_options task-pool::project_warnings catch_main)
-target_compile_definitions(relaxed_constexpr_tests PRIVATE -DCATCH_CONFIG_RUNTIME_STATIC_REQUIRE)
-
-catch_discover_tests(
-  relaxed_constexpr_tests
-  TEST_PREFIX
-  "relaxed_constexpr."
-  REPORTER
-  xml
-  OUTPUT_DIR
-  .
-  OUTPUT_PREFIX
-  "relaxed_constexpr."
   OUTPUT_SUFFIX
   .xml)

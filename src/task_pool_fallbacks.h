@@ -64,13 +64,6 @@ struct invoke_result<decltype(void(detail::INVOKE(std::declval<F>(), std::declva
 };
 
 }// namespace detail
-template<class> struct result_of;
-template<class F, class... ArgTypes> struct result_of<F(ArgTypes...)> : detail::invoke_result<void, F, ArgTypes...>
-{
-};
-template<class F, class... ArgTypes> struct invoke_result : detail::invoke_result<void, F, ArgTypes...>
-{
-};
 #else
 #define BE_NODISGARD [[nodisguard]]
 #endif
@@ -79,7 +72,14 @@ template<class F, class... ArgTypes> struct invoke_result : detail::invoke_resul
 namespace be {
 
 #if __cplusplus < 201700
-template<typename Fn, typename... Args> using be_invoke_result_t = invoke_result<Fn, Args...>;
+template<class> struct result_of;
+template<class F, class... ArgTypes> struct result_of<F(ArgTypes...)> : detail::invoke_result<void, F, ArgTypes...>
+{
+};
+template<class F, class... ArgTypes> struct invoke_result : detail::invoke_result<void, F, ArgTypes...>
+{
+};
+template<typename Fn, typename... Args> using be_invoke_result_t = typename invoke_result<Fn, Args...>::type;
 template<class T> struct be_is_void : std::is_same<void, typename std::remove_cv<T>::type>
 {
 };
