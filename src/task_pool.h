@@ -9,11 +9,6 @@
 
 namespace be {
 
-template<typename T> struct be_is_function_pointer : public std::is_function<std::remove_pointer_t<std::decay_t<T>>>
-{
-};
-template<typename T>
-constexpr bool is_function_pointer_v = std::is_pointer<T>::value &&std::is_function<std::remove_pointer_t<T>>::value;
 
 class task_pool
 {
@@ -28,6 +23,14 @@ class task_pool
             : execute_task([](void *x) { (*static_cast<Task *>(x))(); }),
               storage(task, [](void *x) { delete static_cast<Task *>(x); })
         {}
+        template<typename Task, template<typename> class Allocator>
+        explicit task_proxy(std::allocator_arg_t /*unused*/, Allocator<Task> const & /* user_allocator*/, Task *task)
+            : execute_task([](void *x) { (*static_cast<Task *>(x))(); }), storage(task, [](void *x) {
+                  Task *task = static_cast<Task *>(x);
+                  Allocator<Task> alloc(task->alloc);
+                  std::allocator_traits<Allocator<Task>>::deallocate(alloc, task, 1);
+              })
+        {}
         ~task_proxy() = default;
         task_proxy(task_proxy const &) = delete;
         task_proxy &operator=(task_proxy const &) = delete;
@@ -35,21 +38,7 @@ class task_pool
         task_proxy &operator=(task_proxy &&) noexcept;
     };
 
-    template<typename F,
-        typename FuncType = std::remove_reference_t<std::remove_cv_t<F>>,
-        std::enable_if_t<is_function_pointer_v<FuncType>, bool> = true>
-    static auto make_task(F &&)
-    {
-        struct Task
-        {
-            void operator()() const { FuncType(); }
-        };
-        return task_proxy(new Task);
-    }
-
-    template<typename F,
-        typename FuncType = std::remove_reference_t<std::remove_cv_t<F>>,
-        std::enable_if_t<!is_function_pointer_v<FuncType>, bool> = true>
+    template<typename F, typename FuncType = std::remove_reference_t<std::remove_cv_t<F>>>
     static auto make_task(F &&task)
     {
         struct Task : FuncType
@@ -58,6 +47,24 @@ class task_pool
             using FuncType::operator();
         };
         return task_proxy(new Task(std::forward<F>(task)));
+    }
+    template<template<typename> class Allocator,
+        typename F,
+        typename FuncType = std::remove_reference_t<std::remove_cv_t<F>>,
+        typename T>
+    static auto make_task(std::allocator_arg_t dummy, Allocator<T> const &allocator, F &&task)
+    {
+        struct Task : FuncType
+        {
+            explicit Task(Allocator<Task> const &a, F &&f) : FuncType(std::forward<F>(f)), alloc(a) {}
+            using FuncType::operator();
+            Allocator<Task> alloc;
+        };
+        Allocator<Task> task_allocator(allocator);
+        Task *typed_task = std::allocator_traits<Allocator<Task>>::allocate(task_allocator, 1);
+        std::allocator_traits<Allocator<Task>>::construct(
+            task_allocator, typed_task, task_allocator, std::forward<F>(task));
+        return task_proxy(dummy, task_allocator, typed_task);
     }
 
   public:
@@ -100,21 +107,44 @@ class task_pool
     }
 
     template<typename F,
-        typename... A,
-        typename R = be_invoke_result_t<std::decay_t<F>, std::decay_t<A>...>,
+        typename... Args,
+        typename R = be_invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>,
         std::enable_if_t<!be_is_void_v<R>, bool> = true>
-    BE_NODISGARD std::future<R> submit(F &&task, A &&...args)
+    BE_NODISGARD std::future<R> submit(F &&task, Args &&...args)
     {
         auto promise = std::promise<R>();
         auto future = promise.get_future();
-        push_task(make_task([task_function = std::bind(std::forward<F>(task), std::forward<A>(args)...),
+        push_task(make_task([task_function = std::bind(std::forward<F>(task), std::forward<Args>(args)...),
                                 task_promise = std::move(promise)]() mutable {
             try {
-                task_promise->set_value(task_function());
+                task_promise.set_value(task_function());
             } catch (...) {
-                task_promise->set_exception(std::current_exception());
+                task_promise.set_exception(std::current_exception());
             }
         }));
+        return future;
+    }
+
+    template<typename UserAllocator,
+        typename F,
+        typename... Args,
+        typename R = be_invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>,
+        std::enable_if_t<!be_is_void_v<R>, bool> = true>
+    BE_NODISGARD std::future<R>
+        submit(std::allocator_arg_t dummy, UserAllocator const &allocator, F &&task, Args &&...args)
+    {
+        auto promise = std::promise<R>(dummy, allocator);
+        auto future = promise.get_future();
+        push_task(make_task(dummy,
+            allocator,
+            [task_function = std::bind(std::forward<F>(task), std::forward<Args>(args)...),
+                task_promise = std::move(promise)]() mutable {
+                try {
+                    task_promise.set_value(task_function());
+                } catch (...) {
+                    task_promise.set_exception(std::current_exception());
+                }
+            }));
         return future;
     }
 

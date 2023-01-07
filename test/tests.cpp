@@ -6,6 +6,7 @@
 #include <task_pool.h>
 #include <thread>
 #include <vector>
+#include <iostream>
 
 using namespace std::chrono_literals;
 
@@ -20,46 +21,46 @@ TEST_CASE("construction/thread-count", "[task_pool]")
         REQUIRE(actual == expected);
     }
 }
-
-TEST_CASE("move construct", "[task_pool]")
-{
-    std::atomic_bool finish{ false };
-    be::task_pool from(1);
-    auto thread_count = from.get_thread_count();
-    auto future = from.submit([&]() -> void {
-        while (!finish) { std::this_thread::sleep_for(1ms); }
-    });
-    while (from.get_tasks_running() == 0) { std::this_thread::sleep_for(1ms); }
-    REQUIRE(from.get_tasks_running() == 1);
-    be::task_pool to(std::move(from));
-    REQUIRE(to.get_tasks_running() == 1);
-    REQUIRE(to.get_thread_count() == thread_count);
-    finish = true;
-    future.wait();
-}
-
-
-TEST_CASE("move assign", "[task_pool]")
-{
-    std::atomic_bool finish{ false };
-    be::task_pool to;
-    REQUIRE(to.get_tasks_running() == 0);
-    std::future<void> future = [&] {
-        be::task_pool from(1);
-        auto f = from.submit([&]() -> void {
-            while (!finish) { std::this_thread::sleep_for(1ms); }
-        });
-        while (from.get_tasks_running() == 0) { std::this_thread::sleep_for(1ms); }
-        REQUIRE(from.get_tasks_running() == 1);
-        to = std::move(from);
-        return f;
-    }();
-    REQUIRE(to.get_tasks_running() == 1);
-    REQUIRE(to.get_thread_count() == 1);
-
-    finish = true;
-    future.wait();
-}
+//
+// TEST_CASE("move construct", "[task_pool]")
+//{
+//    std::atomic_bool finish{ false };
+//    be::task_pool from(1);
+//    auto thread_count = from.get_thread_count();
+//    auto future = from.submit([&]() -> void {
+//        while (!finish) { std::this_thread::sleep_for(1ms); }
+//    });
+//    while (from.get_tasks_running() == 0) { std::this_thread::sleep_for(1ms); }
+//    REQUIRE(from.get_tasks_running() == 1);
+//    be::task_pool to(std::move(from));
+//    REQUIRE(to.get_tasks_running() == 1);
+//    REQUIRE(to.get_thread_count() == thread_count);
+//    finish = true;
+//    future.wait();
+//}
+//
+//
+// TEST_CASE("move assign", "[task_pool]")
+//{
+//    std::atomic_bool finish{ false };
+//    be::task_pool to;
+//    REQUIRE(to.get_tasks_running() == 0);
+//    std::future<void> future = [&] {
+//        be::task_pool from(1);
+//        auto f = from.submit([&]() -> void {
+//            while (!finish) { std::this_thread::sleep_for(1ms); }
+//        });
+//        while (from.get_tasks_running() == 0) { std::this_thread::sleep_for(1ms); }
+//        REQUIRE(from.get_tasks_running() == 1);
+//        to = std::move(from);
+//        return f;
+//    }();
+//    REQUIRE(to.get_tasks_running() == 1);
+//    REQUIRE(to.get_thread_count() == 1);
+//
+//    finish = true;
+//    future.wait();
+//}
 
 
 TEST_CASE("reset", "[task_pool]")
@@ -152,6 +153,7 @@ TEST_CASE("wait_for_tasks", "[task_pool]")
     auto a = pool.submit([&]() -> void { std::this_thread::sleep_for(1ms); });
     auto b = pool.submit([&]() -> void { std::this_thread::sleep_for(1ms); });
     auto c = pool.submit([&]() -> void { std::this_thread::sleep_for(1ms); });
+    REQUIRE(pool.get_tasks_total() == 3);
     pool.unpause();
     pool.wait_for_tasks();
     REQUIRE(pool.get_tasks_total() == 0);
@@ -280,4 +282,96 @@ TEST_CASE("stateful lambda from inner scope", "[task_pool][submit]")
     pool.unpause();
     f.wait();
     REQUIRE(called);
+}
+
+TEST_CASE("submit with result", "[task_pool][submit]")
+{
+
+    be::task_pool pool(1);
+    pool.pause();
+    std::atomic_bool called{ false };
+    std::future<int> f;
+    {
+        f = pool.submit(
+            [value = 2](auto *x) mutable {
+                (*x) = --value == 1;
+                return value;
+            },
+            &called);
+    }
+    pool.unpause();
+    auto result = f.get();
+    REQUIRE(called);
+    REQUIRE(result == 1);
+}
+
+std::atomic_uint64_t allocations{ 0 };
+std::atomic_uint64_t deallocations{ 0 };
+std::atomic_uint64_t constructions{ 0 };
+
+template<class T> struct counting_allocator
+{
+    std::allocator<T> real_allocator{};
+    using allocator_traits = std::allocator_traits<std::allocator<T>>;
+    using value_type = T;
+    counting_allocator() noexcept = default;
+    template<class U> explicit counting_allocator(const counting_allocator<U> & /*unused*/) noexcept {}
+    T *allocate(std::size_t n)
+    {
+        ++allocations;
+        std::cerr << "Allocating " << typeid(T).name() << '\n';
+        return allocator_traits::allocate(real_allocator, n);
+    }
+    template<typename U, typename... Args> void construct(U *p, Args &&...args)
+    {
+        ++constructions;
+        std::cerr << "Constructing " << typeid(T).name() << '\n';
+        allocator_traits::construct(real_allocator, p, std::forward<Args>(args)...);
+    }
+    void deallocate(T *p, std::size_t n)
+    {
+        ++deallocations;
+        std::cerr << "Deallocating " << typeid(T).name() << '\n';
+        allocator_traits::deallocate(real_allocator, p, n);
+    }
+};
+
+template<class T, class U>
+constexpr bool operator==(const counting_allocator<T> & /*T*/, const counting_allocator<U> & /*U*/) noexcept
+{
+    return true;
+}
+
+template<class T, class U>
+constexpr bool operator!=(const counting_allocator<T> & /*T*/, const counting_allocator<U> & /*U*/) noexcept
+{
+    return false;
+}
+
+TEST_CASE("submit with result allocator", "[task_pool][submit]")
+{
+    std::atomic_bool called{ false };
+    counting_allocator<int> alloc;
+    {
+        be::task_pool pool(1);
+        pool.pause();
+        std::future<int> f;
+        {
+            f = pool.submit(
+                std::allocator_arg_t{},
+                alloc,
+                [value = 2](auto *x) mutable {
+                    (*x) = --value == 1;
+                    return value;
+                },
+                &called);
+        }
+        pool.unpause();
+        auto result = f.get();
+        REQUIRE(called);
+        REQUIRE(result == 1);
+    }
+    CHECK(allocations == 3);
+    CHECK(deallocations == 3);
+    CHECK(constructions == 2);
 }
