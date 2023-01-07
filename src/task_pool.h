@@ -28,6 +28,7 @@ class task_pool
             : execute_task([](void *x) { (*static_cast<Task *>(x))(); }), storage(task, [](void *x) {
                   Task *task = static_cast<Task *>(x);
                   Allocator<Task> alloc(task->alloc);
+                  task->~Task();
                   std::allocator_traits<Allocator<Task>>::deallocate(alloc, task, 1);
               })
         {}
@@ -125,15 +126,41 @@ class task_pool
         return future;
     }
 
-    template<typename UserAllocator,
+    template<template<typename> class UserAllocator,
+        typename F,
+        typename... A,
+        typename R = be_invoke_result_t<std::decay_t<F>, std::decay_t<A>...>,
+        typename T,
+        std::enable_if_t<be_is_void_v<R>, bool> = true>
+    BE_NODISGARD std::future<R>
+        submit(std::allocator_arg_t dummy, UserAllocator<T> const &allocator, F &&task, A &&...args)
+    {
+        auto promise = std::promise<R>(dummy, allocator);
+        auto task_future = promise.get_future();
+        push_task(make_task(dummy,
+            allocator,
+            [task_function = std::bind(std::forward<F>(task), std::forward<A>(args)...),
+                task_promise = std::move(promise)]() mutable {
+                try {
+                    task_function();
+                    task_promise.set_value();
+                } catch (...) {
+                    task_promise.set_exception(std::current_exception());
+                }
+            }));
+        return task_future;
+    }
+    template<template<typename> class UserAllocator,
         typename F,
         typename... Args,
         typename R = be_invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>,
+        typename FuncType = std::remove_reference_t<std::remove_cv_t<F>>,
+        typename T,
         std::enable_if_t<!be_is_void_v<R>, bool> = true>
     BE_NODISGARD std::future<R>
-        submit(std::allocator_arg_t dummy, UserAllocator const &allocator, F &&task, Args &&...args)
+        submit(std::allocator_arg_t dummy, UserAllocator<T> const &allocator, F &&task, Args &&...args)
     {
-        auto promise = std::promise<R>(dummy, allocator);
+        std::promise<R> promise(dummy, allocator);
         auto future = promise.get_future();
         push_task(make_task(dummy,
             allocator,

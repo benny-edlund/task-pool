@@ -350,6 +350,11 @@ constexpr bool operator!=(const counting_allocator<T> & /*T*/, const counting_al
 
 TEST_CASE("submit with result allocator", "[task_pool][submit]")
 {
+
+    allocations = 0;
+    deallocations = 0;
+    constructions = 0;
+
     std::atomic_bool called{ false };
     counting_allocator<int> alloc;
     {
@@ -370,6 +375,36 @@ TEST_CASE("submit with result allocator", "[task_pool][submit]")
         auto result = f.get();
         REQUIRE(called);
         REQUIRE(result == 1);
+    }
+    CHECK(allocations == 3);
+    CHECK(deallocations == 3);
+    CHECK(constructions == 2);
+}
+
+TEST_CASE("submit without result allocator", "[task_pool][submit]")
+{
+    allocations = 0;
+    deallocations = 0;
+    constructions = 0;
+
+    std::atomic_bool called{ false };
+    counting_allocator<void> alloc;
+    {
+        be::task_pool pool(1);
+        pool.pause();
+        std::future<void> f;
+        {
+            f = pool.submit(
+                std::allocator_arg_t{},
+                alloc,
+                [value = 2](auto *x) mutable {
+                    (*x) = --value == 1;
+                },
+                &called);
+        }
+        pool.unpause();
+        f.wait();
+        REQUIRE(called);
     }
     CHECK(allocations == 3);
     CHECK(deallocations == 3);
