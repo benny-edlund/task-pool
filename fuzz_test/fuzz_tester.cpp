@@ -2,7 +2,7 @@
 #include <iterator>
 #include <utility>
 
-[[nodiscard]] auto sum_values(const uint8_t *Data, size_t Size)
+auto sum_values(const uint8_t *Data, size_t Size)
 {
   constexpr auto scale = 1000;
 
