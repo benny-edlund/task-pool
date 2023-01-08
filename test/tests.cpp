@@ -90,7 +90,7 @@ TEST_CASE("get_tasks_queued", "[task_pool]")
     REQUIRE(pool.get_tasks_queued() == 1);
     pool.unpause();
     finish = true;
-    future.wait();
+    pool.wait_for_tasks();
     REQUIRE(pool.get_tasks_queued() == 0);
 }
 
