@@ -1,7 +1,7 @@
 # for full syntax documentation see:  https://lgtm.com/help/lgtm/lgtm.yml-configuration-file
 path_classifiers:
   test:
-    - "*/fuzz_test/**/*"
+    #- "*/fuzz_test/**/*"
     - "*/test/**/*"
 extraction:
   cpp:

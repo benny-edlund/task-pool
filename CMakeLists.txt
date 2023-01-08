@@ -144,8 +144,8 @@ endif()
 option(ENABLE_FUZZING "Enable the fuzz tests" OFF)
 if(ENABLE_FUZZING)
   #message(AUTHOR_WARNING "Building Fuzz Tests, using fuzzing sanitizer https://www.llvm.org/docs/LibFuzzer.html")
-endif()
   add_subdirectory(fuzz_test)
+endif()
 
 
 # If MSVC is being used, and ASAN is enabled, we need to set the debugger environment
