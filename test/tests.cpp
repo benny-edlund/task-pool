@@ -2,11 +2,11 @@
 #include <atomic>
 #include <catch2/catch.hpp>
 #include <chrono>
+#include <iostream>
 #include <random>
 #include <task_pool.h>
 #include <thread>
 #include <vector>
-#include <iostream>
 
 using namespace std::chrono_literals;
 
@@ -21,46 +21,46 @@ TEST_CASE("construction/thread-count", "[task_pool]")
         REQUIRE(actual == expected);
     }
 }
-//
-// TEST_CASE("move construct", "[task_pool]")
-//{
-//    std::atomic_bool finish{ false };
-//    be::task_pool from(1);
-//    auto thread_count = from.get_thread_count();
-//    auto future = from.submit([&]() -> void {
-//        while (!finish) { std::this_thread::sleep_for(1ms); }
-//    });
-//    while (from.get_tasks_running() == 0) { std::this_thread::sleep_for(1ms); }
-//    REQUIRE(from.get_tasks_running() == 1);
-//    be::task_pool to(std::move(from));
-//    REQUIRE(to.get_tasks_running() == 1);
-//    REQUIRE(to.get_thread_count() == thread_count);
-//    finish = true;
-//    future.wait();
-//}
-//
-//
-// TEST_CASE("move assign", "[task_pool]")
-//{
-//    std::atomic_bool finish{ false };
-//    be::task_pool to;
-//    REQUIRE(to.get_tasks_running() == 0);
-//    std::future<void> future = [&] {
-//        be::task_pool from(1);
-//        auto f = from.submit([&]() -> void {
-//            while (!finish) { std::this_thread::sleep_for(1ms); }
-//        });
-//        while (from.get_tasks_running() == 0) { std::this_thread::sleep_for(1ms); }
-//        REQUIRE(from.get_tasks_running() == 1);
-//        to = std::move(from);
-//        return f;
-//    }();
-//    REQUIRE(to.get_tasks_running() == 1);
-//    REQUIRE(to.get_thread_count() == 1);
-//
-//    finish = true;
-//    future.wait();
-//}
+
+TEST_CASE("move construct", "[task_pool]")
+{
+    std::atomic_bool finish{ false };
+    be::task_pool from(1);
+    auto thread_count = from.get_thread_count();
+    auto future = from.submit([&]() -> void {
+        while (!finish) { std::this_thread::sleep_for(1ms); }
+    });
+    while (from.get_tasks_running() == 0) { std::this_thread::sleep_for(1ms); }
+    REQUIRE(from.get_tasks_running() == 1);
+    be::task_pool to(std::move(from));
+    REQUIRE(to.get_tasks_running() == 1);
+    REQUIRE(to.get_thread_count() == thread_count);
+    finish = true;
+    future.wait();
+}
+
+
+TEST_CASE("move assign", "[task_pool]")
+{
+    std::atomic_bool finish{ false };
+    be::task_pool to;
+    REQUIRE(to.get_tasks_running() == 0);
+    std::future<void> future = [&] {
+        be::task_pool from(1);
+        auto f = from.submit([&]() -> void {
+            while (!finish) { std::this_thread::sleep_for(1ms); }
+        });
+        while (from.get_tasks_running() == 0) { std::this_thread::sleep_for(1ms); }
+        REQUIRE(from.get_tasks_running() == 1);
+        to = std::move(from);
+        return f;
+    }();
+    REQUIRE(to.get_tasks_running() == 1);
+    REQUIRE(to.get_thread_count() == 1);
+
+    finish = true;
+    future.wait();
+}
 
 
 TEST_CASE("reset", "[task_pool]")
@@ -125,6 +125,7 @@ TEST_CASE("get_tasks_total", "[task_pool]")
     REQUIRE(pool.get_tasks_total() == 2);
     pool.unpause();
     finish = true;
+    pool.wait_for_tasks();
 }
 
 TEST_CASE("pause/is_paused/unpause", "[task_pool]")
@@ -167,7 +168,8 @@ TEST_CASE("free function", "[task_pool][submit]")
     std::atomic_bool called{ false };
     {
         be::task_pool pool(1);
-        pool.submit(&test_func_, &called).wait();
+        pool.submit(&test_func_, &called);
+        pool.wait_for_tasks();
         REQUIRE(called);
     }
 }
@@ -192,7 +194,7 @@ TEST_CASE("lambda pure by &", "[task_pool][submit]")
 {
     {
         std::atomic_bool called{ false };
-        auto fun = [](auto *x) { (*x) = true; };
+        auto fun = [](std::atomic_bool *x) { (*x) = true; };
         be::task_pool pool(1);
         pool.submit(fun, &called).wait();
         REQUIRE(called);
@@ -319,19 +321,19 @@ template<class T> struct counting_allocator
     T *allocate(std::size_t n)
     {
         ++allocations;
-        std::cerr << "Allocating " << typeid(T).name() << '\n';
+        // std::cerr << "Allocating " << typeid(T).name() << '\n';
         return allocator_traits::allocate(real_allocator, n);
     }
     template<typename U, typename... Args> void construct(U *p, Args &&...args)
     {
         ++constructions;
-        std::cerr << "Constructing " << typeid(T).name() << '\n';
+        // std::cerr << "Constructing " << typeid(T).name() << '\n';
         allocator_traits::construct(real_allocator, p, std::forward<Args>(args)...);
     }
     void deallocate(T *p, std::size_t n)
     {
         ++deallocations;
-        std::cerr << "Deallocating " << typeid(T).name() << '\n';
+        // std::cerr << "Deallocating " << typeid(T).name() << '\n';
         allocator_traits::deallocate(real_allocator, p, n);
     }
 };
@@ -395,12 +397,7 @@ TEST_CASE("submit without result allocator", "[task_pool][submit]")
         std::future<void> f;
         {
             f = pool.submit(
-                std::allocator_arg_t{},
-                alloc,
-                [value = 2](auto *x) mutable {
-                    (*x) = --value == 1;
-                },
-                &called);
+                std::allocator_arg_t{}, alloc, [value = 2](auto *x) mutable { (*x) = --value == 1; }, &called);
         }
         pool.unpause();
         f.wait();
@@ -409,4 +406,77 @@ TEST_CASE("submit without result allocator", "[task_pool][submit]")
     CHECK(allocations == 3);
     CHECK(deallocations == 3);
     CHECK(constructions == 2);
+}
+
+void fun_with_token(be::stop_token /*unused*/);
+
+TEST_CASE("wants_stop_token", "[task_pool][submit]")
+{
+    auto func = [](be::stop_token /*unused*/) {};
+    auto func_mut = [](be::stop_token /*unused*/) mutable {};
+    STATIC_REQUIRE(be::wants_stop_token_v<void(be::stop_token)> == true);
+    STATIC_REQUIRE(be::wants_stop_token_v<decltype(&fun_with_token)> == true);
+    STATIC_REQUIRE(be::wants_stop_token_v<decltype(func)> == true);
+    STATIC_REQUIRE(be::wants_stop_token_v<decltype(func_mut)> == true);
+}
+
+TEST_CASE("submit with stop token", "[task_pool][submit]")
+{
+
+    be::task_pool pool(1);
+    pool.pause();
+    std::atomic_bool called{ false };
+    std::future<void> f;
+    {
+        f = pool.submit([&called](be::stop_token stop) mutable {
+            called = true;
+            while (!stop) { std::this_thread::sleep_for(1ms); }
+        });
+    }
+    pool.unpause();
+    std::this_thread::sleep_for(1ms);
+    pool.abort();
+    f.wait();
+    REQUIRE(called);
+}
+
+
+struct work
+{
+    template<typename WorkType> auto operator()(WorkType data) const { return data.value; }
+};
+
+TEST_CASE("Special callable types", "[task_pool][submit]")
+{
+    {
+        be::task_pool pool{ 1 };
+        const int expected = 42;
+        struct work_data
+        {
+            int value;
+        };
+        auto result = pool.submit(work{}, work_data{ expected });
+        REQUIRE(result.get() == expected);
+    }
+
+    {
+        class special_work
+        {
+            void do_something() { called = true; }
+
+          public:
+            void run(be::stop_token abort)
+            {
+                while (!abort) { do_something(); }
+            }
+            bool called = false;
+        };
+
+        special_work task;
+        {
+            be::task_pool pool{ 1 };
+            pool.submit(&special_work::run, &task);
+            pool.abort();
+        }
+    }
 }

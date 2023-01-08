@@ -7,7 +7,7 @@
 
 ## About task-pool
 
-A simple and portable task oriented thread pool compatible down to C++14 
+A simple and portable task oriented thread pool with allocator support
 
 It requires
 

@@ -15,17 +15,17 @@ struct task_pool::Impl
     mutable std::mutex tasks_mutex_ = {};
     std::queue<task_proxy> tasks_ = {};
     std::condition_variable task_added_ = {};
+    std::atomic<bool> waiting_{ false };
     std::atomic<bool> paused_{ false };
-    std::atomic<bool> running_{ false };
+    std::atomic<bool> abort_{ false };
     std::condition_variable task_completed_ = {};
     std::atomic<std::size_t> tasks_queued_{ 0 };
     unsigned thread_count_ = 0;
-    std::unique_ptr<std::thread[]> threads_;//  NOLINT
-    std::atomic<bool> waiting_{ false };
+    std::unique_ptr<std::thread[]> threads_;//  NOLINT (c-arrays)
 
     explicit Impl(unsigned thread_count)
         : thread_count_(determine_thread_count(thread_count)),
-          threads_(std::make_unique<std::thread[]>(thread_count))// NOLINT
+          threads_(std::make_unique<std::thread[]>(thread_count))// NOLINT (c-arrays)
     {
         create_threads();
     }
@@ -38,19 +38,20 @@ struct task_pool::Impl
 
     void create_threads()
     {
-        running_ = true;
+        abort_ = false;
         threads_ = std::make_unique<std::thread[]>(thread_count_);// NOLINT
         for (unsigned i = 0; i < thread_count_; ++i) { threads_[i] = std::thread(&Impl::worker, this); }
     }
 
     void destroy_threads()
     {
-        running_ = false;
+        abort_ = true;
         task_added_.notify_all();
         for (unsigned i = 0; i < thread_count_; ++i) {
             if (threads_[i].joinable()) { threads_[i].join(); }
         }
         threads_.reset();
+        thread_count_ = 0;
     }
 
     static unsigned determine_thread_count(const unsigned thread_count)
@@ -62,22 +63,6 @@ struct task_pool::Impl
                 return std::thread::hardware_concurrency();
             } else {
                 return 1;
-            }
-        }
-    }
-
-    void worker()
-    {
-        while (running_) {
-            std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
-            task_added_.wait(tasks_lock, [this] { return !tasks_.empty() || !running_; });
-            if (running_ && !paused_) {
-                task_proxy proxy = std::move(tasks_.front());
-                tasks_.pop();
-                tasks_lock.unlock();
-                proxy.execute_task(proxy.storage.get());
-                --tasks_queued_;
-                if (waiting_) { task_completed_.notify_one(); }
             }
         }
     }
@@ -129,8 +114,32 @@ struct task_pool::Impl
     {
         waiting_ = true;
         std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
+        task_added_.notify_all();
         task_completed_.wait(tasks_lock, [this] { return (tasks_queued_ == (paused_ ? tasks_.size() : 0)); });
         waiting_ = false;
+    }
+
+    void cooperative_abort()
+    {
+        destroy_threads();
+    }
+
+    std::atomic<bool> const &get_stop_token() const { return abort_; }
+
+    void worker()
+    {
+        while (!abort_) {
+            std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
+            task_added_.wait(tasks_lock, [this] { return !tasks_.empty() || abort_; });
+            if (!abort_ && !paused_) {
+                task_proxy proxy = std::move(tasks_.front());
+                tasks_.pop();
+                tasks_lock.unlock();
+                proxy.execute_task(proxy.storage.get());
+                --tasks_queued_;
+                if (waiting_) { task_completed_.notify_one(); }
+            }
+        }
     }
 };
 
@@ -138,7 +147,8 @@ task_pool::task_pool(const unsigned thread_count) : impl_{ new Impl(thread_count
 
 task_pool::~task_pool()
 {
-    if (impl_ != nullptr) { impl_->wait_for_tasks(); }
+    impl_.reset();
+    //if (impl_ != nullptr) { impl_->cooperative_abort(); }
 }
 
 task_pool::task_pool(task_pool &&other) noexcept : impl_(std::move(other.impl_)) { other.impl_.reset(); }
@@ -169,6 +179,8 @@ void task_pool::unpause() { impl_->unpause(); }
 
 void task_pool::wait_for_tasks() { impl_->wait_for_tasks(); }
 
+stop_token task_pool::get_stop_token() const { return stop_token{ impl_->get_stop_token() }; }
+
 void task_pool::push_task(task_proxy &&task) { impl_->add_task(std::move(task)); }
 
 task_pool::task_proxy::task_proxy(task_proxy &&other) noexcept
@@ -176,6 +188,8 @@ task_pool::task_proxy::task_proxy(task_proxy &&other) noexcept
 {
     other.execute_task = [](void * /*unused*/) {};
 }
+
+void task_pool::abort() { impl_->cooperative_abort(); }
 
 task_pool::task_proxy &task_pool::task_proxy::operator=(task_proxy &&other) noexcept
 {
