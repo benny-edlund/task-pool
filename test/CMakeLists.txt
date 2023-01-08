@@ -14,17 +14,17 @@ target_link_libraries(catch_main PUBLIC Catch2::Catch2)
 target_link_libraries(catch_main PRIVATE project_options)
 
 
-add_executable(test_taskpool2 tests.cpp)
+add_executable(test_taskpool tests.cpp)
 include_directories(${lib-task-pool_SOURCE_DIR})
-target_link_libraries(test_taskpool2 PRIVATE task_pool)
-target_link_libraries(test_taskpool2 PRIVATE project_warnings project_options catch_main)
+target_link_libraries(test_taskpool PRIVATE task_pool)
+target_link_libraries(test_taskpool PRIVATE project_warnings project_options catch_main)
 
 # automatically discover tests that are defined in catch based test files you can modify the unittests. Set TEST_PREFIX
 # to whatever you want, or use different for different binaries
 
 if (MSVC)
 catch_discover_tests(
-  test_taskpool2
+  test_taskpool
   TEST_PREFIX
   "unittests."
   #REPORTER     Seems windows doesnt like the REPORTER option
@@ -37,7 +37,7 @@ catch_discover_tests(
   .xml)
 else() 
 catch_discover_tests(
-  test_taskpool2
+  test_taskpool
   TEST_PREFIX
   "unittests."
   REPORTER

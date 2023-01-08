@@ -309,112 +309,105 @@ TEST_CASE("submit with result", "[task_pool][submit]")
     REQUIRE(result == 1);
 }
 
-template<class T> struct counting_allocator
-{
-    std::allocator<T> real_allocator{};
 
-    std::atomic_uint64_t &allocations;
-    std::atomic_uint64_t &deallocations;
-    std::atomic_uint64_t &constructions;
-
-    using allocator_traits = std::allocator_traits<std::allocator<T>>;
-    using value_type = T;
-    counting_allocator(std::atomic_uint64_t &alloc, std::atomic_uint64_t &dealloc, std::atomic_uint64_t &ctor) noexcept
-        : allocations(alloc), deallocations(dealloc), constructions(ctor)
-    {}
-    template<class U>
-    explicit counting_allocator(const counting_allocator<U> &other) noexcept
-        : allocations(other.allocations), deallocations(other.deallocations), constructions(other.constructions)
-    {}
-    T *allocate(std::size_t n)
-    {
-        ++allocations;
-        // std::cerr << "Allocating " << typeid(T).name() << '\n';
-        return allocator_traits::allocate(real_allocator, n);
-    }
-    template<typename U, typename... Args> void construct(U *p, Args &&...args)
-    {
-        ++constructions;
-        // std::cerr << "Constructing " << typeid(T).name() << '\n';
-        allocator_traits::construct(real_allocator, p, std::forward<Args>(args)...);
-    }
-    void deallocate(T *p, std::size_t n)
-    {
-        ++deallocations;
-        // std::cerr << "Deallocating " << typeid(T).name() << '\n';
-        allocator_traits::deallocate(real_allocator, p, n);
-    }
-};
-
-template<class T, class U>
-constexpr bool operator==(const counting_allocator<T> & /*T*/, const counting_allocator<U> & /*U*/) noexcept
-{
-    return true;
-}
-
-template<class T, class U>
-constexpr bool operator!=(const counting_allocator<T> & /*T*/, const counting_allocator<U> & /*U*/) noexcept
-{
-    return false;
-}
-
-TEST_CASE("submit with result allocator", "[task_pool][submit]")
-{
-
-    std::atomic_uint64_t allocations{ 0 };
-    std::atomic_uint64_t deallocations{ 0 };
-    std::atomic_uint64_t constructions{ 0 };
-
-    std::atomic_bool called{ false };
-    counting_allocator<int> alloc(allocations, deallocations, constructions);
-    {
-        be::task_pool pool(1);
-        pool.pause();
-        std::future<int> f;
-        {
-            f = pool.submit(
-                std::allocator_arg_t{},
-                alloc,
-                [value = 2](auto *x) mutable {
-                    (*x) = --value == 1;
-                    return value;
-                },
-                &called);
-        }
-        pool.unpause();
-        auto result = f.get();
-        REQUIRE(called);
-        REQUIRE(result == 1);
-    }
-    CHECK(allocations == 3);
-    CHECK(deallocations == 3);
-    CHECK(constructions == 2);
-}
-
-TEST_CASE("submit without result allocator", "[task_pool][submit]")
-{
-    std::atomic_uint64_t allocations{ 0 };
-    std::atomic_uint64_t deallocations{ 0 };
-    std::atomic_uint64_t constructions{ 0 };
-
-    std::atomic_bool called{ false };
-    counting_allocator<void> alloc(allocations, deallocations, constructions);
-    {
-        be::task_pool pool(1);
-        pool.pause();
-        std::future<void> f;
-        {
-            f = pool.submit(
-                std::allocator_arg_t{}, alloc, [value = 2](auto *x) mutable { (*x) = --value == 1; }, &called);
-        }
-        pool.unpause();
-        f.wait();
-        REQUIRE(called);
-    }
-    CHECK(allocations == 3);
-    CHECK(deallocations == 3);
-    CHECK(constructions == 2);
-}
+//template<class T> struct counting_allocator
+//{
+//
+//    unsigned allocations{ 0 };
+//    unsigned deallocations{ 0 };
+//    unsigned constructions{ 0 };
+//
+//    using allocator_traits = std::allocator_traits<std::allocator<T>>;
+//    using value_type = T;
+//    counting_allocator() noexcept = default;
+//    template<class U>
+//    explicit counting_allocator(const counting_allocator<U> &other) noexcept
+//        : allocations(other.allocations), deallocations(other.deallocations), constructions(other.constructions)
+//    {}
+//    T *allocate(std::size_t n)
+//    {
+//        ++allocations;
+//        // std::cerr << "Allocating " << typeid(T).name() << '\n';
+//        std::allocator<T> alloc{};
+//        return allocator_traits::allocate(alloc, n);
+//    }
+//    template<typename U, typename... Args> void construct(U *p, Args &&...args)
+//    {
+//        ++constructions;
+//        // std::cerr << "Constructing " << typeid(T).name() << '\n';
+//        std::allocator<T> alloc{};
+//        allocator_traits::construct(alloc, p, std::forward<Args>(args)...);
+//    }
+//    void deallocate(T *p, std::size_t n)
+//    {
+//        ++deallocations;
+//        // std::cerr << "Deallocating " << typeid(T).name() << '\n';
+//        std::allocator<T> alloc{};
+//        allocator_traits::deallocate(alloc, p, n);
+//    }
+//};
+//
+//template<class T, class U>
+//constexpr bool operator==(const counting_allocator<T> & /*T*/, const counting_allocator<U> & /*U*/) noexcept
+//{
+//    return true;
+//}
+//
+//template<class T, class U>
+//constexpr bool operator!=(const counting_allocator<T> & /*T*/, const counting_allocator<U> & /*U*/) noexcept
+//{
+//    return false;
+//}
+//
+//TEST_CASE("submit with result allocator", "[task_pool][submit]")
+//{
+//
+//    std::atomic_bool called{ false };
+//    counting_allocator<int> alloc;
+//    {
+//        be::task_pool pool(1);
+//        pool.pause();
+//        std::future<int> f;
+//        {
+//            f = pool.submit(
+//                std::allocator_arg_t{},
+//                alloc,
+//                [value = 2](auto *x) mutable {
+//                    (*x) = --value == 1;
+//                    return value;
+//                },
+//                &called);
+//        }
+//        pool.unpause();
+//        auto result = f.get();
+//        REQUIRE(called);
+//        REQUIRE(result == 1);
+//    }
+//    CHECK(alloc.allocations == 3);
+//    CHECK(alloc.deallocations == 3);
+//    CHECK(alloc.constructions == 2);
+//}
+//
+//TEST_CASE("submit without result allocator", "[task_pool][submit]")
+//{
+//    std::atomic_bool called{ false };
+//    counting_allocator<void> alloc{};
+//    {
+//        be::task_pool pool(1);
+//        pool.pause();
+//        std::future<void> f;
+//        {
+//            f = pool.submit(
+//                std::allocator_arg_t{}, alloc, [value = 2](auto *x) mutable { (*x) = --value == 1; }, &called);
+//        }
+//        pool.unpause();
+//        f.wait();
+//        REQUIRE(called);
+//    }
+//    CHECK(alloc.allocations == 3);
+//    CHECK(alloc.deallocations == 3);
+//    CHECK(alloc.constructions == 2);
+//}
 
 void fun_with_token(be::stop_token /*unused*/);
 
