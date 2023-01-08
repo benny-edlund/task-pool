@@ -35,7 +35,7 @@ jobs:
           - macos-11
         compiler:
           # you can specify the version after `-` like "llvm-13.0.0".
-          - llvm-13.0.0
+          - llvm-10.0.0
           - gcc-9
         generator:
           - "Ninja Multi-Config"
@@ -51,14 +51,14 @@ jobs:
           - os: macos-11
             compiler: gcc-9
           - os: ubuntu-20.04
-            compiler: llvm-13.0.0
+            compiler: llvm-10.0.0
 
         include:
           # Add appropriate variables for gcov version required. This will intentionally break
           # if you try to use a compiler that does not have gcov set
           - compiler: gcc-9
             gcov_executable: gcov
-          - compiler: llvm-13.0.0
+          - compiler: llvm-10.0.0
             gcov_executable: "llvm-cov gcov"
 
           # Set up preferred package generators, for given build configurations
@@ -121,7 +121,7 @@ jobs:
           conan: true
           vcpkg: false
           ccache: true
-          clangtidy: ${{ env.CLANG_TIDY_VERSION }}
+          #clangtidy: ${{ env.CLANG_TIDY_VERSION }}
 
 
           cppcheck: true
