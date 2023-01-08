@@ -1,9 +1,9 @@
 # Task Pool
 
-[![ci](https://github.com/cpp-best-practices/gui_starter_template/actions/workflows/ci.yml/badge.svg)](https://github.com/cpp-best-practices/gui_starter_template/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/cpp-best-practices/gui_starter_template/branch/main/graph/badge.svg)](https://codecov.io/gh/cpp-best-practices/gui_starter_template)
-[![Language grade: C++](https://img.shields.io/lgtm/grade/cpp/github/cpp-best-practices/gui_starter_template)](https://lgtm.com/projects/g/cpp-best-practices/gui_starter_template/context:cpp)
-[![CodeQL](https://github.com/cpp-best-practices/gui_starter_template/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/cpp-best-practices/gui_starter_template/actions/workflows/codeql-analysis.yml)
+[![ci]https://github.com/benny-edlund/task-pool/actions/workflows/ci.yml/badge.svg)](https://https://github.com/benny-edlund/task-pool/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/benny-edlund/task-pool/branch/main/graph/badge.svg)](https://codecov.io/gh/benny-edlund/task-pool)
+[![Language grade: C++](https://img.shields.io/lgtm/grade/cpp/benny-edlund/task-pool)](https://lgtm.com/projects/g/benny-edlund/task-pool/context:cpp)
+[![CodeQL](https://github.com/benny-edlund/task-pool/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/benny-edlund/task-pool/actions/workflows/codeql-analysis.yml)
 
 ## About task-pool
 
