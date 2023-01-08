@@ -13,7 +13,8 @@ using namespace std::chrono_literals;
 
 TEST_CASE("construction/thread-count", "[task_pool]")
 {
-    std::vector<unsigned> numbers(std::thread::hardware_concurrency());
+    std::vector<unsigned> numbers;
+    numbers.resize(std::thread::hardware_concurrency());
     std::iota(numbers.begin(), numbers.end(), 1);
 
     for (auto const &expected : numbers) {
@@ -308,17 +309,23 @@ TEST_CASE("submit with result", "[task_pool][submit]")
     REQUIRE(result == 1);
 }
 
-static std::atomic_uint64_t allocations{ 0 };
-static std::atomic_uint64_t deallocations{ 0 };
-static std::atomic_uint64_t constructions{ 0 };
-
 template<class T> struct counting_allocator
 {
     std::allocator<T> real_allocator{};
+
+    std::atomic_uint64_t &allocations;
+    std::atomic_uint64_t &deallocations;
+    std::atomic_uint64_t &constructions;
+
     using allocator_traits = std::allocator_traits<std::allocator<T>>;
     using value_type = T;
-    counting_allocator() noexcept = default;
-    template<class U> explicit counting_allocator(const counting_allocator<U> & /*unused*/) noexcept {}
+    counting_allocator(std::atomic_uint64_t &alloc, std::atomic_uint64_t &dealloc, std::atomic_uint64_t &ctor) noexcept
+        : allocations(alloc), deallocations(dealloc), constructions(ctor)
+    {}
+    template<class U>
+    explicit counting_allocator(const counting_allocator<U> &other) noexcept
+        : allocations(other.allocations), deallocations(other.deallocations), constructions(other.constructions)
+    {}
     T *allocate(std::size_t n)
     {
         ++allocations;
@@ -354,12 +361,12 @@ constexpr bool operator!=(const counting_allocator<T> & /*T*/, const counting_al
 TEST_CASE("submit with result allocator", "[task_pool][submit]")
 {
 
-    allocations = 0;
-    deallocations = 0;
-    constructions = 0;
+    std::atomic_uint64_t allocations{ 0 };
+    std::atomic_uint64_t deallocations{ 0 };
+    std::atomic_uint64_t constructions{ 0 };
 
     std::atomic_bool called{ false };
-    counting_allocator<int> alloc;
+    counting_allocator<int> alloc(allocations, deallocations, constructions);
     {
         be::task_pool pool(1);
         pool.pause();
@@ -386,12 +393,12 @@ TEST_CASE("submit with result allocator", "[task_pool][submit]")
 
 TEST_CASE("submit without result allocator", "[task_pool][submit]")
 {
-    allocations = 0;
-    deallocations = 0;
-    constructions = 0;
+    std::atomic_uint64_t allocations{ 0 };
+    std::atomic_uint64_t deallocations{ 0 };
+    std::atomic_uint64_t constructions{ 0 };
 
     std::atomic_bool called{ false };
-    counting_allocator<void> alloc;
+    counting_allocator<void> alloc(allocations, deallocations, constructions);
     {
         be::task_pool pool(1);
         pool.pause();

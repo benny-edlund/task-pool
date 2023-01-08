@@ -122,8 +122,6 @@ jobs:
           vcpkg: false
           ccache: true
           #clangtidy: ${{ env.CLANG_TIDY_VERSION }}
-
-
           cppcheck: true
 
           gcovr: true
