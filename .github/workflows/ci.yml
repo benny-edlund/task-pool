@@ -46,7 +46,7 @@ jobs:
           - OFF
           #- ON
 
-        exclude:
+        #exclude:
           # mingw is determined by this author to be too buggy to support
           #- os: macos-11
           #  compiler: gcc-11
