@@ -3,11 +3,11 @@
 #include <catch2/catch.hpp>
 #include <chrono>
 #include <iostream>
+#include <numeric>
 #include <random>
 #include <task_pool.h>
 #include <thread>
 #include <vector>
-#include <numeric>
 
 using namespace std::chrono_literals;
 
@@ -116,11 +116,11 @@ TEST_CASE("get_tasks_total", "[task_pool]")
     be::task_pool pool(1);
     pool.pause();
     REQUIRE(pool.get_tasks_total() == 0);
-    auto _ = pool.submit([&]() -> void {
+    pool.submit([&]() -> void {
         while (!finish) { std::this_thread::sleep_for(1ms); }
     });
     REQUIRE(pool.get_tasks_total() == 1);
-    auto __ = pool.submit([&]() -> void {
+    pool.submit([&]() -> void {
         while (!finish) { std::this_thread::sleep_for(1ms); }
     });
     REQUIRE(pool.get_tasks_total() == 2);
@@ -308,9 +308,9 @@ TEST_CASE("submit with result", "[task_pool][submit]")
     REQUIRE(result == 1);
 }
 
-std::atomic_uint64_t allocations{ 0 };
-std::atomic_uint64_t deallocations{ 0 };
-std::atomic_uint64_t constructions{ 0 };
+static std::atomic_uint64_t allocations{ 0 };
+static std::atomic_uint64_t deallocations{ 0 };
+static std::atomic_uint64_t constructions{ 0 };
 
 template<class T> struct counting_allocator
 {
