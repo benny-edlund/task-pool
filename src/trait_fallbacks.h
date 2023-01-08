@@ -5,7 +5,7 @@
 #if __cplusplus < 201700
 #if !defined(BE_NODISGARD)
 #if _MSC_VER >= 1700
-#define BE_NODISGARD _Check_return_// should be _Check_return_ but MS wont accept my macro alias
+#define BE_NODISGARD _Check_return_
 #else
 #define BE_NODISGARD __attribute__((warn_unused_result))
 #endif
@@ -88,4 +88,47 @@ template<typename T> constexpr bool be_is_void_v = be_is_void<T>::value;
 template<typename Fn, typename... Args> using be_invoke_result_t = std::invoke_result_t<Fn, Args...>;
 template<typename T> constexpr bool be_is_void_v = std::is_void_v<T>;
 #endif
+
+struct stop_token;
+
+template<typename Tuple> struct contains_stop_token;
+
+template<typename Tuple> struct contains_stop_token;
+
+template<template<typename...> class Tuple> struct contains_stop_token<Tuple<>> : public std::false_type
+{
+};
+
+template<template<typename...> class Tuple, typename... Args>
+struct contains_stop_token<Tuple<Args...>>
+    : public std::is_same<stop_token, std::decay_t<std::tuple_element_t<sizeof...(Args)-1, std::tuple<Args...>>>>
+{
+};
+
+template<typename T> struct wants_stop_token : public wants_stop_token<decltype(&T::operator())>
+{
+};
+
+template<typename R, typename... Args>
+struct wants_stop_token<R(Args...)> : public contains_stop_token<std::tuple<Args...>>
+{
+};
+
+template<typename R, typename... Args>
+struct wants_stop_token<R (*)(Args...)> : public contains_stop_token<std::tuple<Args...>>
+{
+};
+
+template<class C, typename R, typename... Args>
+struct wants_stop_token<R (C::*)(Args...)> : public contains_stop_token<std::tuple<Args...>>
+{
+};
+
+template<class C, typename R, typename... Args>
+struct wants_stop_token<R (C::*)(Args...) const> : public contains_stop_token<std::tuple<Args...>>
+{
+};
+
+template<typename T> static constexpr bool wants_stop_token_v = wants_stop_token<T>::value;
+
 }// namespace be
