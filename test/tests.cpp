@@ -7,6 +7,7 @@
 #include <task_pool.h>
 #include <thread>
 #include <vector>
+#include <numeric>
 
 using namespace std::chrono_literals;
 

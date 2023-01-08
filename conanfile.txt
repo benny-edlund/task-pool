@@ -2,8 +2,6 @@
 
 [requires]
 catch2/2.13.9
-cli11/2.2.0
-spdlog/1.10.0
 
 [generators]
 cmake_find_package_multi
