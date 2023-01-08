@@ -43,7 +43,7 @@ jobs:
           - Debug
         developer_mode:
           - OFF
-          #- ON
+          - ON
 
         #exclude:
           # mingw is determined by this author to be too buggy to support
