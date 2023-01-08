@@ -43,15 +43,15 @@ jobs:
           - Release
           - Debug
         developer_mode:
-          - ON
           - OFF
+          #- ON
 
         exclude:
           # mingw is determined by this author to be too buggy to support
-          - os: macos-11
-            compiler: gcc-11
-          - os: ubuntu-20.04
-            compiler: llvm-10.0.0
+          #- os: macos-11
+          #  compiler: gcc-11
+          #- os: ubuntu-20.04
+          #  compiler: llvm-10.0.0
 
         include:
           # Add appropriate variables for gcov version required. This will intentionally break
