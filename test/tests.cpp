@@ -107,7 +107,7 @@ TEST_CASE("get_tasks_running", "[task_pool]")
     while (!started) { std::this_thread::sleep_for(1ms); }
     REQUIRE(pool.get_tasks_running() == 1);
     finish = true;
-    future.wait();
+    pool.wait_for_tasks();
     REQUIRE(pool.get_tasks_running() == 0);
 }
 
