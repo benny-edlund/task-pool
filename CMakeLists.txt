@@ -138,14 +138,14 @@ option(ENABLE_TESTING "Enable the tests" ${PROJECT_IS_TOP_LEVEL})
 if(ENABLE_TESTING)
   enable_testing()
   #message(AUTHOR_WARNING "Building Tests. Be sure to check out test/constexpr_tests.cpp for constexpr testing")
-    add_subdirectory(test)
+   add_subdirectory(test)
 endif()
 
-option(ENABLE_FUZZING "Enable the fuzz tests" ON)
+option(ENABLE_FUZZING "Enable the fuzz tests" OFF)
 if(ENABLE_FUZZING)
   #message(AUTHOR_WARNING "Building Fuzz Tests, using fuzzing sanitizer https://www.llvm.org/docs/LibFuzzer.html")
-  add_subdirectory(fuzz_test)
 endif()
+  add_subdirectory(fuzz_test)
 
 
 # If MSVC is being used, and ASAN is enabled, we need to set the debugger environment
