@@ -45,8 +45,11 @@ struct task_pool::Impl
 
     void destroy_threads()
     {
-        abort_ = true;
-        task_added_.notify_all();
+        {
+            std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
+            abort_ = true;
+            task_added_.notify_all();
+        }
         for (unsigned i = 0; i < thread_count_; ++i) {
             if (threads_[i].joinable()) { threads_[i].join(); }
         }
@@ -119,17 +122,15 @@ struct task_pool::Impl
         waiting_ = false;
     }
 
-    void cooperative_abort()
-    {
-        destroy_threads();
-    }
+    void cooperative_abort() { destroy_threads(); }
 
     std::atomic<bool> const &get_stop_token() const { return abort_; }
 
     void worker()
     {
-        while (!abort_) {
+        for (;;) {
             std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
+            if (abort_) { break; };
             task_added_.wait(tasks_lock, [this] { return !tasks_.empty() || abort_; });
             if (!abort_ && !paused_) {
                 task_proxy proxy = std::move(tasks_.front());
@@ -148,7 +149,7 @@ task_pool::task_pool(const unsigned thread_count) : impl_{ new Impl(thread_count
 task_pool::~task_pool()
 {
     impl_.reset();
-    //if (impl_ != nullptr) { impl_->cooperative_abort(); }
+    // if (impl_ != nullptr) { impl_->cooperative_abort(); }
 }
 
 task_pool::task_pool(task_pool &&other) noexcept : impl_(std::move(other.impl_)) { other.impl_.reset(); }
