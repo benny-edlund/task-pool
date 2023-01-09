@@ -1,9 +1,8 @@
 # task-pool
 
 [![ci](https://github.com/benny-edlund/task-pool/actions/workflows/ci.yml/badge.svg)](https://github.com/benny-edlund/task-pool/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/benny-edlund/task-pool/branch/main/graph/badge.svg)](https://codecov.io/gh/benny-edlund/task-pool)
+[![codecov](https://codecov.io/gh/benny-edlund/task-pool/branch/main/graph/badge.svg?token=ONIOP80W68)](https://codecov.io/gh/benny-edlund/task-pool)
 [![CodeQL](https://github.com/benny-edlund/task-pool/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/benny-edlund/task-pool/actions/workflows/codeql-analysis.yml)
-
 ## About the library
 
 The goal of task_pool was to write a minimal yet capable thread-pool library in C++14 with support for some non obvious
