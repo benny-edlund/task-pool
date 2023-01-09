@@ -1,4 +1,4 @@
-project(lib-task-pool)
+ project(lib-task-pool)
 add_library(task_pool task_pool.cpp task_pool.h)
 
 if (UNIX)

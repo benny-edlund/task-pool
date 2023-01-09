@@ -39,6 +39,7 @@ project(
   HOMEPAGE_URL "%%https://github.com/benny-edlund/task-pool%%"
   LANGUAGES CXX C)
 
+
 # This variable is set by project() in CMake 3.21+
 string(
   COMPARE EQUAL
@@ -49,6 +50,9 @@ if(PROJECT_IS_TOP_LEVEL)
   # Consider the CTest module, which creates targets and options!
   # Only needed if you want to enable submissions to a CDash server.
   include(CTest)
+if(CMAKE_COMPILER_IS_GNUCXX)
+  LIST(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake_modules")
+endif()
 endif()
 
 set(GIT_SHA
