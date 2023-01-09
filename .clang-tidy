@@ -11,6 +11,7 @@ Checks: "*,
         -readability-else-after-return,
         -readability-static-accessed-through-instance,
         -readability-avoid-const-params-in-decls,
+        -readability-identifier-length,
         -cppcoreguidelines-non-private-member-variables-in-classes,
         -misc-non-private-member-variables-in-classes,
 "
