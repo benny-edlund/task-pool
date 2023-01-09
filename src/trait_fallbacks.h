@@ -101,11 +101,12 @@ template<template<typename...> class Tuple> struct contains_stop_token<Tuple<>> 
 
 template<template<typename...> class Tuple, typename... Args>
 struct contains_stop_token<Tuple<Args...>>
-    : public std::is_same<stop_token, std::decay_t<std::tuple_element_t<sizeof...(Args)-1, std::tuple<Args...>>>>
+    : public std::is_same<stop_token, std::decay_t<std::tuple_element_t<sizeof...(Args) - 1, std::tuple<Args...>>>>
 {
 };
 
-template<typename T> struct wants_stop_token : public wants_stop_token<decltype(&T::operator())>
+template<typename T, typename Functor = std::remove_reference_t<std::remove_cv_t<T>>>
+struct wants_stop_token : public wants_stop_token<decltype(&Functor::operator())>
 {
 };
 

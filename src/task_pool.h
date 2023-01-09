@@ -4,6 +4,7 @@
 #include <functional>
 #include <future>
 #include <memory>
+#include <type_traits>
 
 namespace be {
 

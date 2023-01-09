@@ -78,18 +78,18 @@ jobs:
           #  build_type: Release
           #  developer_mode: On
 
-          - os: windows-2022
-            compiler: msvc
-            generator: "Visual Studio 17 2022"
-            build_type: Debug
-            developer_mode: OFF
+          # - os: windows-2022
+          #   compiler: msvc
+          #   generator: "Visual Studio 17 2022"
+          #   build_type: Debug
+          #   developer_mode: OFF
 
-          - os: windows-2022
-            compiler: msvc
-            generator: "Visual Studio 17 2022"
-            build_type: Release
-            developer_mode: OFF
-            package_generator: ZIP
+          # - os: windows-2022
+          #   compiler: msvc
+          #   generator: "Visual Studio 17 2022"
+          #   build_type: Release
+          #   developer_mode: OFF
+          #   package_generator: ZIP
 
 
     steps:
@@ -180,13 +180,13 @@ jobs:
           files: |
             build/*-*${{ matrix.build_type }}*-*.*
 
-
-      - name: Publish to codecov # Only  doing coverage from the GCC / Debug build
-        if: matrix.compiler == 'gcc-11' && matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF'
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./build/coverage.xml # optional
-          flags: unittests # optional
-          fail_ci_if_error: true # optional (default = false)
-          verbose: true # optional (default = false)
+      # Disabled as it keeps sending empty coverage
+      # - name: Publish to codecov # Only  doing coverage from the GCC / Debug build
+      #   if: matrix.compiler == 'gcc-11' && matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF'
+      #   uses: codecov/codecov-action@v3
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     files: ./build/coverage.xml # optional
+      #     flags: unittests # optional
+      #     fail_ci_if_error: true # optional (default = false)
+      #     verbose: true # optional (default = false)

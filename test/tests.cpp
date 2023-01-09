@@ -2,7 +2,9 @@
 #include <atomic>
 #include <catch2/catch.hpp>
 #include <chrono>
+#include <exception>
 #include <iostream>
+#include <memory>
 #include <numeric>
 #include <random>
 #include <task_pool.h>
@@ -22,6 +24,14 @@ TEST_CASE("construction/thread-count", "[task_pool]")
         auto actual = pool.get_thread_count();
         REQUIRE(actual == expected);
     }
+}
+
+TEST_CASE("construction/default value", "[task_pool]")
+{
+    auto expected = std::thread::hardware_concurrency();
+    be::task_pool pool;
+    auto actual = pool.get_thread_count();
+    REQUIRE(actual == expected);
 }
 
 TEST_CASE("move construct", "[task_pool]")
@@ -134,7 +144,9 @@ TEST_CASE("pause/is_paused/unpause", "[task_pool]")
 {
     std::atomic_bool finish{ false };
     be::task_pool pool(1);
+    REQUIRE_FALSE(pool.is_paused());
     pool.pause();
+    REQUIRE(pool.is_paused());
     REQUIRE(pool.get_tasks_total() == 0);
     auto _ = pool.submit([&]() -> void {
         while (!finish) { std::this_thread::sleep_for(1ms); }
@@ -143,6 +155,7 @@ TEST_CASE("pause/is_paused/unpause", "[task_pool]")
     REQUIRE(pool.get_tasks_total() == 1);
     REQUIRE(pool.get_tasks_running() == 0);
     pool.unpause();
+    REQUIRE_FALSE(pool.is_paused());
     std::this_thread::sleep_for(1ms);
     REQUIRE(pool.get_tasks_running() == 1);
     finish = true;
@@ -484,4 +497,450 @@ TEST_CASE("Special callable types", "[task_pool][submit]")
             pool.abort();
         }
     }
+}
+
+//
+// Checking submit overloads - success branch
+//
+TEST_CASE("void()& function", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    auto fun = [&]() { called = true; };
+    be::task_pool pool(1);
+    auto future = pool.submit(fun);
+    future.wait();
+    REQUIRE(called == true);
+}
+TEST_CASE("void()&& function", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit([&]() { called = true; });
+    future.wait();
+    REQUIRE(called == true);
+}
+
+TEST_CASE("void(... be::stop_token)& function", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    auto fun = [](std::atomic_bool *check, be::stop_token /*abort*/) mutable { *check = true; };
+    be::task_pool pool(1);
+    auto future = pool.submit(fun, &called);
+    future.wait();
+    REQUIRE(called == true);
+}
+
+TEST_CASE("void(... be::stop_token)&& function", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future =
+        pool.submit([](std::atomic_bool *check, be::stop_token /*abort*/) mutable { *check = true; }, &called);
+    future.wait();
+    REQUIRE(called == true);
+}
+
+TEST_CASE("bool()& function", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    auto fun = [&]() {
+        called = true;
+        return true;
+    };
+    be::task_pool pool(1);
+    auto future = pool.submit(fun);
+    auto actual = future.get();
+    REQUIRE(called == true);
+    REQUIRE(actual == true);
+}
+
+TEST_CASE("bool()&& function", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit([&]() {
+        called = true;
+        return true;
+    });
+    auto actual = future.get();
+    REQUIRE(called == true);
+    REQUIRE(actual == true);
+}
+
+TEST_CASE("bool(... be::stop_token)& function", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    auto fun = [](std::atomic_bool *check, be::stop_token /*abort*/) mutable {
+        *check = true;
+        return true;
+    };
+    be::task_pool pool(1);
+    auto future = pool.submit(fun, &called);
+    auto actual = future.get();
+    REQUIRE(called == true);
+    REQUIRE(actual == true);
+}
+
+TEST_CASE("bool(... be::stop_token)&& function", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit(
+        [](std::atomic_bool *check, be::stop_token /*abort*/) mutable {
+            *check = true;
+            return true;
+        },
+        &called);
+    auto actual = future.get();
+    REQUIRE(called == true);
+    REQUIRE(actual == true);
+}
+
+//
+// Checking submit overloads - fail branch
+//
+
+struct test_exception : public std::exception
+{
+};
+
+TEST_CASE("void()& function throws", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    auto fun = [&]() {
+        called = true;
+        throw test_exception{};
+    };
+    be::task_pool pool(1);
+    auto future = pool.submit(fun);
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+TEST_CASE("void()&& function throws", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit([&]() {
+        called = true;
+        throw test_exception{};
+    });
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+
+TEST_CASE("void(... be::stop_token)& function throws", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    auto fun = [](std::atomic_bool *check, be::stop_token /*abort*/) mutable {
+        *check = true;
+        throw test_exception{};
+    };
+    be::task_pool pool(1);
+    auto future = pool.submit(fun, &called);
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+
+TEST_CASE("void(... be::stop_token)&& function throws", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit(
+        [](std::atomic_bool *check, be::stop_token /*abort*/) mutable {
+            *check = true;
+            throw test_exception{};
+        },
+        &called);
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+
+TEST_CASE("bool()& function throws", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    auto fun = [&]() {
+        called = true;
+        throw test_exception{};
+        return true;
+    };
+    be::task_pool pool(1);
+    auto future = pool.submit(fun);
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+
+TEST_CASE("bool()&& function throws", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit([&]() {
+        called = true;
+        throw test_exception{};
+        return true;
+    });
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+
+TEST_CASE("bool(... be::stop_token)& function throws", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    auto fun = [](std::atomic_bool *check, be::stop_token /*abort*/) mutable {
+        *check = true;
+        throw test_exception{};
+        return true;
+    };
+    be::task_pool pool(1);
+    auto future = pool.submit(fun, &called);
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+
+TEST_CASE("bool(... be::stop_token)&& function throws", "[task_pool][submit]")
+{
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit(
+        [](std::atomic_bool *check, be::stop_token /*abort*/) mutable {
+            *check = true;
+            throw test_exception{};
+            return true;
+        },
+        &called);
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+
+
+//
+// Checking submit overloads with allocator - success branch
+//
+TEST_CASE("void()& function with allocator", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    auto fun = [&]() { called = true; };
+    be::task_pool pool(1);
+    auto future = pool.submit(std::allocator_arg_t{}, alloc, fun);
+    future.wait();
+    REQUIRE(called == true);
+}
+TEST_CASE("void()&& function with allocator", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit(std::allocator_arg_t{}, alloc, [&]() { called = true; });
+    future.wait();
+    REQUIRE(called == true);
+}
+
+TEST_CASE("void(... be::stop_token)& function with allocator", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    auto fun = [](std::atomic_bool *check, be::stop_token /*abort*/) mutable { *check = true; };
+    be::task_pool pool(1);
+    auto future = pool.submit(std::allocator_arg_t{}, alloc, fun, &called);
+    future.wait();
+    REQUIRE(called == true);
+}
+
+TEST_CASE("void(... be::stop_token)&& function with allocator", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit(
+        std::allocator_arg_t{},
+        alloc,
+        [](std::atomic_bool *check, be::stop_token /*abort*/) mutable { *check = true; },
+        &called);
+    future.wait();
+    REQUIRE(called == true);
+}
+
+TEST_CASE("bool()& function with allocator", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    auto fun = [&]() {
+        called = true;
+        return true;
+    };
+    be::task_pool pool(1);
+    auto future = pool.submit(std::allocator_arg_t{}, alloc, fun);
+    auto actual = future.get();
+    REQUIRE(called == true);
+    REQUIRE(actual == true);
+}
+
+TEST_CASE("bool()&& function with allocator", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit(std::allocator_arg_t{}, alloc, [&]() {
+        called = true;
+        return true;
+    });
+    auto actual = future.get();
+    REQUIRE(called == true);
+    REQUIRE(actual == true);
+}
+
+TEST_CASE("bool(... be::stop_token)& function with allocator", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    auto fun = [](std::atomic_bool *check, be::stop_token /*abort*/) mutable {
+        *check = true;
+        return true;
+    };
+    be::task_pool pool(1);
+    auto future = pool.submit(std::allocator_arg_t{}, alloc, fun, &called);
+    auto actual = future.get();
+    REQUIRE(called == true);
+    REQUIRE(actual == true);
+}
+
+TEST_CASE("bool(... be::stop_token)&& function with allocator", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit(
+        std::allocator_arg_t{},
+        alloc,
+        [](std::atomic_bool *check, be::stop_token /*abort*/) mutable {
+            *check = true;
+            return true;
+        },
+        &called);
+    auto actual = future.get();
+    REQUIRE(called == true);
+    REQUIRE(actual == true);
+}
+
+//
+// Checking submit overloads with allocator - fail branch
+//
+
+TEST_CASE("void()& function with allocator throws", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    auto fun = [&]() {
+        called = true;
+        throw test_exception{};
+    };
+    be::task_pool pool(1);
+    auto future = pool.submit(std::allocator_arg_t{}, alloc, fun);
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+TEST_CASE("void()&& function with allocator throws", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit(std::allocator_arg_t{}, alloc, [&]() {
+        called = true;
+        throw test_exception{};
+    });
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+
+TEST_CASE("void(... be::stop_token)& function with allocator throws", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    auto fun = [](std::atomic_bool *check, be::stop_token /*abort*/) mutable {
+        *check = true;
+        throw test_exception{};
+    };
+    be::task_pool pool(1);
+    auto future = pool.submit(std::allocator_arg_t{}, alloc, fun, &called);
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+
+TEST_CASE("void(... be::stop_token)&& function with allocator throws", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit(
+        std::allocator_arg_t{},
+        alloc,
+        [](std::atomic_bool *check, be::stop_token /*abort*/) mutable {
+            *check = true;
+            throw test_exception{};
+        },
+        &called);
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+
+TEST_CASE("bool()& function with allocator throws", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    auto fun = [&]() {
+        called = true;
+        throw test_exception{};
+        return true;
+    };
+    be::task_pool pool(1);
+    auto future = pool.submit(std::allocator_arg_t{}, alloc, fun);
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+
+TEST_CASE("bool()&& function with allocator throws", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit(std::allocator_arg_t{}, alloc, [&]() {
+        called = true;
+        throw test_exception{};
+        return true;
+    });
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+
+TEST_CASE("bool(... be::stop_token)& function with allocator throws", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    auto fun = [](std::atomic_bool *check, be::stop_token /*abort*/) mutable {
+        *check = true;
+        throw test_exception{};
+        return true;
+    };
+    be::task_pool pool(1);
+    auto future = pool.submit(std::allocator_arg_t{}, alloc, fun, &called);
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
+}
+
+TEST_CASE("bool(... be::stop_token)&& function with allocator throws", "[task_pool][submit]")
+{
+    std::allocator<int> alloc;
+    std::atomic_bool called;
+    be::task_pool pool(1);
+    auto future = pool.submit(
+        std::allocator_arg_t{},
+        alloc,
+        [](std::atomic_bool *check, be::stop_token /*abort*/) mutable {
+            *check = true;
+            throw test_exception{};
+            return true;
+        },
+        &called);
+    REQUIRE_THROWS_AS(future.get(), test_exception);
+    REQUIRE(called == true);
 }
