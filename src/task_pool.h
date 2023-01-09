@@ -157,7 +157,7 @@ class task_pool
         template<typename Task>
         explicit task_proxy(Task *task)
             : execute_task([](void *x) { (*static_cast<Task *>(x))(); }),
-              storage(task, [](void *x) { delete static_cast<Task *>(x); })
+              storage(task, [](void *x) { delete static_cast<Task *>(x); }) // NOLINT
         {}
         /**
          * @brief Constructs a proxy around a task with allocator support
@@ -218,7 +218,7 @@ class task_pool
     /**
      * @brief Constructs a task_pool with given amount of threads
      */
-    task_pool(const unsigned = 0);
+    explicit task_pool(const unsigned = 0);
 
     /**
      * @brief Destroys the task_pool. Will attempt to cancel tasks that allow it and join all threads.
