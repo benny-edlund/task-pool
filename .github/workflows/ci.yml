@@ -181,7 +181,8 @@ jobs:
             build/*-*${{ matrix.build_type }}*-*.*
 
 
-      - name: Publish to codecov
+      - name: Publish to codecov # Only  doing coverage from the GCC / Debug build
+        if: ${{ contains(matrix.compiler, 'gcc') && !contains(matrix.build_type, 'Debug') }}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
