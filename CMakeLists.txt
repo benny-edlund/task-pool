@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD 14)
 # when compiling with PCH enabled
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Note: by default ENABLE_DEVELOPER_MODE is True
 # This means that all analysis (sanitizers, static analysis)
 # is enabled and all warnings are treated as errors
@@ -38,7 +39,6 @@ project(
   DESCRIPTION ""
   HOMEPAGE_URL "%%https://github.com/benny-edlund/task-pool%%"
   LANGUAGES CXX C)
-
 
 # This variable is set by project() in CMake 3.21+
 string(
@@ -123,6 +123,7 @@ dynamic_project_options(
   --suppress=unmatchedSuppression
   --suppress=passedByValue
   --suppress=syntaxError
+  --suppress=constParameter # buggy
   --inconclusive
 )
 
