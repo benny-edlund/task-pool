@@ -6,9 +6,12 @@ conan-cache/
 
 # User spesific settings
 CMakeUserPresets.json
+compile_commands.json
 
 # IDE files
 .vs/
+.vscode/
+.cache/
 .idea/
 .vscode/
 !.vscode/settings.json
