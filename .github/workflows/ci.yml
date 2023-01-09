@@ -20,7 +20,7 @@ jobs:
   Test:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      fail-fast: true
 
       # Recommendations:
       #   * support at least 2 operating systems
@@ -182,7 +182,7 @@ jobs:
 
 
       - name: Publish to codecov # Only  doing coverage from the GCC / Debug build
-        if: matrix.compiler == 'gcc-11' && matrix.build_type == 'Debug'
+        if: matrix.compiler == 'gcc-11' && matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF'
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
