@@ -12,7 +12,7 @@
 #include <vector>
 
 using namespace std::chrono_literals;
-
+//GCOVR_EXCL_START 
 TEST_CASE("construction/thread-count", "[task_pool]")
 {
     std::vector<unsigned> numbers;
@@ -944,3 +944,4 @@ TEST_CASE("bool(... be::stop_token)&& function with allocator throws", "[task_po
     REQUIRE_THROWS_AS(future.get(), test_exception);
     REQUIRE(called == true);
 }
+//GCOVR_EXCL_STOP
