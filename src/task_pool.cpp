@@ -24,7 +24,7 @@ struct task_pool::Impl
     std::unique_ptr<std::thread[]> threads_;//  NOLINT (c-arrays)
 
     explicit Impl(unsigned thread_count)
-        : thread_count_(compute_thread_count(thread_count)),
+        : thread_count_(determine_thread_count(thread_count)),
           threads_(std::make_unique<std::thread[]>(thread_count))// NOLINT (c-arrays)
     {
         create_threads();
@@ -57,7 +57,7 @@ struct task_pool::Impl
         thread_count_ = 0;
     }
 
-    static unsigned compute_thread_count(const unsigned thread_count)
+    static unsigned determine_thread_count(const unsigned thread_count)
     {
         if (thread_count > 0) {
             return thread_count;
@@ -106,7 +106,7 @@ struct task_pool::Impl
         paused_ = true;
         wait_for_tasks();
         destroy_threads();
-        thread_count_ = compute_thread_count(thread_count);
+        thread_count_ = determine_thread_count(thread_count);
         paused_ = was_paused;
         create_threads();
     }
@@ -149,6 +149,7 @@ task_pool::task_pool(const unsigned thread_count) : impl_{ new Impl(thread_count
 task_pool::~task_pool()
 {
     impl_.reset();
+    // if (impl_ != nullptr) { impl_->cooperative_abort(); }
 }
 
 task_pool::task_pool(task_pool &&other) noexcept : impl_(std::move(other.impl_)) { other.impl_.reset(); }
