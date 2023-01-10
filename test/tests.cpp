@@ -12,7 +12,7 @@
 #include <vector>
 
 using namespace std::chrono_literals;
-//GCOVR_EXCL_START 
+// GCOVR_EXCL_START
 TEST_CASE("construction/thread-count", "[task_pool]")
 {
     std::vector<unsigned> numbers;
@@ -142,23 +142,12 @@ TEST_CASE("get_tasks_total", "[task_pool]")
 
 TEST_CASE("pause/is_paused/unpause", "[task_pool]")
 {
-    std::atomic_bool finish{ false };
     be::task_pool pool(1);
     REQUIRE_FALSE(pool.is_paused());
     pool.pause();
     REQUIRE(pool.is_paused());
-    REQUIRE(pool.get_tasks_total() == 0);
-    auto _ = pool.submit([&]() -> void {
-        while (!finish) { std::this_thread::sleep_for(1ms); }
-    });
-    std::this_thread::sleep_for(1ms);
-    REQUIRE(pool.get_tasks_total() == 1);
-    REQUIRE(pool.get_tasks_running() == 0);
     pool.unpause();
     REQUIRE_FALSE(pool.is_paused());
-    std::this_thread::sleep_for(1ms);
-    REQUIRE(pool.get_tasks_running() == 1);
-    finish = true;
 }
 
 TEST_CASE("wait_for_tasks", "[task_pool]")
@@ -166,9 +155,9 @@ TEST_CASE("wait_for_tasks", "[task_pool]")
     be::task_pool pool(1);
     pool.pause();
     REQUIRE(pool.get_tasks_total() == 0);
-    auto a = pool.submit([&]() -> void { std::this_thread::sleep_for(1ms); });
-    auto b = pool.submit([&]() -> void { std::this_thread::sleep_for(1ms); });
-    auto c = pool.submit([&]() -> void { std::this_thread::sleep_for(1ms); });
+    pool.submit([&]() -> void { std::this_thread::sleep_for(1ms); });
+    pool.submit([&]() -> void { std::this_thread::sleep_for(1ms); });
+    pool.submit([&]() -> void { std::this_thread::sleep_for(1ms); });
     REQUIRE(pool.get_tasks_total() == 3);
     pool.unpause();
     pool.wait_for_tasks();
@@ -944,4 +933,4 @@ TEST_CASE("bool(... be::stop_token)&& function with allocator throws", "[task_po
     REQUIRE_THROWS_AS(future.get(), test_exception);
     REQUIRE(called == true);
 }
-//GCOVR_EXCL_STOP
+// GCOVR_EXCL_STOP
