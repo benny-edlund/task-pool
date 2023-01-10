@@ -442,7 +442,7 @@ TEST_CASE("submit with stop token", "[task_pool][submit]")
     }
     while (!called) { std::this_thread::sleep_for(1ms); }
     pool.abort();
-    REQUIRE( f.wait_for(1s) == std::future_status::ready );
+    REQUIRE(f.wait_for(1s) == std::future_status::ready);
 }
 
 
