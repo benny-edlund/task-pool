@@ -38,44 +38,44 @@ struct stop_token
 };
 
 /**
- * @brief 
+ * @brief
  * A simple and portable thread pool with allocator support and cooperative cancellation
  *
- * @details 
+ * @details
  * task_pool instances are fixed size thread pools that are intended to execute descreet tasks
  *
  * @code{.cpp}
  * // create a pool with four threads
  * be::task_pool pool(4);
- * 
+ *
  * // define some tasks to run
  * auto task1 = []( std::string x) { std::cerr<< "hello " << x << '\n' ); };
  * auto task2 = []( int x ) { return x; };
- * 
+ *
  * // Add tasks to the pool
  * pool.submit( task1, std::string("world") );
- * 
+ *
  * // All task submitted return futures however tasks that return values
  * // must not be disgarded
  * auto result = pool.submit( task2, 42 );
- * 
+ *
  * // Wait for all submitted tasks to complete
  * pool.wait_for_tasks();
- * 
+ *
  * // Access result from task2
  * std::cerr << "The anwser is " << result.get();
  * @endcode
  *
  * task_pools support a simple form of cooperative cancellation by allowing
  * submitted tasks that take a special type, the stop_token, to check if
- * the owning pool needs finish work early. 
- * 
+ * the owning pool needs finish work early.
+ *
  * Tasks may use the token to abort active work allowing the pool to shutdown
- * 
+ *
  * @code{.cpp}
  * {
  *     be::task_pool pool;
- *     pool.submit( []( be::stop_token abort ) { 
+ *     pool.submit( []( be::stop_token abort ) {
  *         auto then = std::chrono::now()+10m;
  *         while( !abort && std::chrono::now()<then ) {
  *             std::this_thread::sleep_for(1ms);
@@ -86,15 +86,15 @@ struct stop_token
  *     // full 10 minutes it takes for the task to finish its work
  * }
  * @endcode
- * 
+ *
  * Task may be submitted from various callable types including function pointers
  * member functions and mutable lambdas with captures.
- * 
+ *
  * @code{.cpp}
  * be::task_pool pool;
- * 
- * struct work_data { int value; }; 
- * 
+ *
+ * struct work_data { int value; };
+ *
  * // Free functions that expect values
  * void work_item( work_data data, be::stop_token abort ) {
  *     if ( !abort ) {
@@ -102,7 +102,7 @@ struct stop_token
  *     }
  * }
  * pool.submit(&work_item,work_data{42});
- * 
+ *
  * // Objects with templated call operators and auto return types
  * struct work
  * {
@@ -113,31 +113,31 @@ struct stop_token
  * };
  * auto result = pool.submit( work{}, work_data{ 42 } );
  * @endcode
- * 
+ *
  * // Member functions can also be bound if their owning instance is
  * // rechable at execution time
- * 
+ *
  * class special_work
  * {
  *     void do_something();
  * public:
- *     void run(be::stop_token abort) { while( !abort ) do_something(); } 
+ *     void run(be::stop_token abort) { while( !abort ) do_something(); }
  * };
- * 
+ *
  * special_work task;
  * pool.submit(&special_work::run,&task);
  * @endcode
- * 
+ *
  * Tasks submitted to task_pools require intermediate storage on the heap and this can become a limiting
  * factor to applications. To help task_pool supports using custom allocators for storing tasks until executed
  * as well as the shared state of the std::futures used.
- * 
+ *
  * @code{.cpp}
  * be::task_pool pool;
- * 
+ *
  * // std::allocator_arg_t is used to disambiguate the overloads to task_pool::submit
  * pool.submit( std::allocator_arg_t{}, allocator, &fun );
- * 
+ *
  * @endcode
  */
 class task_pool
@@ -158,7 +158,7 @@ class task_pool
         template<typename Task>
         explicit task_proxy(Task *task)
             : execute_task([](void *x) { (*static_cast<Task *>(x))(); }),
-              storage(task, [](void *x) { delete static_cast<Task *>(x); }) // NOLINT
+              storage(task, [](void *x) { delete static_cast<Task *>(x); })// NOLINT
         {}
         /**
          * @brief Constructs a proxy around a task with allocator support
