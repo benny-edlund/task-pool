@@ -65,7 +65,7 @@ jobs:
           - build_type: Release
             developer_mode: OFF
             package_generator: TBZ2
-B
+
           #- os: windows-2022
           #  compiler: msvc
           #  generator: "Visual Studio 17 2022"
