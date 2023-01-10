@@ -3,6 +3,7 @@
 #include <catch2/catch.hpp>
 #include <chrono>
 #include <exception>
+#include <future>
 #include <iostream>
 #include <memory>
 #include <numeric>
@@ -431,7 +432,6 @@ TEST_CASE("submit with stop token", "[task_pool][submit]")
 {
 
     be::task_pool pool(1);
-    pool.pause();
     std::atomic_bool called{ false };
     std::future<void> f;
     {
@@ -440,11 +440,9 @@ TEST_CASE("submit with stop token", "[task_pool][submit]")
             while (!stop) { std::this_thread::sleep_for(1ms); }
         });
     }
-    pool.unpause();
-    std::this_thread::sleep_for(1ms);
+    while (!called) { std::this_thread::sleep_for(1ms); }
     pool.abort();
-    f.wait();
-    REQUIRE(called);
+    REQUIRE( f.wait_for(1s) == std::future_status::ready );
 }
 
 
