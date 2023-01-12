@@ -775,7 +775,8 @@ TEST_CASE( "void()&& function with allocator", "[task_pool][submit][allocator]" 
     REQUIRE( called == true );
 }
 
-TEST_CASE( "void(... be::stop_token)& function with allocator", "[task_pool][submit][stop_token][allocator]" )
+TEST_CASE( "void(... be::stop_token)& function with allocator",
+           "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -786,7 +787,8 @@ TEST_CASE( "void(... be::stop_token)& function with allocator", "[task_pool][sub
     REQUIRE( called == true );
 }
 
-TEST_CASE( "void(... be::stop_token)&& function with allocator", "[task_pool][submit][stop_token][allocator]" )
+TEST_CASE( "void(... be::stop_token)&& function with allocator",
+           "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -829,7 +831,8 @@ TEST_CASE( "bool()&& function with allocator", "[task_pool][submit][allocator]" 
     REQUIRE( actual == true );
 }
 
-TEST_CASE( "bool(... be::stop_token)& function with allocator", "[task_pool][submit][stop_token][allocator]" )
+TEST_CASE( "bool(... be::stop_token)& function with allocator",
+           "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -844,7 +847,8 @@ TEST_CASE( "bool(... be::stop_token)& function with allocator", "[task_pool][sub
     REQUIRE( actual == true );
 }
 
-TEST_CASE( "bool(... be::stop_token)&& function with allocator", "[task_pool][submit][stop_token][allocator]" )
+TEST_CASE( "bool(... be::stop_token)&& function with allocator",
+           "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -892,7 +896,8 @@ TEST_CASE( "void()&& function with allocator throws", "[task_pool][submit]" )
     REQUIRE( called == true );
 }
 
-TEST_CASE( "void(... be::stop_token)& function with allocator throws", "[task_pool][submit][stop_token][allocator]" )
+TEST_CASE( "void(... be::stop_token)& function with allocator throws",
+           "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -906,7 +911,8 @@ TEST_CASE( "void(... be::stop_token)& function with allocator throws", "[task_po
     REQUIRE( called == true );
 }
 
-TEST_CASE( "void(... be::stop_token)&& function with allocator throws", "[task_pool][submit][stop_token][allocator]" )
+TEST_CASE( "void(... be::stop_token)&& function with allocator throws",
+           "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -952,7 +958,8 @@ TEST_CASE( "bool()&& function with allocator throws", "[task_pool][submit][alloc
     REQUIRE( called == true );
 }
 
-TEST_CASE( "bool(... be::stop_token)& function with allocator throws", "[task_pool][submit][stop_token][allocator]" )
+TEST_CASE( "bool(... be::stop_token)& function with allocator throws",
+           "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -967,7 +974,8 @@ TEST_CASE( "bool(... be::stop_token)& function with allocator throws", "[task_po
     REQUIRE( called == true );
 }
 
-TEST_CASE( "bool(... be::stop_token)&& function with allocator throws", "[task_pool][submit][stop_token][allocator]" )
+TEST_CASE( "bool(... be::stop_token)&& function with allocator throws",
+           "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
