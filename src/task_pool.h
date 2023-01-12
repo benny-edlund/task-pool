@@ -2,13 +2,13 @@
 
 #include "trait_fallbacks.h"
 #include <algorithm>
+#include <array>
 #include <exception>
 #include <functional>
 #include <future>
 #include <memory>
 #include <type_traits>
 #include <utility>
-#include <array>
 
 namespace be {
 
