@@ -404,7 +404,7 @@ constexpr bool operator!=( const counting_allocator< T >& /*T*/,
     return true;
 }
 
-TEST_CASE( "submit with result allocator", "[task_pool][submit]" )
+TEST_CASE( "submit with result allocator", "[task_pool][submit][allocator]" )
 {
     std::atomic_bool          called{ false };
     counts                    amounts;
@@ -433,7 +433,7 @@ TEST_CASE( "submit with result allocator", "[task_pool][submit]" )
     CHECK( amounts.constructions > 0 );
 }
 
-TEST_CASE( "submit without result allocator", "[task_pool][submit]" )
+TEST_CASE( "submit without result allocator", "[task_pool][submit][allocator]" )
 {
     std::atomic_bool           called{ false };
     counts                     amounts;
@@ -460,7 +460,7 @@ TEST_CASE( "submit without result allocator", "[task_pool][submit]" )
 
 void fun_with_token( be::stop_token /*unused*/ );
 
-TEST_CASE( "wants_stop_token", "[task_pool][submit]" )
+TEST_CASE( "wants_stop_token", "[task_pool][submit][stop_token]" )
 {
     auto func     = []( be::stop_token /*unused*/ ) {};
     auto func_mut = []( be::stop_token /*unused*/ ) mutable {};
@@ -470,7 +470,7 @@ TEST_CASE( "wants_stop_token", "[task_pool][submit]" )
     STATIC_REQUIRE( be::wants_stop_token_v< decltype( func_mut ) > == true );
 }
 
-TEST_CASE( "submit with stop token", "[task_pool][submit]" )
+TEST_CASE( "submit with stop token", "[task_pool][submit][stop_token]" )
 {
     be::task_pool       pool( 1 );
     std::atomic_bool    called{ false };
@@ -501,7 +501,7 @@ struct work
     }
 };
 
-TEST_CASE( "Special callable types", "[task_pool][submit]" )
+TEST_CASE( "Special callable types", "[task_pool][submit][stop_token]" )
 {
     {
         be::task_pool pool{ 1 };
@@ -560,7 +560,7 @@ TEST_CASE( "void()&& function", "[task_pool][submit]" )
     REQUIRE( called == true );
 }
 
-TEST_CASE( "void(... be::stop_token)& function", "[task_pool][submit]" )
+TEST_CASE( "void(... be::stop_token)& function", "[task_pool][submit][stop_token]" )
 {
     std::atomic_bool called;
     auto fun = []( std::atomic_bool* check, be::stop_token /*abort*/ ) mutable { *check = true; };
@@ -608,7 +608,7 @@ TEST_CASE( "bool()&& function", "[task_pool][submit]" )
     REQUIRE( actual == true );
 }
 
-TEST_CASE( "bool(... be::stop_token)& function", "[task_pool][submit]" )
+TEST_CASE( "bool(... be::stop_token)& function", "[task_pool][submit][stop_token]" )
 {
     std::atomic_bool called;
     auto             fun = []( std::atomic_bool* check, be::stop_token /*abort*/ ) mutable {
@@ -622,7 +622,7 @@ TEST_CASE( "bool(... be::stop_token)& function", "[task_pool][submit]" )
     REQUIRE( actual == true );
 }
 
-TEST_CASE( "bool(... be::stop_token)&& function", "[task_pool][submit]" )
+TEST_CASE( "bool(... be::stop_token)&& function", "[task_pool][submit][stop_token]" )
 {
     std::atomic_bool called;
     be::task_pool    pool( 1 );
@@ -669,7 +669,7 @@ TEST_CASE( "void()&& function throws", "[task_pool][submit]" )
     REQUIRE( called == true );
 }
 
-TEST_CASE( "void(... be::stop_token)& function throws", "[task_pool][submit]" )
+TEST_CASE( "void(... be::stop_token)& function throws", "[task_pool][submit][stop_token]" )
 {
     std::atomic_bool called;
     auto             fun = []( std::atomic_bool* check, be::stop_token /*abort*/ ) mutable {
@@ -682,7 +682,7 @@ TEST_CASE( "void(... be::stop_token)& function throws", "[task_pool][submit]" )
     REQUIRE( called == true );
 }
 
-TEST_CASE( "void(... be::stop_token)&& function throws", "[task_pool][submit]" )
+TEST_CASE( "void(... be::stop_token)&& function throws", "[task_pool][submit][stop_token]" )
 {
     std::atomic_bool called;
     be::task_pool    pool( 1 );
@@ -723,7 +723,7 @@ TEST_CASE( "bool()&& function throws", "[task_pool][submit]" )
     REQUIRE( called == true );
 }
 
-TEST_CASE( "bool(... be::stop_token)& function throws", "[task_pool][submit]" )
+TEST_CASE( "bool(... be::stop_token)& function throws", "[task_pool][submit][stop_token]" )
 {
     std::atomic_bool called;
     auto             fun = []( std::atomic_bool* check, be::stop_token /*abort*/ ) mutable {
@@ -737,7 +737,7 @@ TEST_CASE( "bool(... be::stop_token)& function throws", "[task_pool][submit]" )
     REQUIRE( called == true );
 }
 
-TEST_CASE( "bool(... be::stop_token)&& function throws", "[task_pool][submit]" )
+TEST_CASE( "bool(... be::stop_token)&& function throws", "[task_pool][submit][stop_token]" )
 {
     std::atomic_bool called;
     be::task_pool    pool( 1 );
@@ -755,7 +755,7 @@ TEST_CASE( "bool(... be::stop_token)&& function throws", "[task_pool][submit]" )
 //
 // Checking submit overloads with allocator - success branch
 //
-TEST_CASE( "void()& function with allocator", "[task_pool][submit]" )
+TEST_CASE( "void()& function with allocator", "[task_pool][submit][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -765,7 +765,7 @@ TEST_CASE( "void()& function with allocator", "[task_pool][submit]" )
     future.wait();
     REQUIRE( called == true );
 }
-TEST_CASE( "void()&& function with allocator", "[task_pool][submit]" )
+TEST_CASE( "void()&& function with allocator", "[task_pool][submit][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -775,7 +775,7 @@ TEST_CASE( "void()&& function with allocator", "[task_pool][submit]" )
     REQUIRE( called == true );
 }
 
-TEST_CASE( "void(... be::stop_token)& function with allocator", "[task_pool][submit]" )
+TEST_CASE( "void(... be::stop_token)& function with allocator", "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -786,7 +786,7 @@ TEST_CASE( "void(... be::stop_token)& function with allocator", "[task_pool][sub
     REQUIRE( called == true );
 }
 
-TEST_CASE( "void(... be::stop_token)&& function with allocator", "[task_pool][submit]" )
+TEST_CASE( "void(... be::stop_token)&& function with allocator", "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -800,7 +800,7 @@ TEST_CASE( "void(... be::stop_token)&& function with allocator", "[task_pool][su
     REQUIRE( called == true );
 }
 
-TEST_CASE( "bool()& function with allocator", "[task_pool][submit]" )
+TEST_CASE( "bool()& function with allocator", "[task_pool][submit][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -815,7 +815,7 @@ TEST_CASE( "bool()& function with allocator", "[task_pool][submit]" )
     REQUIRE( actual == true );
 }
 
-TEST_CASE( "bool()&& function with allocator", "[task_pool][submit]" )
+TEST_CASE( "bool()&& function with allocator", "[task_pool][submit][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -829,7 +829,7 @@ TEST_CASE( "bool()&& function with allocator", "[task_pool][submit]" )
     REQUIRE( actual == true );
 }
 
-TEST_CASE( "bool(... be::stop_token)& function with allocator", "[task_pool][submit]" )
+TEST_CASE( "bool(... be::stop_token)& function with allocator", "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -844,7 +844,7 @@ TEST_CASE( "bool(... be::stop_token)& function with allocator", "[task_pool][sub
     REQUIRE( actual == true );
 }
 
-TEST_CASE( "bool(... be::stop_token)&& function with allocator", "[task_pool][submit]" )
+TEST_CASE( "bool(... be::stop_token)&& function with allocator", "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -866,7 +866,7 @@ TEST_CASE( "bool(... be::stop_token)&& function with allocator", "[task_pool][su
 // Checking submit overloads with allocator - fail branch
 //
 
-TEST_CASE( "void()& function with allocator throws", "[task_pool][submit]" )
+TEST_CASE( "void()& function with allocator throws", "[task_pool][submit][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -892,7 +892,7 @@ TEST_CASE( "void()&& function with allocator throws", "[task_pool][submit]" )
     REQUIRE( called == true );
 }
 
-TEST_CASE( "void(... be::stop_token)& function with allocator throws", "[task_pool][submit]" )
+TEST_CASE( "void(... be::stop_token)& function with allocator throws", "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -906,7 +906,7 @@ TEST_CASE( "void(... be::stop_token)& function with allocator throws", "[task_po
     REQUIRE( called == true );
 }
 
-TEST_CASE( "void(... be::stop_token)&& function with allocator throws", "[task_pool][submit]" )
+TEST_CASE( "void(... be::stop_token)&& function with allocator throws", "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -923,7 +923,7 @@ TEST_CASE( "void(... be::stop_token)&& function with allocator throws", "[task_p
     REQUIRE( called == true );
 }
 
-TEST_CASE( "bool()& function with allocator throws", "[task_pool][submit]" )
+TEST_CASE( "bool()& function with allocator throws", "[task_pool][submit][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -938,7 +938,7 @@ TEST_CASE( "bool()& function with allocator throws", "[task_pool][submit]" )
     REQUIRE( called == true );
 }
 
-TEST_CASE( "bool()&& function with allocator throws", "[task_pool][submit]" )
+TEST_CASE( "bool()&& function with allocator throws", "[task_pool][submit][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -952,7 +952,7 @@ TEST_CASE( "bool()&& function with allocator throws", "[task_pool][submit]" )
     REQUIRE( called == true );
 }
 
-TEST_CASE( "bool(... be::stop_token)& function with allocator throws", "[task_pool][submit]" )
+TEST_CASE( "bool(... be::stop_token)& function with allocator throws", "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -967,7 +967,7 @@ TEST_CASE( "bool(... be::stop_token)& function with allocator throws", "[task_po
     REQUIRE( called == true );
 }
 
-TEST_CASE( "bool(... be::stop_token)&& function with allocator throws", "[task_pool][submit]" )
+TEST_CASE( "bool(... be::stop_token)&& function with allocator throws", "[task_pool][submit][stop_token][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -1091,7 +1091,21 @@ TEST_CASE( "future_argument<T>", "[task_pool][traits]" )
     STATIC_REQUIRE( std::is_same< void, be::future_argument< std::future< void > >::type >::value );
 }
 
-TEST_CASE( "submit( f, future )", "[task_pool][submit]" )
+TEST_CASE( "submit( f, future )->void", "[task_pool][submit]" )
+{
+    const int           expected = 42;
+    std::atomic_int     actual{ 0 };
+    be::task_pool       pool( 1 );
+    auto                fun_a  = []( int x ) { return x; };
+    auto                fun_b  = [&]( int x ) { actual = x; };
+    std::future< int >  future = pool.submit( fun_a, expected );
+    std::future< void > result = pool.submit( fun_b, std::move( future ) );
+    std::future_status  status = result.wait_for( 1s );
+    REQUIRE( status == std::future_status::ready );
+    REQUIRE( expected == actual );
+}
+
+TEST_CASE( "submit( f, future )->int", "[task_pool][submit]" )
 {
     const int          expected = 42;
     be::task_pool      pool( 1 );
@@ -1103,14 +1117,128 @@ TEST_CASE( "submit( f, future )", "[task_pool][submit]" )
     REQUIRE( result.get() == expected );
 }
 
-// TEST_CASE( "wrap_func", "[task_pool][submit]" )
-// {
-//     double const       expected = 42;
-//     be::task_pool      pool( 2 );
-//     auto               fun    = []( int x ) { return x; };
-//     std::future< int > future = pool.submit( fun, expected );
+TEST_CASE( "submit( f, future, ... ) -> void", "[task_pool][submit]" )
+{
+    const int           X = 42;
+    const int           Y = 42;
+    std::atomic_int     actual{ 0 };
+    be::task_pool       pool( 1 );
+    auto                fun_a    = []( int x ) { return x; };
+    std::future< int >  future_a = pool.submit( fun_a, X );
+    auto                fun_b    = [&]( int x, int y ) { actual = x * y; };
+    std::future< void > result   = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future_status  status   = result.wait_for( 1s );
+    REQUIRE( status == std::future_status::ready );
+    REQUIRE( actual == X * Y );
+}
 
-//     auto defered_fun = wrap_func( fun, std::move( future ) );
-//     pool.wait_for_tasks();
-//     REQUIRE( defered_fun() == expected );
-// }
+TEST_CASE( "submit( f, future, ... ) -> int", "[task_pool][submit]" )
+{
+    const int          X = 42;
+    const int          Y = 42;
+    be::task_pool      pool( 1 );
+    auto               fun_a    = []( int x ) { return x; };
+    std::future< int > future_a = pool.submit( fun_a, X );
+    auto               fun_b    = []( int x, int y ) { return x * y; };
+    std::future< int > result   = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future_status status   = result.wait_for( 1s );
+    REQUIRE( status == std::future_status::ready );
+    REQUIRE( result.get() == X * Y );
+}
+
+TEST_CASE( "submit( f(stop_token), future, ... ) -> int", "[task_pool][submit][stop_token]" )
+{
+    const int          X = 42;
+    const int          Y = 42;
+    be::task_pool      pool( 1 );
+    auto               fun_a    = []( int x, be::stop_token /*abort*/ ) { return x; };
+    std::future< int > future_a = pool.submit( fun_a, X );
+    auto               fun_b    = []( int x, int y, be::stop_token /*abort*/ ) { return x * y; };
+    std::future< int > result   = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future_status status   = result.wait_for( 1s );
+    REQUIRE( status == std::future_status::ready );
+    REQUIRE( result.get() == X * Y );
+}
+
+TEST_CASE( "submit( f(stop_token), future, ... ) -> void", "[task_pool][submit][stop_token]" )
+{
+    const int           X = 42;
+    const int           Y = 42;
+    std::atomic_int     actual{ 0 };
+    be::task_pool       pool( 1 );
+    auto                fun_a    = []( int x, be::stop_token /*abort*/ ) { return x; };
+    std::future< int >  future_a = pool.submit( fun_a, X );
+    auto                fun_b  = [&]( int x, int y, be::stop_token /*abort*/ ) { actual = x * y; };
+    std::future< void > result = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future_status  status = result.wait_for( 1s );
+    REQUIRE( status == std::future_status::ready );
+    REQUIRE( actual == X * Y );
+}
+
+TEST_CASE( "submit( allocator, f(), future, ... ) -> int", "[task_pool][submit][allocator]" )
+{
+    std::allocator< int > alloc;
+    const int             X = 42;
+    const int             Y = 42;
+    be::task_pool         pool( 1 );
+    auto                  fun_a    = []( int x ) { return x; };
+    std::future< int >    future_a = pool.submit( std::allocator_arg_t{}, alloc, fun_a, X );
+    auto                  fun_b    = []( int x, int y ) { return x * y; };
+    std::future< int >    result =
+        pool.submit( std::allocator_arg_t{}, alloc, fun_b, std::move( future_a ), Y );
+    std::future_status status = result.wait_for( 1s );
+    REQUIRE( status == std::future_status::ready );
+    REQUIRE( result.get() == X * Y );
+}
+
+TEST_CASE( "submit( allocator, f(), future, ... ) -> void", "[task_pool][submit]" )
+{
+    std::allocator< int > alloc;
+    const int             X = 42;
+    const int             Y = 42;
+    std::atomic_int       actual{ 0 };
+    be::task_pool         pool( 1 );
+    auto                  fun_a    = []( int x ) { return x; };
+    std::future< int >    future_a = pool.submit( std::allocator_arg_t{}, alloc, fun_a, X );
+    auto                  fun_b    = [&]( int x, int y ) { actual = x * y; };
+    std::future< void >   result =
+        pool.submit( std::allocator_arg_t{}, alloc, fun_b, std::move( future_a ), Y );
+    std::future_status status = result.wait_for( 1s );
+    REQUIRE( status == std::future_status::ready );
+    REQUIRE( actual == X * Y );
+}
+
+TEST_CASE( "submit( allocator, f(stop_token), future, ... ) -> int",
+           "[task_pool][submit][stop_token][allocator]" )
+{
+    std::allocator< int > alloc;
+    const int             X = 42;
+    const int             Y = 42;
+    be::task_pool         pool( 1 );
+    auto                  fun_a    = []( int x ) { return x; };
+    std::future< int >    future_a = pool.submit( std::allocator_arg_t{}, alloc, fun_a, X );
+    auto                  fun_b = []( int x, int y, be::stop_token /*unused*/ ) { return x * y; };
+    std::future< int >    result =
+        pool.submit( std::allocator_arg_t{}, alloc, fun_b, std::move( future_a ), Y );
+    std::future_status status = result.wait_for( 1s );
+    REQUIRE( status == std::future_status::ready );
+    REQUIRE( result.get() == X * Y );
+}
+
+TEST_CASE( "submit( allocator, f(stop_token), future, ... ) -> void",
+           "[task_pool][submit][stop_token][allocator]" )
+{
+    std::allocator< int > alloc;
+    const int             X = 42;
+    const int             Y = 42;
+    std::atomic_int       actual{ 0 };
+    be::task_pool         pool( 1 );
+    auto                  fun_a    = []( int x ) { return x; };
+    std::future< int >    future_a = pool.submit( std::allocator_arg_t{}, alloc, fun_a, X );
+    auto                fun_b = [&]( int x, int y, be::stop_token /*unused*/ ) { actual = x * y; };
+    std::future< void > result =
+        pool.submit( std::allocator_arg_t{}, alloc, fun_b, std::move( future_a ), Y );
+    std::future_status status = result.wait_for( 1s );
+    REQUIRE( status == std::future_status::ready );
+    REQUIRE( actual == X * Y );
+}
