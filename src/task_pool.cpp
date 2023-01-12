@@ -27,7 +27,7 @@ struct task_pool::Impl
     std::unique_ptr< std::thread[] > threads_; //  NOLINT (c-arrays)
 
     explicit Impl( unsigned thread_count )
-        : thread_count_( determine_thread_count( thread_count ) )
+        : thread_count_( compute_thread_count( thread_count ) )
         , threads_( std::make_unique< std::thread[] >( thread_count ) ) // NOLINT (c-arrays)
     {
         create_threads();
@@ -45,7 +45,7 @@ struct task_pool::Impl
         threads_ = std::make_unique< std::thread[] >( thread_count_ ); // NOLINT
         for ( unsigned i = 0; i < thread_count_; ++i )
         {
-            threads_[i] = std::thread( &Impl::worker, this );
+            threads_[i] = std::thread( &Impl::thread_worker, this );
         }
     }
 
@@ -67,7 +67,7 @@ struct task_pool::Impl
         thread_count_ = 0;
     }
 
-    static unsigned determine_thread_count( const unsigned thread_count )
+    static unsigned compute_thread_count( const unsigned thread_count )
     {
         // we need at least two threads to process work and check futures
         if ( thread_count > 0 )
@@ -131,7 +131,7 @@ struct task_pool::Impl
         paused_               = true;
         wait_for_tasks();
         destroy_threads();
-        thread_count_ = determine_thread_count( thread_count );
+        thread_count_ = compute_thread_count( thread_count );
         paused_       = was_paused;
         create_threads();
     }
@@ -152,7 +152,8 @@ struct task_pool::Impl
 
     std::atomic< bool > const& get_stop_token() const { return abort_; }
 
-    std::vector< task_proxy > checker() // must run with waiting_task_mutex held
+    // must run with waiting_task_mutex held
+    std::vector< task_proxy > task_checker()
     {
         if ( abort_ )
         {
@@ -179,31 +180,32 @@ struct task_pool::Impl
     }
 
     /**
-     * @brief Worker thread task
+     * @brief thread_worker thread task
      *
-     * @details All threads run the worker function. Tasks are allowed to take futures as arguments
-     * and instead of blocking an entire thread checking futures, something that can quickly fill up
-     * a thread pool we absorb the future checking into a argument wrapper for the task function.
-     * Then in the worker function we utilize unused threads to check the status of these futures
-     * and when tasks are ready to execute we schedule them.
+     * @details All threads run the thread_worker function to process tasks in the pool.
+     * Additionally one thread may checking argument statuses since tasks in the pool are allowed to
+     * take futures as arguments and potentially resubmitting work to the pool the ready.
      *
-     * The idea would be that there is always some thread waiting on the tasks_mutex_ so before we
-     * take it we try to take the checker mutex and if we succeed we check all tasks that depend on
-     * futures. Once we have checked the futures we wake up any waiting thread to be the next
-     * checker before we take the tasks mutex.
+     * At the head of the worker function we check if there are waiting tasks that need checking and
+     * if so exactly one thread gets the job to update the statuses and resubmit tasks that are
+     * ready for processing.
+     *
+     * The idea would be that there is always some thread waiting on the tasks_mutex_ so there is
+     * probably no rush to get there so before we try to take it and start waiting ourselves we
+     * spend some time checking the input args for tasks that uses futures. Once we have checked the
+     * futures we wake up any waiting thread to be the next task_checker .
      */
-    void worker()
+    void thread_worker()
     {
         for ( ;; )
         {
             {
                 std::vector< task_proxy > ready_tasks;
-                // workers first try to become the checker
-                std::unique_lock< std::mutex > checks_lock( check_tasks_mutex_, std::try_to_lock );
-                if ( checks_lock.owns_lock() && !tasks_to_check_.empty() )
+                // thread_workers first tries to become the next task_checker
+                std::unique_lock< std::mutex > lock( check_tasks_mutex_, std::try_to_lock );
+                if ( lock.owns_lock() && !tasks_to_check_.empty() )
                 {
-                    ready_tasks = checker();
-                    task_added_.notify_one(); // wake up the next checker
+                    ready_tasks = task_checker();
                 }
                 for ( auto& proxy : ready_tasks )
                 {
@@ -218,7 +220,7 @@ struct task_pool::Impl
             task_added_.wait( tasks_lock, [this] { return !tasks_.empty() || abort_; } );
             if ( paused_ || tasks_.empty() )
             {
-                // we where woken for abort or to be the next checker
+                // we where woken for abort or to be the next task_checker
                 continue;
             }
             if ( abort_ )
@@ -246,7 +248,6 @@ task_pool::task_pool( const unsigned thread_count )
 task_pool::~task_pool()
 {
     impl_.reset();
-    // if (impl_ != nullptr) { impl_->cooperative_abort(); }
 }
 
 task_pool::task_pool( task_pool&& other ) noexcept
