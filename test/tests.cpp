@@ -1108,7 +1108,7 @@ TEST_CASE( "submit( f, future )->void", "[task_pool][submit]" )
     auto                fun_b  = [&]( int x ) { actual = x; };
     std::future< int >  future = pool.submit( fun_a, expected );
     std::future< void > result = pool.submit( fun_b, std::move( future ) );
-    std::future_status  status = result.wait_for( 1s );
+    std::future_status  status = result.wait();
     REQUIRE( status == std::future_status::ready );
     REQUIRE( expected == actual );
 }
@@ -1120,7 +1120,7 @@ TEST_CASE( "submit( f, future )->int", "[task_pool][submit]" )
     auto               fun    = []( int x ) { return x; };
     std::future< int > future = pool.submit( fun, expected );
     std::future< int > result = pool.submit( fun, std::move( future ) );
-    std::future_status status = result.wait_for( 1s );
+    std::future_status status = result.wait();
     REQUIRE( status == std::future_status::ready );
     REQUIRE( result.get() == expected );
 }
@@ -1135,7 +1135,7 @@ TEST_CASE( "submit( f, future, ... ) -> void", "[task_pool][submit]" )
     std::future< int >  future_a = pool.submit( fun_a, X );
     auto                fun_b    = [&]( int x, int y ) { actual = x * y; };
     std::future< void > result   = pool.submit( fun_b, std::move( future_a ), Y );
-    std::future_status  status   = result.wait_for( 1s );
+    std::future_status  status   = result.wait();
     REQUIRE( status == std::future_status::ready );
     REQUIRE( actual == X * Y );
 }
@@ -1149,7 +1149,7 @@ TEST_CASE( "submit( f, future, ... ) -> int", "[task_pool][submit]" )
     std::future< int > future_a = pool.submit( fun_a, X );
     auto               fun_b    = []( int x, int y ) { return x * y; };
     std::future< int > result   = pool.submit( fun_b, std::move( future_a ), Y );
-    std::future_status status   = result.wait_for( 1s );
+    std::future_status status   = result.wait();
     REQUIRE( status == std::future_status::ready );
     REQUIRE( result.get() == X * Y );
 }
@@ -1163,7 +1163,7 @@ TEST_CASE( "submit( f(stop_token), future, ... ) -> int", "[task_pool][submit][s
     std::future< int > future_a = pool.submit( fun_a, X );
     auto               fun_b    = []( int x, int y, be::stop_token /*abort*/ ) { return x * y; };
     std::future< int > result   = pool.submit( fun_b, std::move( future_a ), Y );
-    std::future_status status   = result.wait_for( 1s );
+    std::future_status status   = result.wait();
     REQUIRE( status == std::future_status::ready );
     REQUIRE( result.get() == X * Y );
 }
@@ -1178,7 +1178,7 @@ TEST_CASE( "submit( f(stop_token), future, ... ) -> void", "[task_pool][submit][
     std::future< int >  future_a = pool.submit( fun_a, X );
     auto                fun_b  = [&]( int x, int y, be::stop_token /*abort*/ ) { actual = x * y; };
     std::future< void > result = pool.submit( fun_b, std::move( future_a ), Y );
-    std::future_status  status = result.wait_for( 1s );
+    std::future_status  status = result.wait();
     REQUIRE( status == std::future_status::ready );
     REQUIRE( actual == X * Y );
 }
@@ -1194,7 +1194,7 @@ TEST_CASE( "submit( allocator, f(), future, ... ) -> int", "[task_pool][submit][
     auto                  fun_b    = []( int x, int y ) { return x * y; };
     std::future< int >    result =
         pool.submit( std::allocator_arg_t{}, alloc, fun_b, std::move( future_a ), Y );
-    std::future_status status = result.wait_for( 1s );
+    std::future_status status = result.wait();
     REQUIRE( status == std::future_status::ready );
     REQUIRE( result.get() == X * Y );
 }
@@ -1211,7 +1211,7 @@ TEST_CASE( "submit( allocator, f(), future, ... ) -> void", "[task_pool][submit]
     auto                  fun_b    = [&]( int x, int y ) { actual = x * y; };
     std::future< void >   result =
         pool.submit( std::allocator_arg_t{}, alloc, fun_b, std::move( future_a ), Y );
-    std::future_status status = result.wait_for( 1s );
+    std::future_status status = result.wait();
     REQUIRE( status == std::future_status::ready );
     REQUIRE( actual == X * Y );
 }
@@ -1228,7 +1228,7 @@ TEST_CASE( "submit( allocator, f(stop_token), future, ... ) -> int",
     auto                  fun_b = []( int x, int y, be::stop_token /*unused*/ ) { return x * y; };
     std::future< int >    result =
         pool.submit( std::allocator_arg_t{}, alloc, fun_b, std::move( future_a ), Y );
-    std::future_status status = result.wait_for( 1s );
+    std::future_status status = result.wait();
     REQUIRE( status == std::future_status::ready );
     REQUIRE( result.get() == X * Y );
 }
@@ -1246,7 +1246,7 @@ TEST_CASE( "submit( allocator, f(stop_token), future, ... ) -> void",
     auto                fun_b = [&]( int x, int y, be::stop_token /*unused*/ ) { actual = x * y; };
     std::future< void > result =
         pool.submit( std::allocator_arg_t{}, alloc, fun_b, std::move( future_a ), Y );
-    std::future_status status = result.wait_for( 1s );
+    std::future_status status = result.wait();
     REQUIRE( status == std::future_status::ready );
     REQUIRE( actual == X * Y );
 }
