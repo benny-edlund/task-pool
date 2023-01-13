@@ -817,7 +817,7 @@ public:
      */
     template< typename F,
               typename... A,
-              typename R = be_invoke_result_t< std::decay_t< F >, std::decay_t< A >... >,
+              typename R = be_invoke_result_t< std::decay_t< F >, A... >,
               std::enable_if_t< be_is_void_v< R >, bool > = true >
     std::future< R > submit( F&& task, A&&... args )
     {
@@ -845,7 +845,7 @@ public:
     template<
         typename F,
         typename... A,
-        typename R = be_invoke_result_t< std::decay_t< F >, std::decay_t< A >..., stop_token >,
+        typename R = be_invoke_result_t< std::decay_t< F >, A..., stop_token >,
         std::enable_if_t< be_is_void_v< R > && wants_stop_token_v< F >, bool > = true >
     std::future< R > submit( F&& task, A&&... args )
     {
@@ -873,7 +873,7 @@ public:
      */
     template< typename F,
               typename... Args,
-              typename R = be_invoke_result_t< std::decay_t< F >, std::decay_t< Args >... >,
+              typename R = be_invoke_result_t< std::decay_t< F >, Args... >,
               std::enable_if_t< !be_is_void_v< R >, bool > = true >
     BE_NODISGARD std::future< R > submit( F&& task, Args&&... args )
     {
@@ -900,7 +900,7 @@ public:
     template<
         typename F,
         typename... Args,
-        typename R = be_invoke_result_t< std::decay_t< F >, std::decay_t< Args >..., stop_token >,
+        typename R = be_invoke_result_t< std::decay_t< F >, Args..., stop_token >,
         std::enable_if_t< !be_is_void_v< R > && wants_stop_token_v< F >, bool > = true >
     BE_NODISGARD std::future< R > submit( F&& task, Args&&... args )
     {
@@ -928,7 +928,7 @@ public:
     template< template< typename > class UserAllocator,
               typename F,
               typename... A,
-              typename R = be_invoke_result_t< std::decay_t< F >, std::decay_t< A >... >,
+              typename R = be_invoke_result_t< std::decay_t< F >, A... >,
               typename T,
               std::enable_if_t< be_is_void_v< R >, bool > = true >
     BE_NODISGARD std::future< R >
@@ -961,7 +961,7 @@ public:
               typename F,
               typename... A,
               typename R =
-                  be_invoke_result_t< std::decay_t< F >, std::decay_t< A >..., stop_token >,
+                  be_invoke_result_t< std::decay_t< F >, A..., stop_token >,
               typename T,
               std::enable_if_t< be_is_void_v< R > && wants_stop_token_v< F >, bool > = true >
     BE_NODISGARD std::future< R >
@@ -994,7 +994,7 @@ public:
     template< template< typename > class UserAllocator,
               typename F,
               typename... Args,
-              typename R        = be_invoke_result_t< std::decay_t< F >, std::decay_t< Args >... >,
+              typename R        = be_invoke_result_t< std::decay_t< F >, Args... >,
               typename FuncType = std::remove_reference_t< std::remove_cv_t< F > >,
               typename T,
               std::enable_if_t< !be_is_void_v< R >, bool > = true >
@@ -1027,7 +1027,7 @@ public:
               typename F,
               typename... Args,
               typename R =
-                  be_invoke_result_t< std::decay_t< F >, std::decay_t< Args >..., stop_token >,
+                  be_invoke_result_t< std::decay_t< F >, Args..., stop_token >,
               typename FuncType = std::remove_reference_t< std::remove_cv_t< F > >,
               typename T,
               std::enable_if_t< !be_is_void_v< R > && wants_stop_token_v< F >, bool > = true >

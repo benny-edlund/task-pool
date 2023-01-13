@@ -1240,3 +1240,21 @@ TEST_CASE( "submit( allocator, f(stop_token), future, ... ) -> void",
     result.wait();
     REQUIRE( actual == X * Y );
 }
+
+//
+// Input value types
+//
+TEST_CASE( "reference_wrapper to & argument", "[task_pool][submit]" )
+{
+    be::task_pool         pool( 1 );
+    pool.pause();
+    std::atomic_int actual{0};
+    auto task  = [&]( int& x ){ actual = x;};
+    const int value = 42;
+    int expected = value;
+    auto future = pool.submit( task, std::ref(expected) );
+    expected *= 2;
+    pool.unpause();
+    future.wait();
+    REQUIRE( actual == expected );
+}
