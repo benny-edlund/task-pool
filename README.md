@@ -188,8 +188,7 @@ pool.submit( std::allocator_arg_t{}, allocator, &fun );
 
 `std::allocator_arg_t` is used to disambiguate the overloads to `be::task_pool::submit`
 
-### Notes:
----------
+
 [^1]: Futher improvents needed here to reduce copies and temporaries. Currently the most effcient way seems to be to take const reference in the task function and move/construct into the submit call. This will move into the bind expression and the function call will then reference out of this bind expresssion. Yes improvements are possible and will be done.
 
-[^2] Future-like objects must implement `get`, `wait`, `wait_for`, `wait_until` to be considered future-like
+[^2]: Future-like objects must implement `get`, `wait`, `wait_for`, `wait_until` to be considered future-like
