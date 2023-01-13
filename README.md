@@ -128,6 +128,8 @@ pool.submit(task, std::string( "World" ) );
 
 Arguments are passed to the submit function after the task function and are captured for the future task execution by forwarding into a [bind expression](https://en.cppreference.com/w/cpp/utility/functional/bind). [^1]
 
+ - [ ] Add example of `std::ref`
+
 It is also possible to pass values to functions using futures. Initially this might seem obvious and its easy to see how one may take a future as a function argument however `be::task_pool::submit` has the additional ability to detect tasks that require futures and placed them in a holding area while dependencies finish executing without blocking any additional threads. 
 
 
