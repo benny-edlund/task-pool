@@ -8,7 +8,7 @@
 &nbsp;  
 ## About the library
 
-The goal of task_pool was to write a minimal yet useful thread-pool library in C++14 with support for some non obvious features like allocators, efficiently linking task using futures and intuitive support for cooperative cancelation.
+The goal of task_pool was to write a minimal yet useful thread-pool library in C++14 with support for some non obvious features like allocators, efficiently linking task using futures and intuitive support for cooperative cancellation.
 
 The library tries to be pragmatic rather then generic and provides some practial solutions to problems typically faced when developing asynchronous applications.
 
