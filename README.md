@@ -41,7 +41,7 @@ bool process_data( work_data );
 ```
 Given some some API to create and process a dataset the most obvious way to work with it may be to use a lambda.
 ```cpp
-auto result = pool.submit( []{ process_data( make_data() ); } );
+auto result = pool.submit( []{ return process_data( make_data() ); } );
 ```
 The lambda is passed by value and stored in the `task_pool` executing the two function in sequence.
 
