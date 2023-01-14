@@ -8,7 +8,7 @@
 &nbsp;  
 ## About the library
 
-The goal of task_pool was to write a minimal yet useful thread-pool library in C++14 with support for some non obvious features like allocators, efficiently linking task using futures and intuitive support for cooperative cancellation.
+The goal of task_pool was to write a minimal yet useful thread-pool library in C++14 with support for some non obvious features like allocators, efficiently linking tasks using futures and intuitive support for cooperative cancellation.
 
 The library tries to be pragmatic rather then generic and provides some practial solutions to problems typically faced when developing asynchronous applications.
 
@@ -39,13 +39,13 @@ struct work_data
 work_data make_data();  
 bool process_data( work_data );
 ```
-Given some some API to create and process a dataset the most obvious way to work with it may be to use a lambda.
+Given some some API to create and process a dataset the most obvious way to off load its work from the main thread may be to use a lambda.
 ```cpp
 auto result = pool.submit( []{ return process_data( make_data() ); } );
 ```
-The lambda is passed by value and stored in the `task_pool` executing the two function in sequence.
+The lambda is passed by value and stored in the `task_pool` executing the two function in sequence. A future is returned to acquire the result when the process is completed.
 
-We can also pass the functions pointers themselves by value as tasks to execute.
+We can however also pass the functions pointers themselves as tasks to execute.
 ```cpp
 auto future = pool.submit( &make_data );
 auto result = pool.submit( &process_data, std::move(future) );
@@ -56,24 +56,17 @@ More on this later...
 &nbsp;
 
 ```cpp
-struct base_processor
-{
-    virtual void run() = 0;
+struct processor
+{   
+    using ptr = std::unique_ptr<processor>;
+    virtual void run() const = 0;
 };
 
-class processor : public base_processor
+std::vector<processor::ptr> workload = get_workload();
+for( processor::ptr const& work : workload )
 {
-    void do_something_private( )
-public:
-    void run() override { 
-        do_something_private(  ); 
-    } 
-};
-
-auto work_a = std::make_unique<base_process>( new processor() );
-auto work_b = std::make_unique<base_process>( new processor() );
-auto done_a = pool.submit(&base_processor::run, work_a.get() );
-auto done_b = pool.submit(&base_processor::run, work_b.get() );
+    pool.submit(&processor::run, work.get() );
+}
 ```
 Here we have a user defined type and we pass its `run` function pointer by value along with pointers to the instances we wish to execute the method on. With this work load we need to make sure that the tasks have completed before the work items are destroyed.
 &nbsp;
@@ -95,7 +88,7 @@ struct Work
 auto result = pool.submit( Work{}, Data{ 42 } );
 ```
 
-Here `task_pool` with check that `work( Data )` is a valid function call prior to submitting and will generate compilation error in the case it is not.
+Here `task_pool` will check that `Work::operator()( Data )` is a valid function call prior to submitting and will generate compilation error in the case it is not.
 
 &nbsp;
 ## Return values
@@ -109,7 +102,7 @@ auto result = pool.submit( task );
 auto the_awnser = result.get();
 ```
 
-When using `task_pool` it is only required to capture the futures of tasks that return values however using `std::future<void>` to check for task completions with its  [`std::future::wait_for`](https://en.cppreference.com/w/cpp/thread/future/wait_for) API is still recommended as it is typically well optimized by compilers.
+When using `task_pool` it is only required to capture the futures of tasks that return values however using `std::future<void>`from functions that do not return values to check for task completions using its  [`std::future::wait_for`](https://en.cppreference.com/w/cpp/thread/future/wait_for) API is still recommended as it is typically well optimized by compilers.
 
 ```cpp
 be::task_pool pool;
@@ -129,7 +122,7 @@ pool.submit( task, 42 ); // this will not compile
 &nbsp;
 ## Input arguments
 
-Its possible to pass arguments to tasks when submitting them to the pool. Required arguments for functions are simply passed to `submit` after the function itself.
+Its possible to pass arguments to tasks when submitting them to the pool. Required arguments for functions are simply passed to `submit` after the function itself in a similar fashion to [`std::invoke`](https://en.cppreference.com/w/cpp/utility/functional/invoke).
 
 ```cpp
 be::task_pool pool;
@@ -150,7 +143,7 @@ void do_work( work_data& data ) {
 ```
 This example will compile however the task function will not operate on the work_data value referenced into the `do_work` function. This is because the underlying bind expression must copy the `work_data` value passed by reference to submit into the task storage and when executed the task will reference this data instead.
 
-The solution is to use a [std::reference_wrapper](https://en.cppreference.com/w/cpp/utility/functional/reference_wrapper) value to hold the reference to the origial `work_data`.
+The solution may be to use a [std::reference_wrapper](https://en.cppreference.com/w/cpp/utility/functional/reference_wrapper) value to hold the reference to the origial `work_data`.
 
 ```cpp
 void process_data( work_data& );
@@ -165,7 +158,7 @@ It is also possible to pass values to functions using futures without modifying 
 
 This is made possible because `be::task_pool` has the ability to match futures passed as arguments to `submit` against the value types of the task function. It can then placed the resulting task into a holding area while dependencies finish executing without blocking any additional threads. 
 
-When the task arguments are ready the pool will execute the work load.
+When the task arguments are ready the pool will execute the workload.
 
 
 ```cpp
@@ -251,7 +244,7 @@ if ( pool.get_thread_count() < 8 ) {
 ```
 `be::task_pool::reset` will block threads attempting to submit new tasks while waiting for current tasks to finish so should not be used during time sensitive program sections.
 
-When a `task_pool` is destroyed it will ensure only that the currently executing tasks finish so its is up to the user to ensure destruction occurs only after desired workload is complete.
+When a `task_pool` is destroyed it will ensure only that the currently executing tasks finish so its is up to the user to ensure destruction occurs only after desired workload is completed.
 
 ```cpp
 
@@ -292,12 +285,12 @@ void find_the_anwser( std::vector<work_data> const& data )
     }
 }
 ```
-When any task of check_data completes we will fall through the while loop and the pool will be destroyed at the end of the function. Because the `check_data` takes a `be::stop_token` any running tasks of that function can stop doing work and return early allowing the pool destructor to complete and the `find_the_anwser` function to return to the caller. 
+When any task of check_data completes we will fall through the while loop and the pool will be destroyed at the end of the function. Because `check_data` takes a `be::stop_token` any running tasks of that function has the ability stop doing work and return early allowing the pool destructor to complete and the `find_the_anwser` function to return to the caller. 
 &nbsp;
 
 ## Using allocators
 
-Tasks submitted to `be::task_pool` require storage on the heap until the task is invoked and this can become a limiting factor to applications. To help task_pool supports using custom allocators for storing tasks until executed as well as storing the shared state of the std::futures used to return results.
+Tasks submitted to `be::task_pool` require storage on the heap until the task is invoked and this can become a limiting factor to applications. To help task_pool supports using custom allocators for allocating storage for tasks until executed as well as storing the shared state of the std::futures used to return results.
 
 ```cpp
 struct LargeInputData
@@ -316,16 +309,16 @@ ComplexResultData process_data( LargeInputData const& );
 So given some API that operates on non trivial data we may find that we wish to control how the data is allocated in our program and that using some specific custom allocators would help performance in our application.
 
 ```cpp
-cool_api::pool_allocator allocator;
+cool_beans::pool_allocator allocator;
 be::task_pool pool;
 
 auto result = pool.submit( std::allocator_arg_t{}, allocator, [work_data = generate_data()]() { 
     return process_data( work_data );
 } );
 ```
-Above we pass a custom allocator to submit which allow it to be used to allocate both the storage for the following task function that captures a potentially large object by value and also the storage needed for returning data asynchronously from `process_data` using a future. `std::allocator_arg_t` is and empty class used only to disambiguate the overloads to `be::task_pool::submit`
+Above we pass a custom allocator to submit which allow it to be used to allocate both the storage for the following task function that captures a potentially large object by value and also the storage needed for returning data asynchronously from `process_data` using a future. `std::allocator_arg_t` is an empty class used only to disambiguate the overloads to `be::task_pool::submit`
 
-Now allocations are in control of `cool_api` that promises to be much faster then new/delete. 
+Now allocations are in control of `cool_beans` that promises to be much faster then new/delete. 
 
 [^1]: Futher improvents needed here to reduce copies and temporaries. Currently the most effcient way seems to be to take const reference in the task function and move/construct into the submit call. This will move into the bind expression and the function call will then reference out of this bind expresssion. Yes improvements are possible and will be done.
 
