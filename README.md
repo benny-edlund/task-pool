@@ -16,7 +16,7 @@ The library tries to be pragmatic rather then generic and provides some practial
 ## Basic use
 ```cpp
 be::task_pool pool;
-auto task = []() { std::cerr<< "Hello World! " << x << '\n'; };
+auto task = []() { std::cerr<< "Hello World!\n"; };
 pool.submit( task );
 pool.wait_for_tasks();
 ```
