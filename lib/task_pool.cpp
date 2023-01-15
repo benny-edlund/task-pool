@@ -1,4 +1,4 @@
-#include "task_pool.h"
+#include "task_pool/api.h"
 #include <atomic>
 #include <condition_variable>
 #include <exception>
@@ -6,12 +6,13 @@
 #include <iterator>
 #include <mutex>
 #include <queue>
+#include <task_pool/task_pool.h>
 #include <thread>
 #include <vector>
 
 namespace be {
 
-struct task_pool::Impl
+struct TASKPOOL_HIDDEN task_pool::Impl
 {
     mutable std::mutex               tasks_mutex_       = {};
     std::queue< task_proxy >         tasks_             = {};
