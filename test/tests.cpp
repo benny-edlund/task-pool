@@ -1,4 +1,5 @@
-#include "trait_fallbacks.h"
+#include <task_pool/traits.h>
+#include <task_pool/task_pool.h>
 #include <algorithm>
 #include <atomic>
 #include <catch2/catch.hpp>
@@ -9,7 +10,6 @@
 #include <memory>
 #include <numeric>
 #include <random>
-#include <task_pool.h>
 #include <thread>
 #include <type_traits>
 #include <utility>

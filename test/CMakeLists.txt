@@ -1,13 +1,8 @@
 cmake_minimum_required(VERSION 3.15...3.23)
 
 project(CmakeConfigPackageTests LANGUAGES CXX)
-#find_package(task-pool CONFIG REQUIRED) # for intro, project_options, ... <<< does not work
-
-# ---- Dependencies ----
 
 find_package(Catch2 CONFIG REQUIRED)
-
-
 include(Catch)
 
 add_library(catch_main OBJECT catch_main.cpp)
@@ -15,15 +10,15 @@ target_link_libraries(catch_main PUBLIC Catch2::Catch2)
 target_link_libraries(catch_main PRIVATE project_options)
 
 add_executable(test_taskpool tests.cpp)
-include_directories(${lib-task-pool_SOURCE_DIR})
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../src/public")
 target_link_libraries(test_taskpool PRIVATE task_pool)
 target_link_libraries(test_taskpool PRIVATE project_warnings project_options catch_main)
-if(CMAKE_COMPILER_IS_GNUCXX) # this SHOUILD be controlled by OPT_ENABLE_COVERAGE but doesnt seemt work
-    if (CMAKE_BUILD_TYPE MATCHES "Debug")
-	    include(CodeCoverage)
-	    append_coverage_compiler_flags()
-    endif()
-endif()
+# if(CMAKE_COMPILER_IS_GNUCXX) # this SHOUILD be controlled by OPT_ENABLE_COVERAGE but doesnt seemt work
+#     if (CMAKE_BUILD_TYPE MATCHES "Debug")
+# 	    include(CodeCoverage)
+# 	    append_coverage_compiler_flags()
+#     endif()
+# endif()
 
 # automatically discover tests that are defined in catch based test files you can modify the unittests. Set TEST_PREFIX
 # to whatever you want, or use different for different binaries

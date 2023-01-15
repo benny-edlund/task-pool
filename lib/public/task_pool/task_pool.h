@@ -1,12 +1,13 @@
 #pragma once
 
-#include "trait_fallbacks.h"
 #include <algorithm>
 #include <array>
 #include <exception>
 #include <functional>
 #include <future>
 #include <memory>
+#include <task_pool/api.h>
+#include <task_pool/traits.h>
 #include <type_traits>
 #include <utility>
 
@@ -39,84 +40,11 @@ namespace be {
  * @endcode
  *
  */
-struct stop_token
+struct TASKPOOL_API stop_token
 {
-    std::atomic_bool const& token;
-    explicit                operator bool() { return token.load(); }
+    std::atomic_bool const&  token;
+    explicit operator bool() { return token.load(); }
 };
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// Move this stuff somewhere private
-
-template< typename T, std::enable_if_t< !be::is_future< T >::value, bool > = true >
-auto wrap_arg( T&& t )
-{
-    struct func_
-    {
-        T           value;
-        T           operator()() { return std::forward< T >( value ); }
-        static bool is_ready() { return true; }
-    };
-    return func_{ std::forward< T >( t ) };
-}
-
-template< typename T, std::enable_if_t< be::is_future< T >::value, bool > = true >
-auto wrap_arg( T t )
-{
-    struct func_
-    {
-        T                       value;
-        be::future_value_t< T > operator()() { return value.get(); }
-        bool                    is_ready() const
-        {
-            return value.wait_for( std::chrono::seconds( 0 ) ) == std::future_status::ready;
-        }
-    };
-    return func_{ std::forward< T >( t ) };
-}
-
-template< typename Callable, typename Arguments, std::size_t... Is >
-auto call_it( Callable& callable, Arguments& arguments, std::index_sequence< Is... > /*Is*/ )
-{
-    return callable( std::get< Is >( arguments )()... );
-}
-
-template< typename Callable, typename Arguments, std::size_t... Is >
-auto call_it( stop_token token,
-              Callable&  callable,
-              Arguments& arguments,
-              std::index_sequence< Is... > /*Is*/ )
-{
-    return callable( std::get< Is >( arguments )()..., token );
-}
-
-template< typename Arguments, std::size_t... Is >
-bool check_it( Arguments& arguments, std::index_sequence< Is... > /*Is*/ )
-{
-    std::array< bool, sizeof...( Is ) > args_status{ std::get< Is >( arguments ).is_ready()... };
-    return std::all_of(
-        args_status.begin(), args_status.end(), []( auto value ) { return value; } );
-}
-
-template< typename T, typename... Args >
-auto make_defered_task( T&& t, Args&&... args )
-{
-    auto arguments = std::make_tuple( wrap_arg( std::forward< Args >( args ) )... );
-    struct Task
-    {
-        T                     func_;
-        decltype( arguments ) arguments_;
-        bool                  is_ready() const { return check_it( arguments_ ); }
-        auto                  operator()()
-        {
-            return call_it( func_, arguments_, std::index_sequence_for< Args... >{} );
-        }
-    };
-
-    return Task{ std::forward< T >( t ), std::move( arguments ) };
-}
-//
-//////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @brief
@@ -224,12 +152,12 @@ auto make_defered_task( T&& t, Args&&... args )
  *
  * @endcode
  */
-class task_pool
+class TASKPOOL_API task_pool
 {
     /**
      * @brief Task storage with type erasure
      */
-    struct task_proxy
+    struct TASKPOOL_HIDDEN task_proxy
     {
         bool ( *check_task )( void* );
         void ( *execute_task )( void* );
@@ -264,8 +192,8 @@ class task_pool
             } )
         {
         }
-        ~task_proxy()                   = default;
-        task_proxy( task_proxy const& ) = delete;
+        ~task_proxy()                              = default;
+        task_proxy( task_proxy const& )            = delete;
         task_proxy& operator=( task_proxy const& ) = delete;
         task_proxy( task_proxy&& ) noexcept;
         task_proxy& operator=( task_proxy&& ) noexcept;
@@ -277,7 +205,7 @@ class task_pool
     template< typename F, typename FuncType = std::remove_reference_t< std::remove_cv_t< F > > >
     static auto make_task( F&& task )
     {
-        struct Task : FuncType
+        struct TASKPOOL_HIDDEN Task : FuncType
         {
             explicit Task( FuncType&& f )
                 : FuncType( std::forward< F >( f ) )
@@ -299,7 +227,7 @@ class task_pool
               typename T >
     static auto make_task( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task )
     {
-        struct Task : FuncType
+        struct TASKPOOL_HIDDEN Task : FuncType
         {
             explicit Task( Allocator< Task > const& a, F&& f )
                 : FuncType( std::forward< F >( f ) )
@@ -325,7 +253,7 @@ class task_pool
     auto make_defered_task( F&& task, Args&&... args )
     {
         using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
-        struct Task
+        struct TASKPOOL_HIDDEN Task
         {
             std::promise< R > promise_;
             F                 func_;
@@ -364,7 +292,7 @@ class task_pool
     auto make_defered_task( stop_token token, F&& task, Args&&... args )
     {
         using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
-        struct Task
+        struct TASKPOOL_HIDDEN Task
         {
             stop_token        token_;
             std::promise< R > promise_;
@@ -404,7 +332,7 @@ class task_pool
     auto make_defered_task( F&& task, Args&&... args )
     {
         using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
-        struct Task
+        struct TASKPOOL_HIDDEN Task
         {
             std::promise< R > promise_;
             F                 func_;
@@ -443,7 +371,7 @@ class task_pool
     auto make_defered_task( stop_token token, F&& task, Args&&... args )
     {
         using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
-        struct Task
+        struct TASKPOOL_HIDDEN Task
         {
             stop_token        token_;
             std::promise< R > promise_;
@@ -489,7 +417,7 @@ class task_pool
                             Args&&... args )
     {
         using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
-        struct Task
+        struct TASKPOOL_HIDDEN Task
         {
             Allocator< Task > alloc;
             std::promise< R > promise_;
@@ -549,7 +477,7 @@ class task_pool
                             Args&&... args )
     {
         using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
-        struct Task
+        struct TASKPOOL_HIDDEN Task
         {
             Allocator< Task > alloc;
             std::promise< R > promise_;
@@ -610,7 +538,7 @@ class task_pool
                             Args&&... args )
     {
         using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
-        struct Task
+        struct TASKPOOL_HIDDEN Task
         {
             Allocator< Task > alloc;
             stop_token        token_;
@@ -674,7 +602,7 @@ class task_pool
                             Args&&... args )
     {
         using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
-        struct Task
+        struct TASKPOOL_HIDDEN Task
         {
             Allocator< Task > alloc;
             stop_token        token_;
@@ -842,11 +770,10 @@ public:
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
-    template<
-        typename F,
-        typename... A,
-        typename R = be_invoke_result_t< std::decay_t< F >, A..., stop_token >,
-        std::enable_if_t< be_is_void_v< R > && wants_stop_token_v< F >, bool > = true >
+    template< typename F,
+              typename... A,
+              typename R = be_invoke_result_t< std::decay_t< F >, A..., stop_token >,
+              std::enable_if_t< be_is_void_v< R > && wants_stop_token_v< F >, bool > = true >
     std::future< R > submit( F&& task, A&&... args )
     {
         auto promise     = std::promise< R >();
@@ -897,11 +824,10 @@ public:
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
-    template<
-        typename F,
-        typename... Args,
-        typename R = be_invoke_result_t< std::decay_t< F >, Args..., stop_token >,
-        std::enable_if_t< !be_is_void_v< R > && wants_stop_token_v< F >, bool > = true >
+    template< typename F,
+              typename... Args,
+              typename R = be_invoke_result_t< std::decay_t< F >, Args..., stop_token >,
+              std::enable_if_t< !be_is_void_v< R > && wants_stop_token_v< F >, bool > = true >
     BE_NODISGARD std::future< R > submit( F&& task, Args&&... args )
     {
         auto promise = std::promise< R >();
@@ -960,8 +886,7 @@ public:
     template< template< typename > class UserAllocator,
               typename F,
               typename... A,
-              typename R =
-                  be_invoke_result_t< std::decay_t< F >, A..., stop_token >,
+              typename R = be_invoke_result_t< std::decay_t< F >, A..., stop_token >,
               typename T,
               std::enable_if_t< be_is_void_v< R > && wants_stop_token_v< F >, bool > = true >
     BE_NODISGARD std::future< R >
@@ -1026,8 +951,7 @@ public:
     template< template< typename > class UserAllocator,
               typename F,
               typename... Args,
-              typename R =
-                  be_invoke_result_t< std::decay_t< F >, Args..., stop_token >,
+              typename R        = be_invoke_result_t< std::decay_t< F >, Args..., stop_token >,
               typename FuncType = std::remove_reference_t< std::remove_cv_t< F > >,
               typename T,
               std::enable_if_t< !be_is_void_v< R > && wants_stop_token_v< F >, bool > = true >

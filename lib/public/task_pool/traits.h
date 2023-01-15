@@ -1,128 +1,17 @@
 #pragma once
+
+#include <task_pool/api.h>
+#include <algorithm>
 #include <chrono>
 #include <future>
 #include <mutex>
 #include <type_traits>
 #include <utility>
-
 #if __cplusplus < 201700
-#    if !defined( BE_NODISGARD )
-#        if _MSC_VER >= 1700
-#            define BE_NODISGARD _Check_return_
-#        else
-#            define BE_NODISGARD __attribute__( ( warn_unused_result ) )
-#        endif
-#    endif
-// std::invoke_result_t from cppreference.com
-namespace detail {
-template< class T >
-struct is_reference_wrapper : std::false_type
-{
-};
-template< class U >
-struct is_reference_wrapper< std::reference_wrapper< U > > : std::true_type
-{
-};
-
-template< class T >
-struct invoke_impl
-{
-    template< class F, class... Args >
-    static auto call( F&& f, Args&&... args )
-        -> decltype( std::forward< F >( f )( std::forward< Args >( args )... ) );
-};
-
-template< class B, class MT >
-struct invoke_impl< MT B::* >
-{
-    template< class T,
-              class Td = typename std::decay< T >::type,
-              class    = typename std::enable_if< std::is_base_of< B, Td >::value >::type >
-    static auto get( T&& t ) -> T&&;
-
-    template< class T,
-              class Td = typename std::decay< T >::type,
-              class    = typename std::enable_if< is_reference_wrapper< Td >::value >::type >
-    static auto get( T&& t ) -> decltype( t.get() );
-
-    template< class T,
-              class Td = typename std::decay< T >::type,
-              class    = typename std::enable_if< !std::is_base_of< B, Td >::value >::type,
-              class    = typename std::enable_if< !is_reference_wrapper< Td >::value >::type >
-    static auto get( T&& t ) -> decltype( *std::forward< T >( t ) );
-
-    template< class T,
-              class... Args,
-              class MT1,
-              class = typename std::enable_if< std::is_function< MT1 >::value >::type >
-    static auto call( MT1 B::*pmf, T&& t, Args&&... args )
-        -> decltype( ( invoke_impl::get( std::forward< T >( t ) ).*
-                       pmf )( std::forward< Args >( args )... ) );
-
-    template< class T >
-    static auto call( MT B::*pmd, T&& t )
-        -> decltype( invoke_impl::get( std::forward< T >( t ) ).*pmd );
-};
-
-template< class F, class... Args, class Fd = typename std::decay< F >::type >
-auto INVOKE( F&& f, Args&&... args )
-    -> decltype( invoke_impl< Fd >::call( std::forward< F >( f ),
-                                          std::forward< Args >( args )... ) );
-
-// Conforming C++14 implementation (is also a valid C++11 implementation):
-template< typename AlwaysVoid, typename, typename... >
-struct invoke_result
-{
-};
-template< typename F, typename... Args >
-struct invoke_result< decltype( void(
-                          detail::INVOKE( std::declval< F >(), std::declval< Args >()... ) ) ),
-                      F,
-                      Args... >
-{
-    using type = decltype( detail::INVOKE( std::declval< F >(), std::declval< Args >()... ) );
-};
-
-} // namespace detail
-#else
-#    define BE_NODISGARD [[nodisguard]]
+#include <task_pool/fallbacks.h>
 #endif
 
 namespace be {
-
-#if __cplusplus < 201700
-template< class >
-struct result_of;
-template< class F, class... ArgTypes >
-struct result_of< F( ArgTypes... ) > : detail::invoke_result< void, F, ArgTypes... >
-{
-};
-template< class F, class... ArgTypes >
-struct invoke_result : detail::invoke_result< void, F, ArgTypes... >
-{
-};
-template< typename Fn, typename... Args >
-using be_invoke_result_t = typename invoke_result< Fn, Args... >::type;
-template< class T >
-struct be_is_void : std::is_same< void, typename std::remove_cv< T >::type >
-{
-};
-template< typename T >
-constexpr bool be_is_void_v = be_is_void< T >::value;
-
-template< typename... >
-using be_void_t = void;
-
-#else
-template< typename Fn, typename... Args >
-using be_invoke_result_t = std::invoke_result_t< Fn, Args... >;
-template< typename T >
-constexpr bool be_is_void_v = std::is_void_v< T >;
-
-template< typename... Ts >
-using be_void_t = void_t< Ts... >;
-
-#endif
 
 // Thank you Walter
 template< typename T, typename... Ts >
@@ -259,5 +148,59 @@ struct is_movable
                           std::false_type >::type
 {
 };
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Move this stuff somewhere private
+
+template< typename T, std::enable_if_t< !be::is_future< T >::value, bool > = true >
+auto wrap_arg( T&& t )
+{
+    struct func_
+    {
+        T           value;
+        T           operator()() { return std::forward< T >( value ); }
+        static bool is_ready() { return true; }
+    };
+    return func_{ std::forward< T >( t ) };
+}
+
+template< typename T, std::enable_if_t< be::is_future< T >::value, bool > = true >
+auto wrap_arg( T t )
+{
+    struct func_
+    {
+        T                       value;
+        be::future_value_t< T > operator()() { return value.get(); }
+        bool                    is_ready() const
+        {
+            return value.wait_for( std::chrono::seconds( 0 ) ) == std::future_status::ready;
+        }
+    };
+    return func_{ std::forward< T >( t ) };
+}
+
+template< typename Callable, typename Arguments, std::size_t... Is >
+auto call_it( Callable& callable, Arguments& arguments, std::index_sequence< Is... > /*Is*/ )
+{
+    return callable( std::get< Is >( arguments )()... );
+}
+
+template< typename Callable, typename Arguments, std::size_t... Is >
+auto call_it( stop_token const& token,
+              Callable&  callable,
+              Arguments& arguments,
+              std::index_sequence< Is... > /*Is*/ )
+{
+    return callable( std::get< Is >( arguments )()..., token );
+}
+
+template< typename Arguments, std::size_t... Is >
+bool check_it( Arguments& arguments, std::index_sequence< Is... > /*Is*/ )
+{
+    std::array< bool, sizeof...( Is ) > args_status{ std::get< Is >( arguments ).is_ready()... };
+    return std::all_of(
+        args_status.begin(), args_status.end(), []( auto value ) { return value; } );
+}
+
 
 } // namespace be

@@ -18,6 +18,9 @@ set(ENABLE_DEVELOPER_MODE
     TRUE
     CACHE BOOL "Enable 'developer mode'")
 
+set(ENABLE_COVERAGE
+  TRUE
+  CACHE BOOL "Enable 'coverage mode'")
 # Change this to false if you want to disable warnings_as_errors in developer mode
 set(OPT_WARNINGS_AS_ERRORS_DEVELOPER_DEFAULT TRUE)
 
@@ -34,7 +37,7 @@ include(${_project_options_SOURCE_DIR}/Index.cmake)
 
 # Set the project name and language
 project(
-  task-pool
+  task_pool
   VERSION 0.0.1
   DESCRIPTION ""
   HOMEPAGE_URL "%%https://github.com/benny-edlund/task-pool%%"
@@ -104,10 +107,10 @@ include(${_project_options_SOURCE_DIR}/src/DynamicProjectOptions.cmake)
 dynamic_project_options(
   # Note: PCH is disabled by default in developer mode because these headers become
   # globally included and they can mask other errors
-  PCH_HEADERS
-  <vector>
-  <string>
-  <memory>
+  # PCH_HEADERS
+  # <vector>
+  # <string>
+  # <memory>
   ENABLE_CONAN
   # CONAN_OPTIONS    # Extra options to pass to conan
   # MSVC_WARNINGS    # Override the defaults for the MSVC warnings
@@ -135,8 +138,7 @@ add_library(task-pool::project_warnings INTERFACE IMPORTED)
 # configure files based on CMake configuration options
 add_subdirectory(configured_files)
 
-# Adding the src:
-add_subdirectory(src)
+add_subdirectory(lib)
 
 # Adding the tests:
 option(ENABLE_TESTING "Enable the tests" ${PROJECT_IS_TOP_LEVEL})
