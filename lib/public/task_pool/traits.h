@@ -149,11 +149,8 @@ struct is_movable
 {
 };
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-// Move this stuff somewhere private
-
 template< typename T, std::enable_if_t< !be::is_future< T >::value, bool > = true >
-auto wrap_arg( T&& t )
+auto wrap_future_argument( T&& t )
 {
     struct func_
     {
@@ -165,7 +162,7 @@ auto wrap_arg( T&& t )
 }
 
 template< typename T, std::enable_if_t< be::is_future< T >::value, bool > = true >
-auto wrap_arg( T t )
+auto wrap_future_argument( T t )
 {
     struct func_
     {
@@ -180,22 +177,24 @@ auto wrap_arg( T t )
 }
 
 template< typename Callable, typename Arguments, std::size_t... Is >
-auto call_it( Callable& callable, Arguments& arguments, std::index_sequence< Is... > /*Is*/ )
+auto invoke_deferred_task( Callable&  callable,
+                           Arguments& arguments,
+                           std::index_sequence< Is... > /*Is*/ )
 {
     return callable( std::get< Is >( arguments )()... );
 }
 
 template< typename Callable, typename Arguments, std::size_t... Is >
-auto call_it( stop_token const& token,
-              Callable&         callable,
-              Arguments&        arguments,
-              std::index_sequence< Is... > /*Is*/ )
+auto invoke_deferred_task( stop_token const& token,
+                           Callable&         callable,
+                           Arguments&        arguments,
+                           std::index_sequence< Is... > /*Is*/ )
 {
     return callable( std::get< Is >( arguments )()..., token );
 }
 
 template< typename Arguments, std::size_t... Is >
-bool check_it( Arguments& arguments, std::index_sequence< Is... > /*Is*/ )
+bool check_argument_status( Arguments& arguments, std::index_sequence< Is... > /*Is*/ )
 {
     std::array< bool, sizeof...( Is ) > args_status{ std::get< Is >( arguments ).is_ready()... };
     return std::all_of(

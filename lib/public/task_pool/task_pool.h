@@ -192,8 +192,8 @@ class TASKPOOL_API task_pool
             } )
         {
         }
-        ~task_proxy()                   = default;
-        task_proxy( task_proxy const& ) = delete;
+        ~task_proxy()                              = default;
+        task_proxy( task_proxy const& )            = delete;
         task_proxy& operator=( task_proxy const& ) = delete;
         task_proxy( task_proxy&& ) noexcept;
         task_proxy& operator=( task_proxy&& ) noexcept;
@@ -252,7 +252,8 @@ class TASKPOOL_API task_pool
               std::enable_if_t< be_is_void_v< R >, bool > = true >
     auto make_defered_task( F&& task, Args&&... args )
     {
-        using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
+        using args_type =
+            std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
             std::promise< R > promise_;
@@ -260,13 +261,13 @@ class TASKPOOL_API task_pool
             args_type         arguments_;
             bool              is_ready() const
             {
-                return check_it( arguments_, std::index_sequence_for< Args... >{} );
+                return check_argument_status( arguments_, std::index_sequence_for< Args... >{} );
             }
             auto operator()()
             {
                 try
                 {
-                    call_it( func_, arguments_, std::index_sequence_for< Args... >{} );
+                    invoke_deferred_task( func_, arguments_, std::index_sequence_for< Args... >{} );
                     promise_.set_value();
                 }
                 catch ( ... )
@@ -277,10 +278,10 @@ class TASKPOOL_API task_pool
         };
         std::promise< R > promise;
         auto              future = promise.get_future();
-        push_task( task_proxy(
-            new Task{ std::move( promise ),
-                      std::forward< F >( task ),
-                      std::make_tuple( wrap_arg( std::forward< Args >( args ) )... ) } ) );
+        push_task( task_proxy( new Task{
+            std::move( promise ),
+            std::forward< F >( task ),
+            std::make_tuple( wrap_future_argument( std::forward< Args >( args ) )... ) } ) );
         return future;
     }
 
@@ -291,7 +292,8 @@ class TASKPOOL_API task_pool
               std::enable_if_t< be_is_void_v< R >, bool > = true >
     auto make_defered_task( stop_token token, F&& task, Args&&... args )
     {
-        using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
+        using args_type =
+            std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
             stop_token        token_;
@@ -300,13 +302,14 @@ class TASKPOOL_API task_pool
             args_type         arguments_;
             bool              is_ready() const
             {
-                return check_it( arguments_, std::index_sequence_for< Args... >{} );
+                return check_argument_status( arguments_, std::index_sequence_for< Args... >{} );
             }
             auto operator()()
             {
                 try
                 {
-                    call_it( token_, func_, arguments_, std::index_sequence_for< Args... >{} );
+                    invoke_deferred_task(
+                        token_, func_, arguments_, std::index_sequence_for< Args... >{} );
                     promise_.set_value();
                 }
                 catch ( ... )
@@ -317,11 +320,11 @@ class TASKPOOL_API task_pool
         };
         std::promise< R > promise;
         auto              future = promise.get_future();
-        push_task( task_proxy(
-            new Task{ token,
-                      std::move( promise ),
-                      std::forward< F >( task ),
-                      std::make_tuple( wrap_arg( std::forward< Args >( args ) )... ) } ) );
+        push_task( task_proxy( new Task{
+            token,
+            std::move( promise ),
+            std::forward< F >( task ),
+            std::make_tuple( wrap_future_argument( std::forward< Args >( args ) )... ) } ) );
         return future;
     }
 
@@ -331,7 +334,8 @@ class TASKPOOL_API task_pool
               std::enable_if_t< !be_is_void_v< R >, bool > = true >
     auto make_defered_task( F&& task, Args&&... args )
     {
-        using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
+        using args_type =
+            std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
             std::promise< R > promise_;
@@ -339,14 +343,14 @@ class TASKPOOL_API task_pool
             args_type         arguments_;
             bool              is_ready() const
             {
-                return check_it( arguments_, std::index_sequence_for< Args... >{} );
+                return check_argument_status( arguments_, std::index_sequence_for< Args... >{} );
             }
             auto operator()()
             {
                 try
                 {
-                    promise_.set_value(
-                        call_it( func_, arguments_, std::index_sequence_for< Args... >{} ) );
+                    promise_.set_value( invoke_deferred_task(
+                        func_, arguments_, std::index_sequence_for< Args... >{} ) );
                 }
                 catch ( ... )
                 {
@@ -356,10 +360,10 @@ class TASKPOOL_API task_pool
         };
         std::promise< R > promise;
         auto              future = promise.get_future();
-        push_task( task_proxy(
-            new Task{ std::move( promise ),
-                      std::forward< F >( task ),
-                      std::make_tuple( wrap_arg( std::forward< Args >( args ) )... ) } ) );
+        push_task( task_proxy( new Task{
+            std::move( promise ),
+            std::forward< F >( task ),
+            std::make_tuple( wrap_future_argument( std::forward< Args >( args ) )... ) } ) );
         return future;
     }
 
@@ -370,7 +374,8 @@ class TASKPOOL_API task_pool
               std::enable_if_t< !be_is_void_v< R >, bool > = true >
     auto make_defered_task( stop_token token, F&& task, Args&&... args )
     {
-        using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
+        using args_type =
+            std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
             stop_token        token_;
@@ -379,13 +384,13 @@ class TASKPOOL_API task_pool
             args_type         arguments_;
             bool              is_ready() const
             {
-                return check_it( arguments_, std::index_sequence_for< Args... >{} );
+                return check_argument_status( arguments_, std::index_sequence_for< Args... >{} );
             }
             auto operator()()
             {
                 try
                 {
-                    promise_.set_value( call_it(
+                    promise_.set_value( invoke_deferred_task(
                         token_, func_, arguments_, std::index_sequence_for< Args... >{} ) );
                 }
                 catch ( ... )
@@ -396,11 +401,11 @@ class TASKPOOL_API task_pool
         };
         std::promise< R > promise;
         auto              future = promise.get_future();
-        push_task( task_proxy(
-            new Task{ token,
-                      std::move( promise ),
-                      std::forward< F >( task ),
-                      std::make_tuple( wrap_arg( std::forward< Args >( args ) )... ) } ) );
+        push_task( task_proxy( new Task{
+            token,
+            std::move( promise ),
+            std::forward< F >( task ),
+            std::make_tuple( wrap_future_argument( std::forward< Args >( args ) )... ) } ) );
         return future;
     }
 
@@ -416,7 +421,8 @@ class TASKPOOL_API task_pool
                             F&&                   task,
                             Args&&... args )
     {
-        using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
+        using args_type =
+            std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
             Allocator< Task > alloc;
@@ -433,13 +439,13 @@ class TASKPOOL_API task_pool
 
             bool is_ready() const
             {
-                return check_it( arguments_, std::index_sequence_for< Args... >{} );
+                return check_argument_status( arguments_, std::index_sequence_for< Args... >{} );
             }
             auto operator()()
             {
                 try
                 {
-                    call_it( func_, arguments_, std::index_sequence_for< Args... >{} );
+                    invoke_deferred_task( func_, arguments_, std::index_sequence_for< Args... >{} );
                     promise_.set_value();
                 }
                 catch ( ... )
@@ -459,7 +465,7 @@ class TASKPOOL_API task_pool
             task_allocator,
             std::move( promise ),
             std::forward< F >( task ),
-            std::make_tuple( wrap_arg( std::forward< Args >( args ) )... ) );
+            std::make_tuple( wrap_future_argument( std::forward< Args >( args ) )... ) );
         push_task( task_proxy( x, task_allocator, typed_task ) );
         return future;
     }
@@ -476,7 +482,8 @@ class TASKPOOL_API task_pool
                             F&&                   task,
                             Args&&... args )
     {
-        using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
+        using args_type =
+            std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
             Allocator< Task > alloc;
@@ -492,14 +499,14 @@ class TASKPOOL_API task_pool
             }
             bool is_ready() const
             {
-                return check_it( arguments_, std::index_sequence_for< Args... >{} );
+                return check_argument_status( arguments_, std::index_sequence_for< Args... >{} );
             }
             auto operator()()
             {
                 try
                 {
-                    promise_.set_value(
-                        call_it( func_, arguments_, std::index_sequence_for< Args... >{} ) );
+                    promise_.set_value( invoke_deferred_task(
+                        func_, arguments_, std::index_sequence_for< Args... >{} ) );
                 }
                 catch ( ... )
                 {
@@ -518,7 +525,7 @@ class TASKPOOL_API task_pool
             task_allocator,
             std::move( promise ),
             std::forward< F >( task ),
-            std::make_tuple( wrap_arg( std::forward< Args >( args ) )... ) );
+            std::make_tuple( wrap_future_argument( std::forward< Args >( args ) )... ) );
         push_task( task_proxy( x, task_allocator, typed_task ) );
         return future;
     }
@@ -537,7 +544,8 @@ class TASKPOOL_API task_pool
                             F&&                   task,
                             Args&&... args )
     {
-        using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
+        using args_type =
+            std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
             Allocator< Task > alloc;
@@ -555,13 +563,14 @@ class TASKPOOL_API task_pool
             }
             bool is_ready() const
             {
-                return check_it( arguments_, std::index_sequence_for< Args... >{} );
+                return check_argument_status( arguments_, std::index_sequence_for< Args... >{} );
             }
             auto operator()()
             {
                 try
                 {
-                    call_it( token_, func_, arguments_, std::index_sequence_for< Args... >{} );
+                    invoke_deferred_task(
+                        token_, func_, arguments_, std::index_sequence_for< Args... >{} );
                     promise_.set_value();
                 }
                 catch ( ... )
@@ -582,7 +591,7 @@ class TASKPOOL_API task_pool
             token,
             std::move( promise ),
             std::forward< F >( task ),
-            std::make_tuple( wrap_arg( std::forward< Args >( args ) )... ) );
+            std::make_tuple( wrap_future_argument( std::forward< Args >( args ) )... ) );
         push_task( task_proxy( x, task_allocator, typed_task ) );
         return future;
     }
@@ -601,7 +610,8 @@ class TASKPOOL_API task_pool
                             F&&                   task,
                             Args&&... args )
     {
-        using args_type = std::tuple< decltype( wrap_arg( std::forward< Args >( args ) ) )... >;
+        using args_type =
+            std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
             Allocator< Task > alloc;
@@ -619,13 +629,13 @@ class TASKPOOL_API task_pool
             }
             bool is_ready() const
             {
-                return check_it( arguments_, std::index_sequence_for< Args... >{} );
+                return check_argument_status( arguments_, std::index_sequence_for< Args... >{} );
             }
             auto operator()()
             {
                 try
                 {
-                    promise_.set_value( call_it(
+                    promise_.set_value( invoke_deferred_task(
                         token_, func_, arguments_, std::index_sequence_for< Args... >{} ) );
                 }
                 catch ( ... )
@@ -646,7 +656,7 @@ class TASKPOOL_API task_pool
             token,
             std::move( promise ),
             std::forward< F >( task ),
-            std::make_tuple( wrap_arg( std::forward< Args >( args ) )... ) );
+            std::make_tuple( wrap_future_argument( std::forward< Args >( args ) )... ) );
         push_task( task_proxy( x, task_allocator, typed_task ) );
         return future;
     }
