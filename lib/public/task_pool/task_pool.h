@@ -42,8 +42,8 @@ namespace be {
  */
 struct TASKPOOL_API stop_token
 {
-    std::atomic_bool const&  token;
-    explicit operator bool() { return token.load(); }
+    std::atomic_bool const& token;
+    explicit                operator bool() { return token.load(); }
 };
 
 /**
@@ -192,8 +192,8 @@ class TASKPOOL_API task_pool
             } )
         {
         }
-        ~task_proxy()                              = default;
-        task_proxy( task_proxy const& )            = delete;
+        ~task_proxy()                   = default;
+        task_proxy( task_proxy const& ) = delete;
         task_proxy& operator=( task_proxy const& ) = delete;
         task_proxy( task_proxy&& ) noexcept;
         task_proxy& operator=( task_proxy&& ) noexcept;

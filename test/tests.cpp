@@ -1,5 +1,3 @@
-#include <task_pool/traits.h>
-#include <task_pool/task_pool.h>
 #include <algorithm>
 #include <atomic>
 #include <catch2/catch.hpp>
@@ -10,6 +8,8 @@
 #include <memory>
 #include <numeric>
 #include <random>
+#include <task_pool/task_pool.h>
+#include <task_pool/traits.h>
 #include <thread>
 #include <type_traits>
 #include <utility>
@@ -1246,13 +1246,13 @@ TEST_CASE( "submit( allocator, f(stop_token), future, ... ) -> void",
 //
 TEST_CASE( "reference_wrapper to & argument", "[task_pool][submit]" )
 {
-    be::task_pool         pool( 1 );
+    be::task_pool pool( 1 );
     pool.pause();
-    std::atomic_int actual{0};
-    auto task  = [&]( int& x ){ actual = x;};
-    const int value = 42;
-    int expected = value;
-    auto future = pool.submit( task, std::ref(expected) );
+    std::atomic_int actual{ 0 };
+    auto            task     = [&]( int& x ) { actual = x; };
+    const int       value    = 42;
+    int             expected = value;
+    auto            future   = pool.submit( task, std::ref( expected ) );
     expected *= 2;
     pool.unpause();
     future.wait();

@@ -1,5 +1,4 @@
 #include "task_pool/api.h"
-#include <task_pool/task_pool.h>
 #include <atomic>
 #include <condition_variable>
 #include <exception>
@@ -7,6 +6,7 @@
 #include <iterator>
 #include <mutex>
 #include <queue>
+#include <task_pool/task_pool.h>
 #include <thread>
 #include <vector>
 

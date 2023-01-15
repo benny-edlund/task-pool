@@ -1,14 +1,14 @@
 #pragma once
 
-#include <task_pool/api.h>
 #include <algorithm>
 #include <chrono>
 #include <future>
 #include <mutex>
+#include <task_pool/api.h>
 #include <type_traits>
 #include <utility>
 #if __cplusplus < 201700
-#include <task_pool/fallbacks.h>
+#    include <task_pool/fallbacks.h>
 #endif
 
 namespace be {
@@ -187,8 +187,8 @@ auto call_it( Callable& callable, Arguments& arguments, std::index_sequence< Is.
 
 template< typename Callable, typename Arguments, std::size_t... Is >
 auto call_it( stop_token const& token,
-              Callable&  callable,
-              Arguments& arguments,
+              Callable&         callable,
+              Arguments&        arguments,
               std::index_sequence< Is... > /*Is*/ )
 {
     return callable( std::get< Is >( arguments )()..., token );
@@ -201,6 +201,5 @@ bool check_it( Arguments& arguments, std::index_sequence< Is... > /*Is*/ )
     return std::all_of(
         args_status.begin(), args_status.end(), []( auto value ) { return value; } );
 }
-
 
 } // namespace be
