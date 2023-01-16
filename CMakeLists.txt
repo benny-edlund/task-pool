@@ -107,10 +107,11 @@ include(${_project_options_SOURCE_DIR}/src/DynamicProjectOptions.cmake)
 dynamic_project_options(
   # Note: PCH is disabled by default in developer mode because these headers become
   # globally included and they can mask other errors
-  # PCH_HEADERS
-  # <vector>
-  # <string>
-  # <memory>
+  PCH_HEADERS
+  <vector>
+  <string>
+  <memory>
+  <utility>
   ENABLE_CONAN
   # CONAN_OPTIONS    # Extra options to pass to conan
   # MSVC_WARNINGS    # Override the defaults for the MSVC warnings
