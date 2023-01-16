@@ -13,13 +13,15 @@ class TaskPoolConan(ConanFile):
     description = "A portable task orient thread pool library compatible with C++14 with support for custom allocators, cooperative cancellation and more"
     topics = ("threadpool", "thread", "asynchronous", "concurrency", "task", "c++")
 
+    requires = ("catch2/2.13.9",)
+    generators = ("cmake_find_package_multi",)
     # Binary configuration
     settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False], "fPIC": [True, False]}
     default_options = {"shared": False, "fPIC": True}
 
     # Sources are located in the same place as this recipe, copy them to the recipe
-    exports_sources = "CMakeLists.txt", "conanfile.txt", "lib/*", "configured_files/*", "test/*"
+    exports_sources = "CMakeLists.txt", "conanfile.py", "lib/*", "configured_files/*", "test/*"
 
     def config_options(self):
         if self.settings.os == "Windows":
