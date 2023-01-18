@@ -1329,6 +1329,7 @@ TEST_CASE( "( allocator, ... ) -> size_t", "[task_pool][submit][allocator]" )
     auto              data =
         pool.submit( std::allocator_arg_t{}, allocator, make_data, std::size_t{ value_counts } );
     auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
     REQUIRE( value_counts == result.get() ); // doh
     CHECK( allocations.allocations > 0 );
     CHECK( allocations.constructions > value_counts );
@@ -1353,6 +1354,7 @@ TEST_CASE( "( allocator, ..., stop_token) -> size_t", "[task_pool][submit][alloc
     auto              data =
         pool.submit( std::allocator_arg_t{}, allocator, make_data, std::size_t{ value_counts } );
     auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
     REQUIRE( value_counts == result.get() ); // doh
     REQUIRE( allocations.allocations > 0 );
     REQUIRE( allocations.constructions > value_counts );
@@ -1376,6 +1378,7 @@ TEST_CASE( "( allocator, ... ) -> void", "[task_pool][submit][allocator]" )
     auto              data =
         pool.submit( std::allocator_arg_t{}, allocator, make_data, std::size_t{ value_counts } );
     auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
     result.wait();
     REQUIRE( allocations.allocations > 0 );
     REQUIRE( allocations.constructions > value_counts );
@@ -1400,6 +1403,7 @@ TEST_CASE( "( allocator, ..., stop_token ) -> void", "[task_pool][submit][alloca
     auto              data =
         pool.submit( std::allocator_arg_t{}, allocator, make_data, std::size_t{ value_counts } );
     auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
     result.wait();
     REQUIRE( allocations.allocations > 0 );
     REQUIRE( allocations.constructions > value_counts );
@@ -1422,15 +1426,17 @@ TEST_CASE( "( allocator, future ) -> size_t", "[task_pool][submit][allocator]" )
 
     auto process_data = []( data_type&& x ) { return x.size(); };
 
-    be::task_pool pool;
-    auto          get_count = []() { return value_counts; };
-    auto          value     = pool.submit( get_count );
-    auto data   = pool.submit( std::allocator_arg_t{}, allocator, make_data, std::move( value ) );
-    auto result = pool.submit( process_data, std::move( data ) );
-    REQUIRE( value_counts == result.get() ); // doh
-    REQUIRE( allocations.allocations > 0 );
-    REQUIRE( allocations.constructions > value_counts );
-    REQUIRE( allocations.deallocations > 0 );
+    {
+        be::task_pool pool;
+        auto          get_count = []() { return value_counts; };
+        auto          value     = pool.submit( get_count );
+        auto data = pool.submit( std::allocator_arg_t{}, allocator, make_data, std::move( value ) );
+        auto result = pool.submit( process_data, std::move( data ) );
+        REQUIRE( value_counts == result.get() ); // doh
+        REQUIRE( allocations.allocations > 0 );
+        REQUIRE( allocations.constructions > value_counts );
+        REQUIRE( allocations.deallocations > 0 );
+    }
 }
 
 TEST_CASE( "( allocator, future, stop_token) -> size_t",
@@ -1453,6 +1459,7 @@ TEST_CASE( "( allocator, future, stop_token) -> size_t",
     auto          value = pool.submit( get_count );
     auto data   = pool.submit( std::allocator_arg_t{}, allocator, make_data, std::move( value ) );
     auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
     REQUIRE( value_counts == result.get() ); // doh
     REQUIRE( allocations.allocations > 0 );
     REQUIRE( allocations.constructions > value_counts );
@@ -1479,6 +1486,7 @@ TEST_CASE( "( allocator, future ) -> void", "[task_pool][submit][allocator]" )
     auto          value = pool.submit( get_count );
     auto data   = pool.submit( std::allocator_arg_t{}, allocator, make_data, std::move( value ) );
     auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
     result.wait();
     REQUIRE( allocations.allocations > 0 );
     REQUIRE( allocations.constructions > value_counts );
@@ -1506,6 +1514,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> void",
     auto          value = pool.submit( get_count );
     auto data   = pool.submit( std::allocator_arg_t{}, allocator, make_data, std::move( value ) );
     auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
     result.wait();
     REQUIRE( allocations.allocations > 0 );
     REQUIRE( allocations.constructions > value_counts );
