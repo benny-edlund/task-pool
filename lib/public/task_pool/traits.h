@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <future>
+#include <memory>
 #include <mutex>
 #include <task_pool/api.h>
 #include <type_traits>
@@ -63,6 +64,40 @@ struct wants_stop_token< R ( C::* )( Args... ) const > : public contains_stop_to
 
 template< typename T >
 static constexpr bool wants_stop_token_v = wants_stop_token< T >::value;
+
+template< typename... Ts >
+struct contains_allocator_arg : is_one_of< std::allocator_arg_t, Ts... >
+{
+};
+
+template< typename T, typename Functor = std::remove_reference_t< std::remove_cv_t< T > > >
+struct wants_allocator : public wants_allocator< decltype( &Functor::operator() ) >
+{
+};
+
+template< typename R, typename... Args >
+struct wants_allocator< R( Args... ) > : public contains_allocator_arg< Args... >
+{
+};
+
+template< typename R, typename... Args >
+struct wants_allocator< R ( * )( Args... ) > : public contains_allocator_arg< Args... >
+{
+};
+
+template< class C, typename R, typename... Args >
+struct wants_allocator< R ( C::* )( Args... ) > : public contains_allocator_arg< Args... >
+{
+};
+
+template< class C, typename R, typename... Args >
+struct wants_allocator< R ( C::* )( Args... ) const > : public contains_allocator_arg< Args... >
+{
+};
+
+template< typename T >
+static constexpr bool wants_allocator_v = wants_allocator< T >::value;
+
 
 namespace future_api {
 template< typename Future >
@@ -155,14 +190,14 @@ auto wrap_future_argument( T&& t )
     struct func_
     {
         T           value;
-        T           operator()() { return std::forward< T >( value ); }
+        T           operator()() { return std::forward<T>(value); }
         static bool is_ready() { return true; }
     };
     return func_{ std::forward< T >( t ) };
 }
 
 template< typename T, std::enable_if_t< be::is_future< T >::value, bool > = true >
-auto wrap_future_argument( T t )
+auto wrap_future_argument( T&& t )
 {
     struct func_
     {
