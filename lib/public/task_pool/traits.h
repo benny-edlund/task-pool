@@ -98,7 +98,6 @@ struct wants_allocator< R ( C::* )( Args... ) const > : public contains_allocato
 template< typename T >
 static constexpr bool wants_allocator_v = wants_allocator< T >::value;
 
-
 namespace future_api {
 template< typename Future >
 using get_result_t = decltype( std::declval< Future >().get() );
@@ -190,7 +189,7 @@ auto wrap_future_argument( T&& t )
     struct func_
     {
         T           value;
-        T           operator()() { return std::forward<T>(value); }
+        T           operator()() { return std::forward< T >( value ); }
         static bool is_ready() { return true; }
     };
     return func_{ std::forward< T >( t ) };

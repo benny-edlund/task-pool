@@ -192,8 +192,8 @@ class TASKPOOL_API task_pool
             } )
         {
         }
-        ~task_proxy()                              = default;
-        task_proxy( task_proxy const& )            = delete;
+        ~task_proxy()                   = default;
+        task_proxy( task_proxy const& ) = delete;
         task_proxy& operator=( task_proxy const& ) = delete;
         task_proxy( task_proxy&& ) noexcept;
         task_proxy& operator=( task_proxy&& ) noexcept;
@@ -213,11 +213,11 @@ class TASKPOOL_API task_pool
             }
             using FuncType::operator();
             static bool     is_ready() { return true; }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         return task_proxy( new Task( std::forward< F >( task ) ) );
     }
@@ -242,11 +242,11 @@ class TASKPOOL_API task_pool
             using FuncType::  operator();
             static bool       is_ready() { return true; }
             Allocator< Task > alloc;
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Allocator< Task > task_allocator( allocator );
         Task*             typed_task =
@@ -289,11 +289,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         std::promise< R > promise;
         auto              future = promise.get_future();
@@ -340,11 +340,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         std::promise< R > promise;
         auto              future = promise.get_future();
@@ -388,11 +388,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         std::promise< R > promise;
         auto              future = promise.get_future();
@@ -438,11 +438,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         std::promise< R > promise;
         auto              future = promise.get_future();
@@ -502,11 +502,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         std::promise< R > promise( x, allocator );
         auto              future = promise.get_future();
@@ -578,11 +578,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         std::promise< R > promise( x, allocator );
         auto              future = promise.get_future();
@@ -645,11 +645,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         std::promise< R > promise( x, allocator );
         auto              future = promise.get_future();
@@ -720,11 +720,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         std::promise< R > promise( x, allocator );
         auto              future = promise.get_future();
@@ -797,11 +797,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         std::promise< R > promise( x, allocator );
         auto              future = promise.get_future();
@@ -882,11 +882,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         std::promise< R > promise( x, allocator );
         auto              future = promise.get_future();
@@ -958,11 +958,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         std::promise< R > promise( x, allocator );
         auto              future = promise.get_future();
@@ -1042,11 +1042,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         std::promise< R > promise( x, allocator );
         auto              future = promise.get_future();
@@ -1586,10 +1586,9 @@ public:
               typename F,
               typename... A,
               typename T,
-              typename R               = be_invoke_result_t< std::decay_t< F >,
+              typename R = be_invoke_result_t< std::decay_t< F >,
                                                future_argument_t< std::decay_t< A > >... >,
-              std::enable_if_t< contains_future< std::decay_t< A >... >::value,
-                                bool > = true >
+              std::enable_if_t< contains_future< std::decay_t< A >... >::value, bool > = true >
     BE_NODISGARD std::future< R >
     submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, A&&... args )
     {
