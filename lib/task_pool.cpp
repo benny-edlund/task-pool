@@ -103,7 +103,7 @@ struct TASKPOOL_HIDDEN task_pool::Impl
 
     void add_task( task_proxy&& proxy )
     {
-        if ( proxy.storage )
+        if ( proxy.storage.get() == nullptr ) // NOLINT
         {
             throw std::invalid_argument{ "'add_task' called with invalid task_proxy" };
         }
