@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <exception>
 #include <functional>
 #include <future>
@@ -1070,6 +1071,13 @@ public:
      */
     explicit task_pool( const unsigned = 0 );
 
+    template< typename Duration >
+    task_pool( Duration&& lazy_check_latency, const unsigned thread_count )
+        : task_pool( std::chrono::duration_cast< std::chrono::nanoseconds >( lazy_check_latency ),
+                     thread_count )
+    {
+    }
+
     /**
      * @brief Destroys the task_pool. Will attempt to cancel tasks that allow it
      * and join all threads.
@@ -1153,6 +1161,12 @@ public:
      */
     stop_token get_stop_token() const;
 
+    /**
+     * @brief Get the maximum duration used to wait prior to checking lazy input arguments
+     *
+     * @return std::chrono::nanoseconds
+     */
+    std::chrono::nanoseconds get_check_latency() const;
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
@@ -1666,6 +1680,7 @@ public:
     }
 
 private:
+    task_pool( std::chrono::nanoseconds const, unsigned const );
     void push_task( task_proxy&& );
 
     struct Impl;

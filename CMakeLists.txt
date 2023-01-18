@@ -128,6 +128,7 @@ dynamic_project_options(
   --suppress=passedByValue
   --suppress=syntaxError
   --suppress=constParameter # buggy
+  --suppress=operatorEqRetRefThis # buggy
   --inconclusive
 )
 

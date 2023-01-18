@@ -31,6 +31,22 @@ TEST_CASE( "construction/thread-count", "[task_pool]" )
     }
 }
 
+TEST_CASE( "construction/latency/thread-count", "[task_pool]" )
+{
+    std::vector< unsigned > numbers;
+    numbers.resize( std::thread::hardware_concurrency() );
+    std::iota( numbers.begin(), numbers.end(), 1 );
+
+    for ( auto const& expected : numbers )
+    {
+        be::task_pool pool( std::chrono::microseconds( expected ), expected );
+        auto          actual_latency     = pool.get_check_latency();
+        auto          actual_threadcount = pool.get_thread_count();
+        REQUIRE( actual_latency == std::chrono::microseconds( expected ) );
+        REQUIRE( actual_threadcount == expected );
+    }
+}
+
 TEST_CASE( "construction/default value", "[task_pool]" )
 {
     auto          expected = std::thread::hardware_concurrency();
