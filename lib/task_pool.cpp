@@ -1,5 +1,6 @@
 #include "task_pool/api.h"
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <exception>
 #include <functional>
@@ -26,6 +27,7 @@ struct TASKPOOL_HIDDEN task_pool::Impl
     std::atomic< std::size_t >       tasks_queued_{ 0 };
     unsigned                         thread_count_ = 0;
     std::unique_ptr< std::thread[] > threads_; //  NOLINT (c-arrays)
+    std::chrono::nanoseconds         task_check_latency_ = std::chrono::microseconds( 1 );
 
     explicit Impl( unsigned thread_count )
         : thread_count_( compute_thread_count( thread_count ) )
@@ -33,12 +35,22 @@ struct TASKPOOL_HIDDEN task_pool::Impl
     {
         create_threads();
     }
+
+    template< typename Duration >
+    Impl( Duration&& latency, unsigned thread_count )
+        : thread_count_( compute_thread_count( thread_count ) )
+        , threads_( std::make_unique< std::thread[] >( thread_count ) ) // NOLINT (c-arrays)
+        , task_check_latency_( std::chrono::duration_cast< std::chrono::nanoseconds >( latency ) )
+    {
+        create_threads();
+    }
+
     ~Impl() { destroy_threads(); }
 
-    Impl( Impl const& ) = delete;
-    Impl( Impl&& )      = delete;
+    Impl( Impl const& )            = delete;
+    Impl( Impl&& )                 = delete;
     Impl& operator=( Impl const& ) = delete;
-    Impl& operator=( Impl&& ) = delete;
+    Impl& operator=( Impl&& )      = delete;
 
     void create_threads()
     {
@@ -46,7 +58,7 @@ struct TASKPOOL_HIDDEN task_pool::Impl
         threads_ = std::make_unique< std::thread[] >( thread_count_ ); // NOLINT
         for ( unsigned i = 0; i < thread_count_; ++i )
         {
-            threads_[i] = std::thread( &Impl::thread_worker, this );
+            threads_[i] = std::thread( &Impl::thread_worker, this, task_check_latency_ );
         }
     }
 
@@ -90,6 +102,10 @@ struct TASKPOOL_HIDDEN task_pool::Impl
 
     void add_task( task_proxy&& proxy )
     {
+        if ( !proxy.storage )
+        {
+            return;
+        }
         if ( proxy.check_task( proxy.storage.get() ) )
         {
             {
@@ -196,7 +212,8 @@ struct TASKPOOL_HIDDEN task_pool::Impl
      * spend some time checking the input args for tasks that uses futures. Once we have checked the
      * futures we wake up any waiting thread to be the next task_checker .
      */
-    void thread_worker()
+
+    void thread_worker( std::chrono::nanoseconds latency )
     {
         for ( ;; )
         {
@@ -218,10 +235,20 @@ struct TASKPOOL_HIDDEN task_pool::Impl
             {
                 break;
             };
-            task_added_.wait( tasks_lock, [this] { return !tasks_.empty() || abort_; } );
-            if ( paused_ || tasks_.empty() )
+            using namespace std::chrono_literals;
+            task_added_.wait_for(
+                tasks_lock, latency, [this] { return !tasks_.empty() || abort_; } );
+            if ( tasks_.empty() )
             {
-                // we where woken for abort or to be the next task_checker
+                // we where woken to be the next task_checker
+                if ( waiting_ )
+                {
+                    task_completed_.notify_one();
+                }
+                continue;
+            }
+            if ( paused_ )
+            {
                 continue;
             }
             if ( abort_ )
@@ -243,6 +270,12 @@ struct TASKPOOL_HIDDEN task_pool::Impl
 
 task_pool::task_pool( const unsigned thread_count )
     : impl_{ new Impl( thread_count ) }
+{
+}
+
+task_pool::task_pool( std::chrono::nanoseconds const lazy_check_latency,
+                      unsigned const                 thread_count )
+    : impl_{ new Impl( lazy_check_latency, thread_count ) }
 {
 }
 
@@ -326,6 +359,8 @@ task_pool::task_proxy::task_proxy( task_proxy&& other ) noexcept
     , storage( std::move( other.storage ) )
 {
     other.execute_task = []( void* /*unused*/ ) {};
+    other.check_task   = []( void* /*unused*/ ) { return false; };
+    other.storage.reset();
 }
 
 void task_pool::abort()
@@ -339,7 +374,14 @@ task_pool::task_proxy& task_pool::task_proxy::operator=( task_proxy&& other ) no
     execute_task       = other.execute_task;
     storage            = std::move( other.storage );
     other.execute_task = []( void* /*unused*/ ) {};
+    other.check_task   = []( void* /*unused*/ ) { return true; };
+    other.storage.reset();
     return *this;
+}
+
+std::chrono::nanoseconds task_pool::get_check_latency() const
+{
+    return impl_->task_check_latency_;
 }
 
 } // namespace be
