@@ -7,6 +7,7 @@
 #include <iterator>
 #include <mutex>
 #include <queue>
+#include <stdexcept>
 #include <task_pool/task_pool.h>
 #include <thread>
 #include <vector>
@@ -102,9 +103,9 @@ struct TASKPOOL_HIDDEN task_pool::Impl
 
     void add_task( task_proxy&& proxy )
     {
-        if ( !proxy.storage )
+        if ( proxy.storage.get() == nullptr ) // NOLINT
         {
-            return;
+            throw std::invalid_argument{ "'add_task' called with invalid task_proxy" };
         }
         if ( proxy.check_task( proxy.storage.get() ) )
         {
@@ -180,18 +181,13 @@ struct TASKPOOL_HIDDEN task_pool::Impl
         {
             auto const start   = std::begin( tasks_to_check_ );
             auto const stop    = std::end( tasks_to_check_ );
-            auto const removed = std::remove_if( start, stop, []( auto const& proxy ) {
-                return proxy.check_task( proxy.storage.get() );
+            auto const removed = std::partition( start, stop, []( task_proxy const& proxy ) {
+                return !proxy.check_task( proxy.storage.get() );
             } );
-            if ( removed != stop )
-            {
-                ready_tasks.reserve(
-                    static_cast< std::size_t >( std::distance( removed, tasks_to_check_.end() ) ) );
-                std::copy( std::make_move_iterator( removed ),
-                           std::make_move_iterator( stop ),
-                           std::back_inserter( ready_tasks ) );
-            }
-            tasks_to_check_.erase( removed, stop );
+            ready_tasks.insert( ready_tasks.end(),
+                                std::make_move_iterator( removed ),
+                                std::make_move_iterator( stop ) );
+            tasks_to_check_.erase( removed, tasks_to_check_.end() );
         }
         return ready_tasks;
     }
@@ -358,8 +354,9 @@ task_pool::task_proxy::task_proxy( task_proxy&& other ) noexcept
     , execute_task( other.execute_task )
     , storage( std::move( other.storage ) )
 {
+    // moved from task_proxy object are harmless noop tasks
     other.execute_task = []( void* /*unused*/ ) {};
-    other.check_task   = []( void* /*unused*/ ) { return false; };
+    other.check_task   = []( void* /*unused*/ ) { return true; };
     other.storage.reset();
 }
 
@@ -370,6 +367,7 @@ void task_pool::abort()
 
 task_pool::task_proxy& task_pool::task_proxy::operator=( task_proxy&& other ) noexcept
 {
+    // moved from task_proxy object are harmless noop tasks
     check_task         = other.check_task;
     execute_task       = other.execute_task;
     storage            = std::move( other.storage );
