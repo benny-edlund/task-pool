@@ -193,8 +193,8 @@ class TASKPOOL_API task_pool
             } )
         {
         }
-        ~task_proxy()                              = default;
-        task_proxy( task_proxy const& )            = delete;
+        ~task_proxy()                   = default;
+        task_proxy( task_proxy const& ) = delete;
         task_proxy& operator=( task_proxy const& ) = delete;
         task_proxy( task_proxy&& ) noexcept;
         task_proxy& operator=( task_proxy&& ) noexcept;

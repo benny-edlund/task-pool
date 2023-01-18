@@ -47,10 +47,10 @@ struct TASKPOOL_HIDDEN task_pool::Impl
 
     ~Impl() { destroy_threads(); }
 
-    Impl( Impl const& )            = delete;
-    Impl( Impl&& )                 = delete;
+    Impl( Impl const& ) = delete;
+    Impl( Impl&& )      = delete;
     Impl& operator=( Impl const& ) = delete;
-    Impl& operator=( Impl&& )      = delete;
+    Impl& operator=( Impl&& ) = delete;
 
     void create_threads()
     {
