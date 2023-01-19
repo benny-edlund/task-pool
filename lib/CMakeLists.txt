@@ -7,7 +7,7 @@ set(HEADER_LIST
 
 # Static library
 add_library(task_pool_static task_pool.cpp "${HEADER_LIST}")
-target_compile_definitions(task_pool_static PRIVATE TASK_POOL_EXPORTS=1)
+target_compile_definitions(task_pool_static PUBLIC TASK_POOL_EXPORTS=1)
 set_target_properties(task_pool_static PROPERTIES PUBLIC_HEADER "${HEADER_LIST}")
 
 target_include_directories(task_pool_static PUBLIC  
@@ -27,7 +27,7 @@ PRIVATE project_options project_warnings)
 
 # Shared library
 add_library(task_pool SHARED task_pool.cpp "${HEADER_LIST}")
-target_compile_definitions(task_pool PRIVATE TASK_POOL_EXPORTS=1)
+target_compile_definitions(task_pool PUBLIC TASK_POOL_EXPORTS=1)
 set_target_properties(task_pool PROPERTIES PUBLIC_HEADER "${HEADER_LIST}")
 
 target_include_directories(task_pool PUBLIC  
