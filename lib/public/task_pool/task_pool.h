@@ -44,7 +44,8 @@ namespace be {
 struct TASKPOOL_API stop_token
 {
     std::atomic_bool const& token;
-    explicit                operator bool() { return token.load(); }
+
+    explicit operator bool();
 };
 
 /**

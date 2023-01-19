@@ -14,6 +14,7 @@
 
 namespace be {
 
+
 struct TASKPOOL_HIDDEN task_pool::Impl
 {
     mutable std::mutex               tasks_mutex_       = {};
@@ -48,10 +49,10 @@ struct TASKPOOL_HIDDEN task_pool::Impl
 
     ~Impl() { destroy_threads(); }
 
-    Impl( Impl const& ) = delete;
-    Impl( Impl&& )      = delete;
+    Impl( Impl const& )            = delete;
+    Impl( Impl&& )                 = delete;
     Impl& operator=( Impl const& ) = delete;
-    Impl& operator=( Impl&& ) = delete;
+    Impl& operator=( Impl&& )      = delete;
 
     void create_threads()
     {
@@ -264,29 +265,34 @@ struct TASKPOOL_HIDDEN task_pool::Impl
     }
 };
 
-task_pool::task_pool( const unsigned thread_count )
+TASKPOOL_API stop_token::operator bool()
+{
+    return token.load();
+}
+
+TASKPOOL_API task_pool::task_pool( const unsigned thread_count )
     : impl_{ new Impl( thread_count ) }
 {
 }
 
-task_pool::task_pool( std::chrono::nanoseconds const lazy_check_latency,
+TASKPOOL_API task_pool::task_pool( std::chrono::nanoseconds const lazy_check_latency,
                       unsigned const                 thread_count )
     : impl_{ new Impl( lazy_check_latency, thread_count ) }
 {
 }
 
-task_pool::~task_pool()
+TASKPOOL_API task_pool::~task_pool()
 {
     impl_.reset();
 }
 
-task_pool::task_pool( task_pool&& other ) noexcept
+TASKPOOL_API task_pool::task_pool( task_pool&& other ) noexcept
     : impl_( std::move( other.impl_ ) )
 {
     other.impl_.reset();
 }
 
-task_pool& task_pool::operator=( task_pool&& other ) noexcept
+TASKPOOL_API task_pool& task_pool::operator=( task_pool&& other ) noexcept
 {
     wait_for_tasks();
     impl_.reset();
@@ -294,62 +300,62 @@ task_pool& task_pool::operator=( task_pool&& other ) noexcept
     return *this;
 }
 
-std::size_t task_pool::get_tasks_queued() const
+TASKPOOL_API std::size_t task_pool::get_tasks_queued() const
 {
     return impl_->get_tasks_queued();
 }
 
-std::size_t task_pool::get_tasks_running() const
+TASKPOOL_API std::size_t task_pool::get_tasks_running() const
 {
     return impl_->get_tasks_running();
 }
 
-std::size_t task_pool::get_tasks_total() const
+TASKPOOL_API std::size_t task_pool::get_tasks_total() const
 {
     return impl_->get_tasks_total();
 }
 
-unsigned task_pool::get_thread_count() const
+TASKPOOL_API unsigned task_pool::get_thread_count() const
 {
     return impl_->get_thread_count();
 }
 
-bool task_pool::is_paused() const
+TASKPOOL_API bool task_pool::is_paused() const
 {
     return impl_->is_paused();
 }
 
-void task_pool::pause()
+TASKPOOL_API void task_pool::pause()
 {
     impl_->pause();
 }
 
-void task_pool::reset( const unsigned thread_count_ )
+TASKPOOL_API void task_pool::reset( const unsigned thread_count_ )
 {
     impl_->reset( thread_count_ );
 }
 
-void task_pool::unpause()
+TASKPOOL_API void task_pool::unpause()
 {
     impl_->unpause();
 }
 
-void task_pool::wait_for_tasks()
+TASKPOOL_API void task_pool::wait_for_tasks()
 {
     impl_->wait_for_tasks();
 }
 
-stop_token task_pool::get_stop_token() const
+TASKPOOL_API stop_token task_pool::get_stop_token() const
 {
     return stop_token{ impl_->get_stop_token() };
 }
 
-void task_pool::push_task( task_proxy&& task )
+TASKPOOL_API void task_pool::push_task( task_proxy&& task )
 {
     impl_->add_task( std::move( task ) );
 }
 
-task_pool::task_proxy::task_proxy( task_proxy&& other ) noexcept
+TASKPOOL_HIDDEN task_pool::task_proxy::task_proxy( task_proxy&& other ) noexcept
     : check_task( other.check_task )
     , execute_task( other.execute_task )
     , storage( std::move( other.storage ) )
@@ -360,12 +366,12 @@ task_pool::task_proxy::task_proxy( task_proxy&& other ) noexcept
     other.storage.reset();
 }
 
-void task_pool::abort()
+TASKPOOL_API void task_pool::abort()
 {
     impl_->cooperative_abort();
 }
 
-task_pool::task_proxy& task_pool::task_proxy::operator=( task_proxy&& other ) noexcept
+TASKPOOL_HIDDEN task_pool::task_proxy& task_pool::task_proxy::operator=( task_proxy&& other ) noexcept
 {
     // moved from task_proxy object are harmless noop tasks
     check_task         = other.check_task;
@@ -377,7 +383,7 @@ task_pool::task_proxy& task_pool::task_proxy::operator=( task_proxy&& other ) no
     return *this;
 }
 
-std::chrono::nanoseconds task_pool::get_check_latency() const
+TASKPOOL_API std::chrono::nanoseconds task_pool::get_check_latency() const
 {
     return impl_->task_check_latency_;
 }

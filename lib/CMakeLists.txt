@@ -4,10 +4,11 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 set(HEADER_LIST 
-${CMAKE_CURRENT_BINARY_DIR}/task_pool/api.h
-${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/fallbacks.h
-${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/traits.h
-${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/task_pool.h )
+	${CMAKE_CURRENT_BINARY_DIR}/task_pool/api.h
+	${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/fallbacks.h
+	${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/traits.h
+	${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/task_pool.h 
+)
 
 # Static library
 add_library(task_pool_static task_pool.cpp "${HEADER_LIST}")
@@ -21,9 +22,11 @@ target_include_directories(
 )
 target_include_directories(task_pool_static PRIVATE "${CMAKE_BINARY_DIR}/configured_files/include")
 target_link_libraries( task_pool_static PRIVATE project_options project_warnings)
+target_compile_definitions( task_pool_static PUBLIC TASKPOOL_STATIC_DEFINE )
 if (UNIX)
   target_link_libraries(task_pool_static PRIVATE pthread)
 endif()
+
 
 
 # Shared library
