@@ -95,6 +95,20 @@ struct wants_allocator< R ( C::* )( Args... ) const > : public contains_allocato
 {
 };
 
+template< typename T, typename = void, typename... Us >
+struct is_allocator_constructible : std::false_type
+{
+};
+
+template< typename T, typename... Us >
+struct is_allocator_constructible< T,
+                                   be_void_t< decltype( T( std::declval< std::allocator_arg_t >(),
+                                                           std::declval< std::allocator< void > >(),
+                                                           std::declval< Us >()... ) ) >,
+                                   Us... > : std::true_type
+{
+};
+
 template< typename T >
 static constexpr bool wants_allocator_v = wants_allocator< T >::value;
 
@@ -114,6 +128,19 @@ using wait_until_result_t = decltype( std::declval< Future >().wait_until(
     std::declval< std::chrono::steady_clock::time_point >() ) );
 
 template< typename T, typename = void >
+struct is_future_status : std::false_type
+{
+};
+
+template< typename T >
+struct is_future_status<
+    T,
+    be_void_t< decltype( T::ready ), decltype( T::timeout ), decltype( T::deferred ) > >
+    : std::is_enum< T >
+{
+};
+
+template< typename T, typename = void >
 struct is_supported : std::false_type
 {
 };
@@ -125,8 +152,8 @@ struct is_supported< T,
                                 wait_for_result_t< T >,
                                 wait_until_result_t< T > > >
     : std::conditional< std::is_same< void, wait_result_t< T > >::value &&
-                            std::is_same< std::future_status, wait_for_result_t< T > >::value &&
-                            std::is_same< std::future_status, wait_until_result_t< T > >::value,
+                            is_future_status< wait_for_result_t< T > >::value &&
+                            is_future_status< wait_until_result_t< T > >::value,
                         std::true_type,
                         std::false_type >::type
 {
@@ -174,6 +201,34 @@ struct future_argument< T, be_void_t< future_api::get_result_t< T > > >
 template< typename T >
 using future_argument_t = typename future_argument< T >::type;
 
+namespace promise_api {
+
+template< typename Promise >
+using get_future_t = decltype( std::declval< Promise >().get_future() );
+
+template< template< typename > class T, typename V, typename = void >
+struct is_supported : std::false_type
+{
+};
+
+template< template< typename > class T >
+struct is_supported< T, void, be_void_t< get_future_t< T< void > > > >
+    : std::conditional< is_future< get_future_t< T< void > > >::value,
+                        std::true_type,
+                        std::false_type >
+{
+};
+
+} // namespace promise_api
+
+template< template< typename > class T, typename V = void >
+struct is_promise : promise_api::is_supported< T, V >::type
+{
+};
+
+template< template< typename > class T >
+static constexpr bool is_promise_v = is_promise< T >::value;
+
 template< typename T >
 struct is_movable
     : std::conditional_t< std::is_move_constructible< T >::value ||
@@ -198,13 +253,17 @@ auto wrap_future_argument( T&& t )
 template< typename T, std::enable_if_t< be::is_future< T >::value, bool > = true >
 auto wrap_future_argument( T&& t )
 {
+    using status_type =
+        decltype( std::declval< T >().wait_for( std::declval< std::chrono::seconds >() ) );
+    static_assert( future_api::is_future_status< status_type >::value,
+                   "T::wait_for does not return a future_status-like enum" );
     struct func_
     {
         T                       value;
         be::future_value_t< T > operator()() { return value.get(); }
         bool                    is_ready() const
         {
-            return value.wait_for( std::chrono::seconds( 0 ) ) == std::future_status::ready;
+            return value.wait_for( std::chrono::seconds( 0 ) ) == status_type::ready;
         }
     };
     return func_{ std::forward< T >( t ) };

@@ -183,6 +183,85 @@ Instead of using an entire thread to wait for `future_data` to be ready we can i
 This works for all future-like objects. [^2]
 &nbsp;
 
+## Custom promise / future types
+
+As afore mentioned it is possible to use any future-like object as a lazy argument provided they support the same api as std::future.
+```cpp
+template<typename T>
+struct Future
+{
+    enum class Status
+    {
+        ready,
+        timeout,
+        deferred
+    };
+    T   get();
+    void   wait();
+    Status wait_for( std::chrono::steady_clock::duration );
+    Status wait_until( std::chrono::steady_clock::time_point );
+};
+```
+Above is some custom future type defined in an api. This library requires the methods `get()`, `wait()`  to be called without arguments and it does not check the return types. For the methods `wait_for` and `wait_until` the library requires the that the methods are called with some appropriate `std::chrono` type matching std::future and it requires that the methods returns some kind of enum type that have the definitions `ready`, `timeout` and `deferred`. 
+
+It is also possible to customize what promise type should be used in the task execution which ultimately also affects what future type is returned from `be::task_pool::submit`
+
+```cpp
+template< typename T >
+struct Promise
+{
+    Promise();
+    Future get_future();
+    void set_value( T );
+    void set_exception( std::exception_ptr );
+};
+
+```
+Above a custom promise type is defined that follows the api of std::promise. It must be a template taking a single template parameters and it must have the methods `get_future`, `set_value` and `set_exception`
+
+The promise type can be used in the pool by specifying it as a template parameter to `submit`
+
+```cpp
+std::vector<int> make_data();
+bool process_data( std::vector<int> );
+
+be::task_pool pool;
+auto data = pool.submit<Promise>(&make_data);
+auto result = pool.submit<Promise>(&process_data, std::move(data));
+```
+Above the custom Promise template is used to instantate the task promise type and `submit` will return the future type returned by this promise.
+
+Each task may have a different promise that suits the purpose.
+
+For tasks that will take allocators the custom promise additionally needs to be allocator constructible by defining a templated constructor like below.
+
+```cpp
+template<typename T>
+struct Promise
+{
+    Promise();
+    template< template<typename> class Allocator, typename T >
+    Promise( std::allocator_arg_t, Allocator<T> const& );
+    Future get_future();
+    void set_value( T );
+    void set_exception( std::exception_ptr );
+};
+```
+
+This will then be allowed to be used in calls to `submit` that utilize allocators.
+
+```cpp
+std::vector<int, FastAlloc<int> > make_data(std::allocator_arg_t, FastAlloc<int> const& alloc);
+bool process_data( std::vector<int, FastAlloc<int>> );
+
+be::task_pool pool;
+std::allocator_arg_t tag;
+FastAlloc<int> alloc;
+auto data = pool.submit<Promise>(tag,alloc,&make_data);
+auto result = pool.submit<Promise>(&process_data, std::move(data));
+```
+&nbsp;
+
 ## Cooperative cancellation
 
 Task functions may also take a `be::stop_token` by value as their last argument to participate in the libraries support for cooperative cancellation. This type has a boolean conversion operator that will be true only if the pool has signalled abort.
