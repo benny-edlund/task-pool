@@ -1,45 +1,52 @@
+include(GenerateExportHeader)
+
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 set(HEADER_LIST 
-"${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/api.h"
-"${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/fallbacks.h"
-"${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/traits.h"
-"${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/task_pool.h" )
+${CMAKE_CURRENT_BINARY_DIR}/task_pool/api.h
+${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/fallbacks.h
+${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/traits.h
+${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/task_pool.h )
 
 # Static library
 add_library(task_pool_static task_pool.cpp "${HEADER_LIST}")
-target_compile_definitions(task_pool_static PUBLIC TASK_POOL_EXPORTS=1)
 set_target_properties(task_pool_static PROPERTIES PUBLIC_HEADER "${HEADER_LIST}")
-
-target_include_directories(task_pool_static PUBLIC  
-$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/public>  
-$<INSTALL_INTERFACE:include> 
+target_include_directories(
+  task_pool_static 
+  PUBLIC  
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/public> 
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+  $<INSTALL_INTERFACE:include> 
 )
 target_include_directories(task_pool_static PRIVATE "${CMAKE_BINARY_DIR}/configured_files/include")
-
+target_link_libraries( task_pool_static PRIVATE project_options project_warnings)
 if (UNIX)
-  target_compile_options(task_pool_static PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
   target_link_libraries(task_pool_static PRIVATE pthread)
 endif()
-target_link_libraries(
-task_pool_static
-PRIVATE project_options project_warnings)
 
 
 # Shared library
 add_library(task_pool SHARED task_pool.cpp "${HEADER_LIST}")
-target_compile_definitions(task_pool PUBLIC TASK_POOL_EXPORTS=1)
 set_target_properties(task_pool PROPERTIES PUBLIC_HEADER "${HEADER_LIST}")
-
-target_include_directories(task_pool PUBLIC  
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/public>  
+target_include_directories(
+  task_pool 
+  PUBLIC  
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/public> 
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
   $<INSTALL_INTERFACE:include> 
 )
 target_include_directories(task_pool PRIVATE "${CMAKE_BINARY_DIR}/configured_files/include")
-
+target_link_libraries( task_pool PRIVATE project_options project_warnings)
 if (UNIX)
-  target_link_libraries(task_pool PRIVATE pthread)
-  target_compile_options(task_pool PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
+target_link_libraries(task_pool PRIVATE pthread)
 endif()
-target_link_libraries(
-task_pool
-PRIVATE project_options project_warnings)
+
+generate_export_header(
+  task_pool
+  BASE_NAME TASKPOOL
+  EXPORT_FILE_NAME task_pool/api.h
+  EXPORT_MACRO_NAME TASKPOOL_API
+  NO_EXPORT_MACRO_NAME TASKPOOL_HIDDEN
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/task_pool/api.h DESTINATION ${INCLUDE_INSTALL_DIR}/task_pool/api.h )
