@@ -52,4 +52,4 @@ generate_export_header(
   EXPORT_MACRO_NAME TASKPOOL_API
   NO_EXPORT_MACRO_NAME TASKPOOL_HIDDEN
 )
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/task_pool/api.h DESTINATION ${INCLUDE_INSTALL_DIR}/task_pool/api.h )
+# install(FILES ${CMAKE_CURRENT_BINARY_DIR}/task_pool/api.h DESTINATION ${INCLUDE_INSTALL_DIR}/task_pool/api.h )
