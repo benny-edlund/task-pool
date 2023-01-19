@@ -14,7 +14,6 @@
 
 namespace be {
 
-
 struct TASKPOOL_HIDDEN task_pool::Impl
 {
     mutable std::mutex               tasks_mutex_       = {};
@@ -49,10 +48,10 @@ struct TASKPOOL_HIDDEN task_pool::Impl
 
     ~Impl() { destroy_threads(); }
 
-    Impl( Impl const& )            = delete;
-    Impl( Impl&& )                 = delete;
+    Impl( Impl const& ) = delete;
+    Impl( Impl&& )      = delete;
     Impl& operator=( Impl const& ) = delete;
-    Impl& operator=( Impl&& )      = delete;
+    Impl& operator=( Impl&& ) = delete;
 
     void create_threads()
     {
@@ -276,7 +275,7 @@ TASKPOOL_API task_pool::task_pool( const unsigned thread_count )
 }
 
 TASKPOOL_API task_pool::task_pool( std::chrono::nanoseconds const lazy_check_latency,
-                      unsigned const                 thread_count )
+                                   unsigned const                 thread_count )
     : impl_{ new Impl( lazy_check_latency, thread_count ) }
 {
 }
@@ -371,7 +370,8 @@ TASKPOOL_API void task_pool::abort()
     impl_->cooperative_abort();
 }
 
-TASKPOOL_HIDDEN task_pool::task_proxy& task_pool::task_proxy::operator=( task_proxy&& other ) noexcept
+TASKPOOL_HIDDEN task_pool::task_proxy&
+task_pool::task_proxy::operator=( task_proxy&& other ) noexcept
 {
     // moved from task_proxy object are harmless noop tasks
     check_task         = other.check_task;
