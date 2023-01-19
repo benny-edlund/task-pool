@@ -17,7 +17,7 @@ target_include_directories(task_pool_static PUBLIC
 target_include_directories(task_pool_static PRIVATE "${CMAKE_BINARY_DIR}/configured_files/include")
 
 if (UNIX)
-target_link_libraries(task_pool_static PRIVATE pthread)
+  target_link_libraries(task_pool_static PRIVATE pthread)
 endif()
 target_link_libraries(
 task_pool_static
@@ -26,9 +26,6 @@ PRIVATE project_options project_warnings)
 
 # Shared library
 add_library(task_pool SHARED task_pool.cpp "${HEADER_LIST}")
-if (UNIX)
-  target_compile_options(task_pool PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
-endif()
 set_target_properties(task_pool PROPERTIES PUBLIC_HEADER "${HEADER_LIST}")
 
 target_include_directories(task_pool PUBLIC  
@@ -38,7 +35,9 @@ target_include_directories(task_pool PUBLIC
 target_include_directories(task_pool PRIVATE "${CMAKE_BINARY_DIR}/configured_files/include")
 
 if (UNIX)
-target_link_libraries(task_pool PRIVATE pthread)
+  target_link_libraries(task_pool PRIVATE pthread)
+  target_compile_definitions(task_pool PRIVATE TASK_POOL_EXPORTS=1)
+  target_compile_options(task_pool PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
 endif()
 target_link_libraries(
 task_pool
