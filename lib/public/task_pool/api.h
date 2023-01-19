@@ -25,8 +25,10 @@
 #else
 #    define TASKPOOL_HIDDEN __attribute__( ( visibility( "hidden" ) ) )
 #endif
-
 #ifdef task_pool_EXPORTS
+#    define TASK_POOL_EXPORTS
+#endif
+#ifdef TASK_POOL_EXPORTS
 #    define TASKPOOL_API TASKPOOL_EXPORT
 #else
 #    define TASKPOOL_API TASKPOOL_IMPORT

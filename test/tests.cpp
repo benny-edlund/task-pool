@@ -370,16 +370,25 @@ struct counts
     std::atomic_uint64_t deallocations{ 0 };
     std::atomic_uint64_t constructions{ 0 };
 };
-
+#if defined( _WIN32 )
+static counts s_counts;
+#endif
 template< class T >
 struct counting_allocator
 {
-    counts& counter;
+    counts* counter = nullptr;
 
     using allocator_traits = std::allocator_traits< std::allocator< T > >;
     using value_type       = T;
+#ifdef _WIN32 // so windows only support allocators with default constructor?
+    counting_allocator()
+        : counter( &s_counts )
+    {
+    }
+#endif // _WIN32
+
     explicit counting_allocator( counts& amounts ) noexcept
-        : counter( amounts )
+        : counter( &amounts )
     {
     } // cppcheck false positive on constParamter
     template< class U >
@@ -387,24 +396,25 @@ struct counting_allocator
         : counter( other.counter )
     {
     }
+
     T* allocate( std::size_t n )
     {
-        ++counter.allocations;
+        ++( *counter ).allocations;
         // std::cerr << "Allocating " << typeid(T).name() << '\n';
-        std::allocator< T > alloc{};
+        std::allocator< T > alloc;
         return allocator_traits::allocate( alloc, n );
     }
     template< typename U, typename... Args >
     void construct( U* p, Args&&... args )
     {
-        ++counter.constructions;
+        ++( *counter ).constructions;
         // std::cerr << "Constructing " << typeid(T).name() << '\n';
         std::allocator< T > alloc{};
         allocator_traits::construct( alloc, p, std::forward< Args >( args )... );
     }
     void deallocate( T* p, std::size_t n )
     {
-        ++counter.deallocations;
+        ++( *counter ).deallocations;
         // std::cerr << "Deallocating " << typeid(T).name() << '\n';
         std::allocator< T > alloc{};
         allocator_traits::deallocate( alloc, p, n );
@@ -722,7 +732,6 @@ TEST_CASE( "bool()& function throws", "[task_pool][submit]" )
     auto             fun = [&]() {
         called = true;
         throw test_exception{};
-        return true;
     };
     be::task_pool pool( 1 );
     auto          future = pool.submit( fun );
@@ -737,7 +746,6 @@ TEST_CASE( "bool()&& function throws", "[task_pool][submit]" )
     auto             future = pool.submit( [&]() {
         called = true;
         throw test_exception{};
-        return true;
     } );
     REQUIRE_THROWS_AS( future.get(), test_exception );
     REQUIRE( called == true );
@@ -749,7 +757,6 @@ TEST_CASE( "bool(... be::stop_token)& function throws", "[task_pool][submit][sto
     auto             fun = []( std::atomic_bool* check, be::stop_token /*abort*/ ) mutable {
         *check = true;
         throw test_exception{};
-        return true;
     };
     be::task_pool pool( 1 );
     auto          future = pool.submit( fun, &called );
@@ -765,7 +772,6 @@ TEST_CASE( "bool(... be::stop_token)&& function throws", "[task_pool][submit][st
         []( std::atomic_bool* check, be::stop_token /*abort*/ ) mutable {
             *check = true;
             throw test_exception{};
-            return true;
         },
         &called );
     REQUIRE_THROWS_AS( future.get(), test_exception );
@@ -956,7 +962,6 @@ TEST_CASE( "bool()& function with allocator throws", "[task_pool][submit][alloca
     auto                  fun = [&]() {
         called = true;
         throw test_exception{};
-        return true;
     };
     be::task_pool pool( 1 );
     auto          future = pool.submit( std::allocator_arg_t{}, alloc, fun );
@@ -972,7 +977,6 @@ TEST_CASE( "bool()&& function with allocator throws", "[task_pool][submit][alloc
     auto                  future = pool.submit( std::allocator_arg_t{}, alloc, [&]() {
         called = true;
         throw test_exception{};
-        return true;
     } );
     REQUIRE_THROWS_AS( future.get(), test_exception );
     REQUIRE( called == true );
@@ -986,7 +990,6 @@ TEST_CASE( "bool(... be::stop_token)& function with allocator throws",
     auto                  fun = []( std::atomic_bool* check, be::stop_token /*abort*/ ) mutable {
         *check = true;
         throw test_exception{};
-        return true;
     };
     be::task_pool pool( 1 );
     auto          future = pool.submit( std::allocator_arg_t{}, alloc, fun, &called );
@@ -1006,7 +1009,6 @@ TEST_CASE( "bool(... be::stop_token)&& function with allocator throws",
         []( std::atomic_bool* check, be::stop_token /*abort*/ ) mutable {
             *check = true;
             throw test_exception{};
-            return true;
         },
         &called );
     REQUIRE_THROWS_AS( future.get(), test_exception );

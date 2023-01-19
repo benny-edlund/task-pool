@@ -11,7 +11,7 @@ target_link_libraries(catch_main PRIVATE project_options)
 
 add_executable(test_taskpool tests.cpp)
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../src/public")
-target_link_libraries(test_taskpool PRIVATE task_pool)
+target_link_libraries(test_taskpool PRIVATE task_pool_static)
 target_link_libraries(test_taskpool PRIVATE project_warnings project_options catch_main)
 # if(CMAKE_COMPILER_IS_GNUCXX) # this SHOUILD be controlled by OPT_ENABLE_COVERAGE but doesnt seemt work
 #     if (CMAKE_BUILD_TYPE MATCHES "Debug")
