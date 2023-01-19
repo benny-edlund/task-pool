@@ -259,7 +259,7 @@ TEST_CASE( "lambda pure by &&", "[task_pool][submit]" )
     {
         std::atomic_bool called{ false };
         be::task_pool    pool( 1 );
-        pool.submit( []( auto* x ) { ( *x ) = true; }, &called ).wait();
+        pool.submit( []( std::atomic_bool* x ) { ( *x ) = true; }, &called ).wait();
         REQUIRE( called );
     }
 }
@@ -314,7 +314,8 @@ TEST_CASE( "std::function pure by &", "[task_pool][submit]" )
 {
     std::atomic_bool called{ false };
     be::task_pool    pool( 1 );
-    auto fun = std::function< void( std::atomic_bool* ) >( []( auto* x ) { ( *x ) = true; } );
+    auto             fun =
+        std::function< void( std::atomic_bool* ) >( []( std::atomic_bool* x ) { ( *x ) = true; } );
     pool.submit( fun, &called ).wait();
     REQUIRE( called );
 }
@@ -323,7 +324,8 @@ TEST_CASE( "stateful lambda by &&", "[task_pool][submit]" )
 {
     be::task_pool    pool( 1 );
     std::atomic_bool called{ false };
-    pool.submit( [value = 2]( auto* x ) mutable { ( *x ) = --value == 1; }, &called ).wait();
+    pool.submit( [value = 2]( std::atomic_bool* x ) mutable { ( *x ) = --value == 1; }, &called )
+        .wait();
     REQUIRE( called );
 }
 
@@ -334,7 +336,8 @@ TEST_CASE( "stateful lambda from inner scope", "[task_pool][submit]" )
     std::atomic_bool    called{ false };
     std::future< void > f;
     {
-        f = pool.submit( [value = 2]( auto* x ) mutable { ( *x ) = --value == 1; }, &called );
+        f = pool.submit( [value = 2]( std::atomic_bool* x ) mutable { ( *x ) = --value == 1; },
+                         &called );
     }
     pool.unpause();
     f.wait();
@@ -349,7 +352,7 @@ TEST_CASE( "submit with result", "[task_pool][submit]" )
     std::future< int > f;
     {
         f = pool.submit(
-            [value = 2]( auto* x ) mutable {
+            [value = 2]( std::atomic_bool* x ) mutable {
                 ( *x ) = --value == 1;
                 return value;
             },
@@ -376,7 +379,9 @@ struct counting_allocator
     using allocator_traits = std::allocator_traits< std::allocator< T > >;
     using value_type       = T;
     explicit counting_allocator( counts& amounts ) noexcept
-        : counter( amounts ){}; // cppcheck false positive on constParamter
+        : counter( amounts )
+    {
+    } // cppcheck false positive on constParamter
     template< class U >
     explicit counting_allocator( const counting_allocator< U >& other ) noexcept
         : counter( other.counter )
@@ -430,14 +435,12 @@ TEST_CASE( "submit with result allocator", "[task_pool][submit][allocator]" )
         pool.pause();
         std::future< int > f;
         {
-            f = pool.submit(
-                std::allocator_arg_t{},
-                alloc,
-                [value = 2]( auto* x ) mutable {
-                    ( *x ) = --value == 1;
-                    return value;
-                },
-                &called );
+            auto func = [value = 2]( std::atomic_bool* x ) mutable {
+                ( *x ) = --value == 1;
+                return value;
+            };
+            STATIC_REQUIRE_FALSE( be::wants_allocator< decltype( func ) >::value );
+            f = pool.submit( std::allocator_arg_t{}, alloc, func, &called );
         }
         pool.unpause();
         auto result = f.get();
@@ -462,7 +465,7 @@ TEST_CASE( "submit without result allocator", "[task_pool][submit][allocator]" )
             f = pool.submit(
                 std::allocator_arg_t{},
                 alloc,
-                [value = 2]( auto* x ) mutable { ( *x ) = --value == 1; },
+                [value = 2]( std::atomic_bool* x ) mutable { ( *x ) = --value == 1; },
                 &called );
         }
         pool.unpause();
@@ -526,6 +529,7 @@ TEST_CASE( "Special callable types", "[task_pool][submit][stop_token]" )
         {
             int value;
         };
+
         auto result = pool.submit( work{}, work_data{ expected } );
         REQUIRE( result.get() == expected );
     }
@@ -1273,4 +1277,246 @@ TEST_CASE( "reference_wrapper to & argument", "[task_pool][submit]" )
     pool.unpause();
     future.wait();
     REQUIRE( actual == expected );
+}
+
+//
+// task function can take a allocator in their signature and we should then pass them
+// the task allocator
+//
+
+TEST_CASE( "contains_allocator_args", "[task_pool][traits][allocator]" )
+{
+    STATIC_REQUIRE_FALSE( be::contains_allocator_arg< int, float, double >::value );
+    STATIC_REQUIRE_FALSE( be::contains_allocator_arg< int >::value );
+    STATIC_REQUIRE( be::contains_allocator_arg< int, std::allocator_arg_t, double >::value );
+    STATIC_REQUIRE( be::contains_allocator_arg< std::allocator_arg_t >::value );
+}
+
+TEST_CASE( "wants_allocator", "[task_pool][traits][allocator]" )
+{
+    STATIC_REQUIRE_FALSE( be::wants_allocator< int ( * )( float, int, double ) >::value );
+    STATIC_REQUIRE_FALSE( be::wants_allocator< void ( * )() >::value );
+    STATIC_REQUIRE(
+        be::wants_allocator< int ( * )( float, std::allocator_arg_t, int, double ) >::value );
+    STATIC_REQUIRE( be::wants_allocator< void ( * )( std::allocator_arg_t ) >::value );
+    STATIC_REQUIRE( be::wants_allocator_v< void ( * )( std::allocator_arg_t ) > );
+
+    auto func_one = []() {};
+    STATIC_REQUIRE_FALSE( be::wants_allocator_v< decltype( func_one ) > );
+    auto func_two = []( int /*tag*/ ) mutable {};
+    STATIC_REQUIRE_FALSE( be::wants_allocator_v< decltype( func_two ) > );
+    auto func_three = []( std::allocator_arg_t /*tag*/, int /*tag*/ ) mutable {};
+    STATIC_REQUIRE( be::wants_allocator_v< decltype( func_three ) > );
+}
+
+//
+// Wants allocator
+//
+TEST_CASE( "( allocator, ... ) -> size_t", "[task_pool][submit][allocator]" )
+{
+    counts                    allocations;
+    counting_allocator< int > allocator( allocations );
+
+    using data_type = std::vector< int, counting_allocator< int > >;
+    auto make_data  = []( std::allocator_arg_t /*tag*/,
+                         counting_allocator< int > const& alloc,
+                         std::size_t count ) { return data_type( count, 1, alloc ); };
+
+    auto process_data = []( data_type&& x ) { return x.size(); };
+
+    std::size_t const value_counts = 1000;
+    be::task_pool     pool;
+    auto              data =
+        pool.submit( std::allocator_arg_t{}, allocator, make_data, std::size_t{ value_counts } );
+    auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
+    REQUIRE( value_counts == result.get() ); // doh
+    CHECK( allocations.allocations > 0 );
+    CHECK( allocations.constructions > value_counts );
+    CHECK( allocations.deallocations > 0 );
+}
+
+TEST_CASE( "( allocator, ..., stop_token) -> size_t", "[task_pool][submit][allocator][stop_token]" )
+{
+    counts                    allocations;
+    counting_allocator< int > allocator( allocations );
+
+    using data_type = std::vector< int, counting_allocator< int > >;
+    auto make_data  = []( std::allocator_arg_t /*tag*/,
+                         counting_allocator< int > const& alloc,
+                         std::size_t                      count,
+                         be::stop_token /*token*/ ) { return data_type( count, 1, alloc ); };
+
+    auto process_data = []( data_type&& x ) { return x.size(); };
+
+    std::size_t const value_counts = 1000;
+    be::task_pool     pool;
+    auto              data =
+        pool.submit( std::allocator_arg_t{}, allocator, make_data, std::size_t{ value_counts } );
+    auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
+    REQUIRE( value_counts == result.get() ); // doh
+    REQUIRE( allocations.allocations > 0 );
+    REQUIRE( allocations.constructions > value_counts );
+    REQUIRE( allocations.deallocations > 0 );
+}
+
+TEST_CASE( "( allocator, ... ) -> void", "[task_pool][submit][allocator]" )
+{
+    counts                    allocations;
+    counting_allocator< int > allocator( allocations );
+
+    using data_type = std::vector< int, counting_allocator< int > >;
+    auto make_data  = []( std::allocator_arg_t /*tag*/,
+                         counting_allocator< int > const& alloc,
+                         std::size_t count ) { return data_type( count, 1, alloc ); };
+
+    auto process_data = []( data_type&& x ) { return x.clear(); };
+
+    std::size_t const value_counts = 1000;
+    be::task_pool     pool;
+    auto              data =
+        pool.submit( std::allocator_arg_t{}, allocator, make_data, std::size_t{ value_counts } );
+    auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
+    result.wait();
+    REQUIRE( allocations.allocations > 0 );
+    REQUIRE( allocations.constructions > value_counts );
+    REQUIRE( allocations.deallocations > 0 );
+}
+
+TEST_CASE( "( allocator, ..., stop_token ) -> void", "[task_pool][submit][allocator][stop_token]" )
+{
+    counts                    allocations;
+    counting_allocator< int > allocator( allocations );
+
+    using data_type = std::vector< int, counting_allocator< int > >;
+    auto make_data  = []( std::allocator_arg_t /*tag*/,
+                         counting_allocator< int > const& alloc,
+                         std::size_t                      count,
+                         be::stop_token /*token*/ ) { return data_type( count, 1, alloc ); };
+
+    auto process_data = []( data_type&& x ) { return x.clear(); };
+
+    std::size_t const value_counts = 1000;
+    be::task_pool     pool;
+    auto              data =
+        pool.submit( std::allocator_arg_t{}, allocator, make_data, std::size_t{ value_counts } );
+    auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
+    result.wait();
+    REQUIRE( allocations.allocations > 0 );
+    REQUIRE( allocations.constructions > value_counts );
+    REQUIRE( allocations.deallocations > 0 );
+}
+
+//
+// Wants allocator + future
+//
+TEST_CASE( "( allocator, future ) -> size_t", "[task_pool][submit][allocator]" )
+{
+    counts                    allocations;
+    counting_allocator< int > allocator( allocations );
+
+    using data_type                = std::vector< int, counting_allocator< int > >;
+    std::size_t const value_counts = 1000;
+    auto              make_data    = []( std::allocator_arg_t /*tag*/,
+                         counting_allocator< int > const& alloc,
+                         std::size_t count ) { return data_type( count, 1, alloc ); };
+
+    auto process_data = []( data_type&& x ) { return x.size(); };
+
+    {
+        be::task_pool pool;
+        auto          get_count = []() { return value_counts; };
+        auto          value     = pool.submit( get_count );
+        auto data = pool.submit( std::allocator_arg_t{}, allocator, make_data, std::move( value ) );
+        auto result = pool.submit( process_data, std::move( data ) );
+        REQUIRE( value_counts == result.get() ); // doh
+        REQUIRE( allocations.allocations > 0 );
+        REQUIRE( allocations.constructions > value_counts );
+        REQUIRE( allocations.deallocations > 0 );
+    }
+}
+
+TEST_CASE( "( allocator, future, stop_token) -> size_t",
+           "[task_pool][submit][allocator][stop_token]" )
+{
+    counts                    allocations;
+    counting_allocator< int > allocator( allocations );
+    using data_type = std::vector< int, counting_allocator< int > >;
+
+    std::size_t const value_counts = 1000;
+    auto              get_count    = []() { return value_counts; };
+    auto              make_data    = []( std::allocator_arg_t /*tag*/,
+                         counting_allocator< int > const& alloc,
+                         std::size_t                      count,
+                         be::stop_token /*token*/ ) { return data_type( count, 1, alloc ); };
+
+    auto process_data = []( data_type&& x ) { return x.size(); };
+
+    be::task_pool pool;
+    auto          value = pool.submit( get_count );
+    auto data   = pool.submit( std::allocator_arg_t{}, allocator, make_data, std::move( value ) );
+    auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
+    REQUIRE( value_counts == result.get() ); // doh
+    REQUIRE( allocations.allocations > 0 );
+    REQUIRE( allocations.constructions > value_counts );
+    REQUIRE( allocations.deallocations > 0 );
+}
+
+TEST_CASE( "( allocator, future ) -> void", "[task_pool][submit][allocator]" )
+{
+    counts                    allocations;
+    counting_allocator< int > allocator( allocations );
+
+    using data_type = std::vector< int, counting_allocator< int > >;
+
+    std::size_t const value_counts = 1000;
+    auto              get_count    = []() { return value_counts; };
+
+    auto make_data = []( std::allocator_arg_t /*tag*/,
+                         counting_allocator< int > const& alloc,
+                         std::size_t count ) { return data_type( count, 1, alloc ); };
+
+    auto process_data = []( data_type&& x ) { return x.clear(); };
+
+    be::task_pool pool;
+    auto          value = pool.submit( get_count );
+    auto data   = pool.submit( std::allocator_arg_t{}, allocator, make_data, std::move( value ) );
+    auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
+    result.wait();
+    REQUIRE( allocations.allocations > 0 );
+    REQUIRE( allocations.constructions > value_counts );
+    REQUIRE( allocations.deallocations > 0 );
+}
+
+TEST_CASE( "( allocator, future, stop_token ) -> void",
+           "[task_pool][submit][allocator][stop_token]" )
+{
+    counts                    allocations;
+    counting_allocator< int > allocator( allocations );
+
+    using data_type                = std::vector< int, counting_allocator< int > >;
+    std::size_t const value_counts = 1000;
+    auto              get_count    = []() { return value_counts; };
+
+    auto make_data = []( std::allocator_arg_t /*tag*/,
+                         counting_allocator< int > const& alloc,
+                         std::size_t                      count,
+                         be::stop_token /*token*/ ) { return data_type( count, 1, alloc ); };
+
+    auto process_data = []( data_type&& x ) { return x.clear(); };
+
+    be::task_pool pool;
+    auto          value = pool.submit( get_count );
+    auto data   = pool.submit( std::allocator_arg_t{}, allocator, make_data, std::move( value ) );
+    auto result = pool.submit( process_data, std::move( data ) );
+    pool.wait_for_tasks();
+    result.wait();
+    REQUIRE( allocations.allocations > 0 );
+    REQUIRE( allocations.constructions > value_counts );
+    REQUIRE( allocations.deallocations > 0 );
 }

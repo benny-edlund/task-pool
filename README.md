@@ -320,6 +320,42 @@ Above we pass a custom allocator to submit which allow it to be used to allocate
 
 Now allocations are in control of `cool_beans` that promises to be much faster then new/delete. 
 
+Additionally if we are able to adapt the signature of our task function `task_pool` can also forward the given allocator to your task function when it executes allowing you to use its to allocate any resources your task requires.
+
+```cpp
+
+struct LargeData
+{
+    // lets picture some large data there
+};
+using Allocator = cool_beans::pool_allocator<LargeData>;
+using Vector =  std::vector<LargeData, Allocator>;
+
+Allocator allocator;
+be::task_pool pool;
+
+auto make_data = [](std::allocator_arg_t, Allocator const& alloc, std::size_t x) {
+    return Vector( x, alloc );
+}
+
+auto process_data = []( Vector x ) {
+    for( auto& element : x )
+    {
+        change_item( element );
+    }
+    return x;
+}
+
+auto data = pool.submit( std::allocator_arg_t{}, allocator, make_data, 1'000'000 ); 
+auto result = pool.submit( process_data, std::move(data)); 
+
+```
+Here the first task function `make_data` adds the special signature `( std::allocator_arg_t, Allocator const&, ... )` which allows `task_pool::submit` to detect that it wants the task allocator to be passed down and will do so when the function is called allowing the task function to perform any allocations it wants using this allocator. The allocated vector is then passed on by value to the process function. This is made efficient as future input arguments to functions utilize RVO from `std::future::get` to pass resulting value directly to the function call.
+
+The locallity of this example makes it a bit contrived as the allocator could also simply be captured to the lambda to furfill the same end result however we can easily imagine how the allocators, contains and calls to submit may be hidden behind some application API.
+
+
+
 [^1]: Futher improvents needed here to reduce copies and temporaries. Currently the most effcient way seems to be to take const reference in the task function and move/construct into the submit call. This will move into the bind expression and the function call will then reference out of this bind expresssion. Yes improvements are possible and will be done.
 
 [^2]: Future-like objects must implement `get`, `wait`, `wait_for`, `wait_until` to be considered future-like
