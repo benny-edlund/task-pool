@@ -53,7 +53,8 @@ generate_export_header(
   NO_EXPORT_MACRO_NAME TASKPOOL_HIDDEN
 )
 
-if ( ENABLE_COVERAGE )
+
+if ( UNIX AND ENABLE_COVERAGE )
  message( "+++++++++++++++++++++++++++ coverage enabled +++++++++++++++++++++++++++")
   include(CodeCoverage)
   append_coverage_compiler_flags_to_target(task_pool)
