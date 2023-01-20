@@ -52,4 +52,9 @@ generate_export_header(
   EXPORT_MACRO_NAME TASKPOOL_API
   NO_EXPORT_MACRO_NAME TASKPOOL_HIDDEN
 )
-# install(FILES ${CMAKE_CURRENT_BINARY_DIR}/task_pool/api.h DESTINATION ${INCLUDE_INSTALL_DIR}/task_pool/api.h )
+
+if ( ENABLE_COVERAGE )
+  include(CodeCoverage)
+  append_coverage_compiler_flags_to_target(task_pool)
+  append_coverage_compiler_flags_to_target(task_pool_static)
+endif()

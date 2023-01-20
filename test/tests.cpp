@@ -1551,9 +1551,18 @@ template< typename T >
 struct Promise
 {
     Promise();
-    // template<template<typename> class Allocator>
-    // Promise( std::allocator_arg_t x, Allocator<T> y );
     Future get_future();
+    void   set_value( T );
+    void   set_exception( std::exception_ptr );
+};
+
+template<>
+struct Promise< void >
+{
+    Promise();
+    Future get_future();
+    void   set_value();
+    void   set_exception( std::exception_ptr );
 };
 
 TEST_CASE( "is_future", "[traits]" )

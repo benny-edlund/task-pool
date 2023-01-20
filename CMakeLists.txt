@@ -14,13 +14,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # This means that all analysis (sanitizers, static analysis)
 # is enabled and all warnings are treated as errors
 # if you want to switch this behavior, change TRUE to FALSE
-set(ENABLE_DEVELOPER_MODE
-    TRUE
-    CACHE BOOL "Enable 'developer mode'")
+set(ENABLE_DEVELOPER_MODE ON CACHE BOOL "Enable 'developer mode'")
 
-set(ENABLE_COVERAGE
-  TRUE
-  CACHE BOOL "Enable 'coverage mode'")
+set(ENABLE_COVERAGE OFF CACHE BOOL "Enable 'coverage mode'")
 # Change this to false if you want to disable warnings_as_errors in developer mode
 set(OPT_WARNINGS_AS_ERRORS_DEVELOPER_DEFAULT TRUE)
 
