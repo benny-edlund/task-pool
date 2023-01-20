@@ -54,6 +54,7 @@ generate_export_header(
 )
 
 if ( ENABLE_COVERAGE )
+ message( "+++++++++++++++++++++++++++ coverage enabled +++++++++++++++++++++++++++")
   include(CodeCoverage)
   append_coverage_compiler_flags_to_target(task_pool)
   append_coverage_compiler_flags_to_target(task_pool_static)
