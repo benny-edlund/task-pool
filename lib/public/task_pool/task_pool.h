@@ -258,20 +258,22 @@ class TASKPOOL_API task_pool
         return task_proxy( x, task_allocator, typed_task );
     }
 
-    template< typename F,
+    template< template< typename > class Promise,
+              typename F,
               typename... Args,
               typename R = be_invoke_result_t< F, future_argument_t< std::decay_t< Args > >... >,
-              std::enable_if_t< be_is_void_v< R >, bool > = true >
-    std::future< R > make_defered_task( F&& task, Args&&... args )
+              typename Future = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > && be_is_void_v< R >, bool > = true >
+    Future make_defered_task( F&& task, Args&&... args )
     {
         using args_type =
             std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
-            std::promise< R > promise_;
-            F                 func_;
-            args_type         arguments_;
-            bool              is_ready() const
+            Promise< R > promise_;
+            F            func_;
+            args_type    arguments_;
+            bool         is_ready() const
             {
                 return check_argument_status(
                     arguments_, std::make_index_sequence< std::tuple_size< args_type >{} >{} );
@@ -297,8 +299,8 @@ class TASKPOOL_API task_pool
             Task( Task&& ) noexcept        = delete;
             Task& operator=( Task&& ) = delete;
         };
-        std::promise< R > promise;
-        auto              future = promise.get_future();
+        Promise< R > promise;
+        auto         future = promise.get_future();
         push_task( task_proxy( new Task{
             std::move( promise ),
             std::forward< F >( task ),
@@ -306,22 +308,24 @@ class TASKPOOL_API task_pool
         return future;
     }
 
-    template< typename F,
+    template< template< typename > class Promise,
+              typename F,
               typename... Args,
               typename R =
                   be_invoke_result_t< F, future_argument_t< std::decay_t< Args > >..., stop_token >,
-              std::enable_if_t< be_is_void_v< R >, bool > = true >
-    auto make_defered_task( stop_token token, F&& task, Args&&... args )
+              typename Future = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > && be_is_void_v< R >, bool > = true >
+    Future make_defered_task( stop_token token, F&& task, Args&&... args )
     {
         using args_type =
             std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
-            stop_token        token_;
-            std::promise< R > promise_;
-            F                 func_;
-            args_type         arguments_;
-            bool              is_ready() const
+            stop_token   token_;
+            Promise< R > promise_;
+            F            func_;
+            args_type    arguments_;
+            bool         is_ready() const
             {
                 return check_argument_status(
                     arguments_, std::make_index_sequence< std::tuple_size< args_type >{} >{} );
@@ -348,8 +352,8 @@ class TASKPOOL_API task_pool
             Task( Task&& ) noexcept        = delete;
             Task& operator=( Task&& ) = delete;
         };
-        std::promise< R > promise;
-        auto              future = promise.get_future();
+        Promise< R > promise;
+        auto         future = promise.get_future();
         push_task( task_proxy( new Task{
             token,
             std::move( promise ),
@@ -358,20 +362,22 @@ class TASKPOOL_API task_pool
         return future;
     }
 
-    template< typename F,
+    template< template< typename > class Promise,
+              typename F,
               typename... Args,
               typename R = be_invoke_result_t< F, future_argument_t< std::decay_t< Args > >... >,
-              std::enable_if_t< !be_is_void_v< R >, bool > = true >
-    auto make_defered_task( F&& task, Args&&... args )
+              typename Future = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > && !be_is_void_v< R >, bool > = true >
+    Future make_defered_task( F&& task, Args&&... args )
     {
         using args_type =
             std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
-            std::promise< R > promise_;
-            F                 func_;
-            args_type         arguments_;
-            bool              is_ready() const
+            Promise< R > promise_;
+            F            func_;
+            args_type    arguments_;
+            bool         is_ready() const
             {
                 return check_argument_status(
                     arguments_, std::make_index_sequence< std::tuple_size< args_type >{} >{} );
@@ -396,8 +402,8 @@ class TASKPOOL_API task_pool
             Task( Task&& ) noexcept        = delete;
             Task& operator=( Task&& ) = delete;
         };
-        std::promise< R > promise;
-        auto              future = promise.get_future();
+        Promise< R > promise;
+        auto         future = promise.get_future();
         push_task( task_proxy( new Task{
             std::move( promise ),
             std::forward< F >( task ),
@@ -405,22 +411,24 @@ class TASKPOOL_API task_pool
         return future;
     }
 
-    template< typename F,
+    template< template< typename > class Promise,
+              typename F,
               typename... Args,
               typename R =
                   be_invoke_result_t< F, future_argument_t< std::decay_t< Args > >..., stop_token >,
-              std::enable_if_t< !be_is_void_v< R >, bool > = true >
-    auto make_defered_task( stop_token token, F&& task, Args&&... args )
+              typename Future = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > && !be_is_void_v< R >, bool > = true >
+    Future make_defered_task( stop_token token, F&& task, Args&&... args )
     {
         using args_type =
             std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
-            stop_token        token_;
-            std::promise< R > promise_;
-            F                 func_;
-            args_type         arguments_;
-            bool              is_ready() const
+            stop_token   token_;
+            Promise< R > promise_;
+            F            func_;
+            args_type    arguments_;
+            bool         is_ready() const
             {
                 return check_argument_status(
                     arguments_, std::make_index_sequence< std::tuple_size< args_type >{} >{} );
@@ -446,8 +454,8 @@ class TASKPOOL_API task_pool
             Task( Task&& ) noexcept        = delete;
             Task& operator=( Task&& ) = delete;
         };
-        std::promise< R > promise;
-        auto              future = promise.get_future();
+        Promise< R > promise;
+        auto         future = promise.get_future();
         push_task( task_proxy( new Task{
             token,
             std::move( promise ),
@@ -456,27 +464,33 @@ class TASKPOOL_API task_pool
         return future;
     }
 
-    template< template< typename > class Allocator,
+    template< template< typename > class Promise,
+              template< typename >
+              class Allocator,
               typename F,
               typename T,
               typename... Args,
               typename R = be_invoke_result_t< F, future_argument_t< std::decay_t< Args > >... >,
-              std::enable_if_t< be_is_void_v< R > && !wants_allocator_v< F >, bool > = true >
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > &&
+                                    be::is_allocator_constructible< Promise< R > >::value &&
+                                    be_is_void_v< R > && !wants_allocator_v< F >,
+                                bool > = true >
 
-    auto make_defered_task( std::allocator_arg_t  x,
-                            Allocator< T > const& allocator,
-                            F&&                   task,
-                            Args&&... args )
+    Future make_defered_task( std::allocator_arg_t  x,
+                              Allocator< T > const& allocator,
+                              F&&                   task,
+                              Args&&... args )
     {
         using args_type =
             std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
             Allocator< Task > alloc;
-            std::promise< R > promise_;
+            Promise< R >      promise_;
             F&&               func_;
             args_type         arguments_;
-            Task( Allocator< Task > const& a, std::promise< R >&& p, F&& f, args_type&& arg )
+            Task( Allocator< Task > const& a, Promise< R >&& p, F&& f, args_type&& arg )
                 : alloc( a )
                 , promise_( std::move( p ) )
                 , func_( std::forward< F >( f ) )
@@ -510,7 +524,7 @@ class TASKPOOL_API task_pool
             Task( Task&& ) noexcept        = delete;
             Task& operator=( Task&& ) = delete;
         };
-        std::promise< R > promise( x, allocator );
+        Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator );
         Task*             typed_task =
@@ -526,20 +540,26 @@ class TASKPOOL_API task_pool
         return future;
     }
 
-    template< template< typename > class Allocator,
+    template< template< typename > class Promise,
+              template< typename >
+              class Allocator,
               typename F,
               typename T,
               typename... Args,
-              typename R = be_invoke_result_t< F,
+              typename R               = be_invoke_result_t< F,
                                                std::allocator_arg_t,
                                                Allocator< T >,
                                                future_argument_t< std::decay_t< Args > >... >,
-              std::enable_if_t< be_is_void_v< R > && wants_allocator_v< F >, bool > = true >
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > &&
+                                    be::is_allocator_constructible< Promise< R > >::value &&
+                                    be_is_void_v< R > && wants_allocator_v< F >,
+                                bool > = true >
 
-    auto make_defered_task( std::allocator_arg_t  x,
-                            Allocator< T > const& allocator,
-                            F&&                   task,
-                            Args&&... args )
+    Future make_defered_task( std::allocator_arg_t  x,
+                              Allocator< T > const& allocator,
+                              F&&                   task,
+                              Args&&... args )
     {
         auto args_tuple =
             std::make_tuple( wrap_future_argument( std::allocator_arg_t{} ),
@@ -549,10 +569,10 @@ class TASKPOOL_API task_pool
         struct TASKPOOL_HIDDEN Task
         {
             Allocator< Task > alloc;
-            std::promise< R > promise_;
+            Promise< R >      promise_;
             F&&               func_;
             args_type         arguments_;
-            Task( Allocator< Task > const& a, std::promise< R >&& p, F&& f, args_type&& arg )
+            Task( Allocator< Task > const& a, Promise< R >&& p, F&& f, args_type&& arg )
                 : alloc( a )
                 , promise_( std::move( p ) )
                 , func_( std::forward< F >( f ) )
@@ -586,7 +606,7 @@ class TASKPOOL_API task_pool
             Task( Task&& ) noexcept        = delete;
             Task& operator=( Task&& ) = delete;
         };
-        std::promise< R > promise( x, allocator );
+        Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator );
         Task*             typed_task =
@@ -601,27 +621,33 @@ class TASKPOOL_API task_pool
         return future;
     }
 
-    template< template< typename > class Allocator,
+    template< template< typename > class Promise,
+              template< typename >
+              class Allocator,
               typename F,
               typename T,
               typename... Args,
               typename R = be_invoke_result_t< F, future_argument_t< std::decay_t< Args > >... >,
-              std::enable_if_t< !be_is_void_v< R > && !wants_allocator_v< F >, bool > = true >
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > &&
+                                    be::is_allocator_constructible< Promise< R > >::value &&
+                                    !be_is_void_v< R > && !wants_allocator_v< F >,
+                                bool > = true >
 
-    auto make_defered_task( std::allocator_arg_t  x,
-                            Allocator< T > const& allocator,
-                            F&&                   task,
-                            Args&&... args )
+    Future make_defered_task( std::allocator_arg_t  x,
+                              Allocator< T > const& allocator,
+                              F&&                   task,
+                              Args&&... args )
     {
         using args_type =
             std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
         struct TASKPOOL_HIDDEN Task
         {
             Allocator< Task > alloc;
-            std::promise< R > promise_;
+            Promise< R >      promise_;
             F&&               func_;
             args_type         arguments_;
-            Task( Allocator< Task > const& a, std::promise< R >&& p, F&& f, args_type&& arg )
+            Task( Allocator< Task > const& a, Promise< R >&& p, F&& f, args_type&& arg )
                 : alloc( a )
                 , promise_( std::move( p ) )
                 , func_( std::forward< F >( f ) )
@@ -653,7 +679,7 @@ class TASKPOOL_API task_pool
             Task( Task&& ) noexcept        = delete;
             Task& operator=( Task&& ) = delete;
         };
-        std::promise< R > promise( x, allocator );
+        Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator );
         Task*             typed_task =
@@ -669,20 +695,26 @@ class TASKPOOL_API task_pool
         return future;
     }
 
-    template< template< typename > class Allocator,
+    template< template< typename > class Promise,
+              template< typename >
+              class Allocator,
               typename F,
               typename T,
               typename... Args,
-              typename R = be_invoke_result_t< F,
+              typename R               = be_invoke_result_t< F,
                                                std::allocator_arg_t,
                                                Allocator< T >,
                                                future_argument_t< std::decay_t< Args > >... >,
-              std::enable_if_t< !be_is_void_v< R > && wants_allocator_v< F >, bool > = true >
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > &&
+                                    be::is_allocator_constructible< Promise< R > >::value &&
+                                    !be_is_void_v< R > && wants_allocator_v< F >,
+                                bool > = true >
 
-    auto make_defered_task( std::allocator_arg_t  x,
-                            Allocator< T > const& allocator,
-                            F&&                   task,
-                            Args&&... args )
+    Future make_defered_task( std::allocator_arg_t  x,
+                              Allocator< T > const& allocator,
+                              F&&                   task,
+                              Args&&... args )
     {
         auto args_tuple =
             std::make_tuple( wrap_future_argument( std::allocator_arg_t{} ),
@@ -692,10 +724,10 @@ class TASKPOOL_API task_pool
         struct TASKPOOL_HIDDEN Task
         {
             Allocator< Task > alloc;
-            std::promise< R > promise_;
+            Promise< R >      promise_;
             F&&               func_;
             args_type         arguments_;
-            Task( Allocator< Task > const& a, std::promise< R >&& p, F&& f, args_type&& arg )
+            Task( Allocator< Task > const& a, Promise< R >&& p, F&& f, args_type&& arg )
                 : alloc( a )
                 , promise_( std::move( p ) )
                 , func_( std::forward< F >( f ) )
@@ -728,7 +760,7 @@ class TASKPOOL_API task_pool
             Task( Task&& ) noexcept        = delete;
             Task& operator=( Task&& ) = delete;
         };
-        std::promise< R > promise( x, allocator );
+        Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator );
         Task*             typed_task =
@@ -743,19 +775,25 @@ class TASKPOOL_API task_pool
         return future;
     }
 
-    template< template< typename > class Allocator,
+    template< template< typename > class Promise,
+              template< typename >
+              class Allocator,
               typename F,
               typename T,
               typename... Args,
               typename R =
                   be_invoke_result_t< F, future_argument_t< std::decay_t< Args > >..., stop_token >,
-              std::enable_if_t< be_is_void_v< R > && !wants_allocator_v< F >, bool > = true >
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > &&
+                                    be::is_allocator_constructible< Promise< R > >::value &&
+                                    be_is_void_v< R > && !wants_allocator_v< F >,
+                                bool > = true >
 
-    auto make_defered_task( std::allocator_arg_t  x,
-                            Allocator< T > const& allocator,
-                            stop_token            token,
-                            F&&                   task,
-                            Args&&... args )
+    Future make_defered_task( std::allocator_arg_t  x,
+                              Allocator< T > const& allocator,
+                              stop_token            token,
+                              F&&                   task,
+                              Args&&... args )
     {
         using args_type =
             std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
@@ -763,14 +801,11 @@ class TASKPOOL_API task_pool
         {
             Allocator< Task > alloc;
             stop_token        token_;
-            std::promise< R > promise_;
+            Promise< R >      promise_;
             F                 func_;
             args_type         arguments_;
-            Task( Allocator< Task > const& a,
-                  stop_token               t,
-                  std::promise< R >&&      p,
-                  F&&                      f,
-                  args_type&&              arg )
+            Task(
+                Allocator< Task > const& a, stop_token t, Promise< R >&& p, F&& f, args_type&& arg )
                 : alloc( a )
                 , token_( t )
                 , promise_( std::move( p ) )
@@ -805,7 +840,7 @@ class TASKPOOL_API task_pool
             Task( Task&& ) noexcept        = delete;
             Task& operator=( Task&& ) = delete;
         };
-        std::promise< R > promise( x, allocator );
+        Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator );
         Task*             typed_task =
@@ -822,22 +857,28 @@ class TASKPOOL_API task_pool
         return future;
     }
 
-    template< template< typename > class Allocator,
+    template< template< typename > class Promise,
+              template< typename >
+              class Allocator,
               typename F,
               typename T,
               typename... Args,
-              typename R = be_invoke_result_t< F,
+              typename R               = be_invoke_result_t< F,
                                                std::allocator_arg_t,
                                                Allocator< T >,
                                                future_argument_t< std::decay_t< Args > >...,
                                                stop_token >,
-              std::enable_if_t< be_is_void_v< R > && wants_allocator_v< F >, bool > = true >
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > &&
+                                    be::is_allocator_constructible< Promise< R > >::value &&
+                                    be_is_void_v< R > && wants_allocator_v< F >,
+                                bool > = true >
 
-    auto make_defered_task( std::allocator_arg_t  x,
-                            Allocator< T > const& allocator,
-                            stop_token            token,
-                            F&&                   task,
-                            Args&&... args )
+    Future make_defered_task( std::allocator_arg_t  x,
+                              Allocator< T > const& allocator,
+                              stop_token            token,
+                              F&&                   task,
+                              Args&&... args )
     {
         auto args_tuple =
             std::make_tuple( wrap_future_argument( std::allocator_arg_t{} ),
@@ -848,14 +889,11 @@ class TASKPOOL_API task_pool
         {
             Allocator< Task > alloc;
             stop_token        token_;
-            std::promise< R > promise_;
+            Promise< R >      promise_;
             F                 func_;
             args_type         arguments_;
-            Task( Allocator< Task > const& a,
-                  stop_token               t,
-                  std::promise< R >&&      p,
-                  F&&                      f,
-                  args_type&&              arg )
+            Task(
+                Allocator< Task > const& a, stop_token t, Promise< R >&& p, F&& f, args_type&& arg )
                 : alloc( a )
                 , token_( t )
                 , promise_( std::move( p ) )
@@ -890,7 +928,7 @@ class TASKPOOL_API task_pool
             Task( Task&& ) noexcept        = delete;
             Task& operator=( Task&& ) = delete;
         };
-        std::promise< R > promise( x, allocator );
+        Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator );
         Task*             typed_task =
@@ -905,19 +943,25 @@ class TASKPOOL_API task_pool
         push_task( task_proxy( x, task_allocator, typed_task ) );
         return future;
     }
-    template< template< typename > class Allocator,
+    template< template< typename > class Promise,
+              template< typename >
+              class Allocator,
               typename F,
               typename T,
               typename... Args,
               typename R =
                   be_invoke_result_t< F, future_argument_t< std::decay_t< Args > >..., stop_token >,
-              std::enable_if_t< !be_is_void_v< R > && !wants_allocator_v< F >, bool > = true >
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > &&
+                                    be::is_allocator_constructible< Promise< R > >::value &&
+                                    !be_is_void_v< R > && !wants_allocator_v< F >,
+                                bool > = true >
 
-    auto make_defered_task( std::allocator_arg_t  x,
-                            Allocator< T > const& allocator,
-                            stop_token            token,
-                            F&&                   task,
-                            Args&&... args )
+    Future make_defered_task( std::allocator_arg_t  x,
+                              Allocator< T > const& allocator,
+                              stop_token            token,
+                              F&&                   task,
+                              Args&&... args )
     {
         using args_type =
             std::tuple< decltype( wrap_future_argument( std::forward< Args >( args ) ) )... >;
@@ -925,14 +969,11 @@ class TASKPOOL_API task_pool
         {
             Allocator< Task > alloc;
             stop_token        token_;
-            std::promise< R > promise_;
+            Promise< R >      promise_;
             F                 func_;
             args_type         arguments_;
-            Task( Allocator< Task > const& a,
-                  stop_token               t,
-                  std::promise< R >&&      p,
-                  F&&                      f,
-                  args_type&&              arg )
+            Task(
+                Allocator< Task > const& a, stop_token t, Promise< R >&& p, F&& f, args_type&& arg )
                 : alloc( a )
                 , token_( t )
                 , promise_( std::move( p ) )
@@ -966,7 +1007,7 @@ class TASKPOOL_API task_pool
             Task( Task&& ) noexcept        = delete;
             Task& operator=( Task&& ) = delete;
         };
-        std::promise< R > promise( x, allocator );
+        Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator );
         Task*             typed_task =
@@ -983,22 +1024,28 @@ class TASKPOOL_API task_pool
         return future;
     }
 
-    template< template< typename > class Allocator,
+    template< template< typename > class Promise,
+              template< typename >
+              class Allocator,
               typename F,
               typename T,
               typename... Args,
-              typename R = be_invoke_result_t< F,
+              typename R               = be_invoke_result_t< F,
                                                std::allocator_arg_t,
                                                Allocator< T >,
                                                future_argument_t< std::decay_t< Args > >...,
                                                stop_token >,
-              std::enable_if_t< !be_is_void_v< R > && wants_allocator_v< F >, bool > = true >
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > &&
+                                    be::is_allocator_constructible< Promise< R > >::value &&
+                                    !be_is_void_v< R > && wants_allocator_v< F >,
+                                bool > = true >
 
-    auto make_defered_task( std::allocator_arg_t  x,
-                            Allocator< T > const& allocator,
-                            stop_token            token,
-                            F&&                   task,
-                            Args&&... args )
+    Future make_defered_task( std::allocator_arg_t  x,
+                              Allocator< T > const& allocator,
+                              stop_token            token,
+                              F&&                   task,
+                              Args&&... args )
     {
         auto args_tuple =
             std::make_tuple( wrap_future_argument( std::allocator_arg_t{} ),
@@ -1009,14 +1056,11 @@ class TASKPOOL_API task_pool
         {
             Allocator< Task > alloc;
             stop_token        token_;
-            std::promise< R > promise_;
+            Promise< R >      promise_;
             F                 func_;
             args_type         arguments_;
-            Task( Allocator< Task > const& a,
-                  stop_token               t,
-                  std::promise< R >&&      p,
-                  F&&                      f,
-                  args_type&&              arg )
+            Task(
+                Allocator< Task > const& a, stop_token t, Promise< R >&& p, F&& f, args_type&& arg )
                 : alloc( a )
                 , token_( t )
                 , promise_( std::move( p ) )
@@ -1050,7 +1094,7 @@ class TASKPOOL_API task_pool
             Task( Task&& ) noexcept        = delete;
             Task& operator=( Task&& ) = delete;
         };
-        std::promise< R > promise( x, allocator );
+        Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator );
         Task*             typed_task =
@@ -1171,13 +1215,15 @@ public:
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
-    template< typename F,
+    template< template< typename > class Promise = std::promise,
+              typename F,
               typename... A,
-              typename R = be_invoke_result_t< std::decay_t< F >, A... >,
-              std::enable_if_t< be_is_void_v< R >, bool > = true >
-    std::future< R > submit( F&& task, A&&... args )
+              typename R      = be_invoke_result_t< std::decay_t< F >, A... >,
+              typename Future = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > && be_is_void_v< R >, bool > = true >
+    Future submit( F&& task, A&&... args )
     {
-        auto promise     = std::promise< R >();
+        auto promise     = Promise< R >();
         auto task_future = promise.get_future();
         push_task( make_task(
             [task_function = std::bind( std::forward< F >( task ), std::forward< A >( args )... ),
@@ -1198,13 +1244,17 @@ public:
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
-    template< typename F,
+    template< template< typename > class Promise = std::promise,
+              typename F,
               typename... A,
-              typename R = be_invoke_result_t< std::decay_t< F >, A..., stop_token >,
-              std::enable_if_t< be_is_void_v< R > && wants_stop_token_v< F >, bool > = true >
-    std::future< R > submit( F&& task, A&&... args )
+              typename R               = be_invoke_result_t< std::decay_t< F >, A..., stop_token >,
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > && be_is_void_v< R > &&
+                                    wants_stop_token_v< F >,
+                                bool > = true >
+    Future submit( F&& task, A&&... args )
     {
-        auto promise     = std::promise< R >();
+        auto promise     = Promise< R >();
         auto task_future = promise.get_future();
         push_task( make_task( [task_function = std::bind( std::forward< F >( task ),
                                                           std::forward< A >( args )...,
@@ -1226,13 +1276,15 @@ public:
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
-    template< typename F,
+    template< template< typename > class Promise = std::promise,
+              typename F,
               typename... Args,
-              typename R = be_invoke_result_t< std::decay_t< F >, Args... >,
-              std::enable_if_t< !be_is_void_v< R >, bool > = true >
-    BE_NODISGARD std::future< R > submit( F&& task, Args&&... args )
+              typename R      = be_invoke_result_t< std::decay_t< F >, Args... >,
+              typename Future = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > && !be_is_void_v< R >, bool > = true >
+    BE_NODISGARD Future submit( F&& task, Args&&... args )
     {
-        auto promise = std::promise< R >();
+        auto promise = Promise< R >();
         auto future  = promise.get_future();
         push_task( make_task( [task_function = std::bind( std::forward< F >( task ),
                                                           std::forward< Args >( args )... ),
@@ -1252,13 +1304,17 @@ public:
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
-    template< typename F,
+    template< template< typename > class Promise = std::promise,
+              typename F,
               typename... Args,
-              typename R = be_invoke_result_t< std::decay_t< F >, Args..., stop_token >,
-              std::enable_if_t< !be_is_void_v< R > && wants_stop_token_v< F >, bool > = true >
-    BE_NODISGARD std::future< R > submit( F&& task, Args&&... args )
+              typename R      = be_invoke_result_t< std::decay_t< F >, Args..., stop_token >,
+              typename Future = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > && !be_is_void_v< R > &&
+                                    wants_stop_token_v< F >,
+                                bool > = true >
+    BE_NODISGARD Future submit( F&& task, Args&&... args )
     {
-        auto promise = std::promise< R >();
+        auto promise = Promise< R >();
         auto future  = promise.get_future();
         push_task( make_task( [task_function = std::bind( std::forward< F >( task ),
                                                           std::forward< Args >( args )...,
@@ -1279,16 +1335,22 @@ public:
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
-    template< template< typename > class Allocator,
+    template< template< typename > class Promise = std::promise,
+              template< typename >
+              class Allocator,
               typename F,
               typename... A,
               typename R = be_invoke_result_t< std::decay_t< F >, A... >,
               typename T,
-              std::enable_if_t< be_is_void_v< R > && !wants_allocator_v< F >, bool > = true >
-    BE_NODISGARD std::future< R >
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > &&
+                                    be::is_allocator_constructible< Promise< R > >::value &&
+                                    be_is_void_v< R > && !wants_allocator_v< F >,
+                                bool > = true >
+    BE_NODISGARD Future
     submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, A&&... args )
     {
-        auto promise     = std::promise< R >( x, allocator );
+        auto promise     = Promise< R >( x, allocator );
         auto task_future = promise.get_future();
         push_task( make_task(
             x,
@@ -1312,6 +1374,7 @@ public:
      * @brief Adds a callable to the task_pool returning a future with the result
      */
     template<
+        template< typename > class Promise = std::promise,
         template< typename >
         class Allocator,
         typename F,
@@ -1319,11 +1382,15 @@ public:
         typename T,
         typename R =
             be_invoke_result_t< std::decay_t< F >, std::allocator_arg_t, Allocator< T >, A... >,
-        std::enable_if_t< be_is_void_v< R > && wants_allocator_v< F >, bool > = true >
-    BE_NODISGARD std::future< R >
+        typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+        std::enable_if_t< be::is_promise_v< Promise > &&
+                              be::is_allocator_constructible< Promise< R > >::value &&
+                              be_is_void_v< R > && wants_allocator_v< F >,
+                          bool > = true >
+    BE_NODISGARD Future
     submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, A&&... args )
     {
-        auto promise     = std::promise< R >( x, allocator );
+        auto promise     = Promise< R >( x, allocator );
         auto task_future = promise.get_future();
         push_task( make_task( x,
                               allocator,
@@ -1348,18 +1415,23 @@ public:
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
-    template< template< typename > class Allocator,
-              typename F,
-              typename... A,
-              typename R = be_invoke_result_t< std::decay_t< F >, A..., stop_token >,
-              typename T,
-              std::enable_if_t< be_is_void_v< R > && wants_stop_token_v< F > &&
-                                    !wants_allocator_v< F >,
-                                bool > = true >
-    BE_NODISGARD std::future< R >
+    template<
+        template< typename > class Promise = std::promise,
+        template< typename >
+        class Allocator,
+        typename F,
+        typename... A,
+        typename R = be_invoke_result_t< std::decay_t< F >, A..., stop_token >,
+        typename T,
+        typename Future = decltype( std::declval< Promise< R > >().get_future() ),
+        std::enable_if_t<
+            be::is_promise_v< Promise > && be::is_allocator_constructible< Promise< R > >::value &&
+                be_is_void_v< R > && wants_stop_token_v< F > && !wants_allocator_v< F >,
+            bool > = true >
+    BE_NODISGARD Future
     submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, A&&... args )
     {
-        auto promise     = std::promise< R >( x, allocator );
+        auto promise     = Promise< R >( x, allocator );
         auto task_future = promise.get_future();
         push_task( make_task( x,
                               allocator,
@@ -1378,243 +1450,286 @@ public:
                                   }
                               } ) );
         return task_future;
-    }
-
-    /**
-     * @brief Adds a callable to the task_pool returning a future with the result
-     */
-    template< template< typename > class Allocator,
-              typename F,
-              typename... A,
-              typename T,
-              typename R               = be_invoke_result_t< std::decay_t< F >,
-                                               std::allocator_arg_t,
-                                               Allocator< T >,
-                                               A...,
-                                               stop_token >,
-              std::enable_if_t< be_is_void_v< R > && wants_stop_token_v< F > &&
-                                    wants_allocator_v< F >,
-                                bool > = true >
-    BE_NODISGARD std::future< R >
-    submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, A&&... args )
-    {
-        auto promise     = std::promise< R >( x, allocator );
-        auto task_future = promise.get_future();
-        push_task( make_task( x,
-                              allocator,
-                              [task_function = std::bind( std::forward< F >( task ),
-                                                          std::allocator_arg_t{},
-                                                          allocator,
-                                                          std::forward< A >( args )...,
-                                                          get_stop_token() ),
-                               task_promise  = std::move( promise )]() mutable {
-                                  try
-                                  {
-                                      task_function();
-                                      task_promise.set_value();
-                                  }
-                                  catch ( ... )
-                                  {
-                                      task_promise.set_exception( std::current_exception() );
-                                  }
-                              } ) );
-        return task_future;
-    }
-    /**
-     * @brief Adds a callable to the task_pool returning a future with the result
-     */
-    template< template< typename > class Allocator,
-              typename F,
-              typename... Args,
-              typename R        = be_invoke_result_t< std::decay_t< F >, Args... >,
-              typename FuncType = std::remove_reference_t< std::remove_cv_t< F > >,
-              typename T,
-              std::enable_if_t< !be_is_void_v< R > && !wants_allocator_v< F >, bool > = true >
-    BE_NODISGARD std::future< R >
-    submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, Args&&... args )
-    {
-        std::promise< R > promise( x, allocator );
-        auto              future = promise.get_future();
-        push_task( make_task( x,
-                              allocator,
-                              [task_function = std::bind( std::forward< F >( task ),
-                                                          std::forward< Args >( args )... ),
-                               task_promise  = std::move( promise )]() mutable {
-                                  try
-                                  {
-                                      task_promise.set_value( task_function() );
-                                  }
-                                  catch ( ... )
-                                  {
-                                      task_promise.set_exception( std::current_exception() );
-                                  }
-                              } ) );
-        return future;
-    }
-
-    /**
-     * @brief Adds a callable to the task_pool returning a future with the result
-     */
-    template< template< typename > class Allocator,
-              typename F,
-              typename... Args,
-              typename T,
-              typename R        = be_invoke_result_t< std::decay_t< F >,
-                                               std::allocator_arg_t,
-                                               Allocator< T > const&,
-                                               Args... >,
-              typename FuncType = std::remove_reference_t< std::remove_cv_t< F > >,
-              std::enable_if_t< !be_is_void_v< R > && wants_allocator_v< F >, bool > = true >
-    BE_NODISGARD std::future< R >
-    submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, Args&&... args )
-    {
-        std::promise< R > promise( x, allocator );
-        auto              future = promise.get_future();
-        push_task( make_task( x,
-                              allocator,
-                              [task_function = std::bind( std::forward< F >( task ),
-                                                          std::allocator_arg_t{},
-                                                          allocator,
-                                                          std::forward< Args >( args )... ),
-                               task_promise  = std::move( promise )]() mutable {
-                                  try
-                                  {
-                                      task_promise.set_value( task_function() );
-                                  }
-                                  catch ( ... )
-                                  {
-                                      task_promise.set_exception( std::current_exception() );
-                                  }
-                              } ) );
-        return future;
-    }
-    /**
-     * @brief Adds a callable to the task_pool returning a future with the result
-     */
-    template< template< typename > class Allocator,
-              typename F,
-              typename... Args,
-              typename R        = be_invoke_result_t< std::decay_t< F >, Args..., stop_token >,
-              typename FuncType = std::remove_reference_t< std::remove_cv_t< F > >,
-              typename T,
-              std::enable_if_t< !be_is_void_v< R > && wants_stop_token_v< F > &&
-                                    !wants_allocator_v< F >,
-                                bool > = true >
-    BE_NODISGARD std::future< R >
-    submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, Args&&... args )
-    {
-        std::promise< R > promise( x, allocator );
-        auto              future = promise.get_future();
-        push_task( make_task( x,
-                              allocator,
-                              [task_function = std::bind( std::forward< F >( task ),
-                                                          std::forward< Args >( args )...,
-                                                          get_stop_token() ),
-                               task_promise  = std::move( promise )]() mutable {
-                                  try
-                                  {
-                                      task_promise.set_value( task_function() );
-                                  }
-                                  catch ( ... )
-                                  {
-                                      task_promise.set_exception( std::current_exception() );
-                                  }
-                              } ) );
-        return future;
-    }
-
-    /**
-     * @brief Adds a callable to the task_pool returning a future with the result
-     */
-    template< template< typename > class Allocator,
-              typename F,
-              typename... Args,
-              typename T,
-              typename R               = be_invoke_result_t< std::decay_t< F >,
-                                               std::allocator_arg_t,
-                                               Allocator< T >,
-                                               Args...,
-                                               stop_token >,
-              typename FuncType        = std::remove_reference_t< std::remove_cv_t< F > >,
-              std::enable_if_t< !be_is_void_v< R > && wants_stop_token_v< F > &&
-                                    wants_allocator_v< F >,
-                                bool > = true >
-    BE_NODISGARD std::future< R >
-    submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, Args&&... args )
-    {
-        std::promise< R > promise( x, allocator );
-        auto              future = promise.get_future();
-        push_task( make_task( x,
-                              allocator,
-                              [task_function = std::bind( std::forward< F >( task ),
-                                                          std::allocator_arg_t{},
-                                                          allocator,
-                                                          std::forward< Args >( args )...,
-                                                          get_stop_token() ),
-                               task_promise  = std::move( promise )]() mutable {
-                                  try
-                                  {
-                                      task_promise.set_value( task_function() );
-                                  }
-                                  catch ( ... )
-                                  {
-                                      task_promise.set_exception( std::current_exception() );
-                                  }
-                              } ) );
-        return future;
-    }
-
-    /**
-     * @brief Adds a callable to the task_pool returning a future with the result
-     */
-    template< typename F,
-              typename... A,
-              typename R = be_invoke_result_t< std::decay_t< F >,
-                                               future_argument_t< std::decay_t< A > >... >,
-              std::enable_if_t< contains_future< std::decay_t< A >... >::value, bool > = true >
-    std::future< R > submit( F&& task, A&&... args )
-    {
-        return make_defered_task( std::forward< F >( task ), std::forward< A >( args )... );
     }
 
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
     template<
+        template< typename > class Promise = std::promise,
+        template< typename >
+        class Allocator,
         typename F,
         typename... A,
-        typename R               = be_invoke_result_t< std::decay_t< F >,
-                                         future_argument_t< std::decay_t< A > >...,
+        typename T,
+        typename R      = be_invoke_result_t< std::decay_t< F >,
+                                         std::allocator_arg_t,
+                                         Allocator< T >,
+                                         A...,
                                          stop_token >,
-        std::enable_if_t< contains_future< std::decay_t< A >... >::value && wants_stop_token_v< F >,
-                          bool > = true >
-    std::future< R > submit( F&& task, A&&... args )
+        typename Future = decltype( std::declval< Promise< R > >().get_future() ),
+        std::enable_if_t<
+            be::is_promise_v< Promise > && be::is_allocator_constructible< Promise< R > >::value &&
+                be_is_void_v< R > && wants_stop_token_v< F > && wants_allocator_v< F >,
+            bool > = true >
+    BE_NODISGARD Future
+    submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, A&&... args )
     {
-        return make_defered_task(
+        auto promise     = Promise< R >( x, allocator );
+        auto task_future = promise.get_future();
+        push_task( make_task( x,
+                              allocator,
+                              [task_function = std::bind( std::forward< F >( task ),
+                                                          std::allocator_arg_t{},
+                                                          allocator,
+                                                          std::forward< A >( args )...,
+                                                          get_stop_token() ),
+                               task_promise  = std::move( promise )]() mutable {
+                                  try
+                                  {
+                                      task_function();
+                                      task_promise.set_value();
+                                  }
+                                  catch ( ... )
+                                  {
+                                      task_promise.set_exception( std::current_exception() );
+                                  }
+                              } ) );
+        return task_future;
+    }
+    /**
+     * @brief Adds a callable to the task_pool returning a future with the result
+     */
+    template<
+        template< typename > class Promise = std::promise,
+        template< typename >
+        class Allocator,
+        typename F,
+        typename... Args,
+        typename R        = be_invoke_result_t< std::decay_t< F >, Args... >,
+        typename FuncType = std::remove_reference_t< std::remove_cv_t< F > >,
+        typename T,
+        typename Future = decltype( std::declval< Promise< R > >().get_future() ),
+        std::enable_if_t<
+            be::is_promise_v< Promise > && be::is_allocator_constructible< Promise< R > >::value &&
+                be::is_promise_v< Promise > && !be_is_void_v< R > && !wants_allocator_v< F >,
+            bool > = true >
+    BE_NODISGARD Future
+    submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, Args&&... args )
+    {
+        Promise< R > promise( x, allocator );
+        auto         future = promise.get_future();
+        push_task( make_task( x,
+                              allocator,
+                              [task_function = std::bind( std::forward< F >( task ),
+                                                          std::forward< Args >( args )... ),
+                               task_promise  = std::move( promise )]() mutable {
+                                  try
+                                  {
+                                      task_promise.set_value( task_function() );
+                                  }
+                                  catch ( ... )
+                                  {
+                                      task_promise.set_exception( std::current_exception() );
+                                  }
+                              } ) );
+        return future;
+    }
+
+    /**
+     * @brief Adds a callable to the task_pool returning a future with the result
+     */
+    template< template< typename > class Promise = std::promise,
+              template< typename >
+              class Allocator,
+              typename F,
+              typename... Args,
+              typename T,
+              typename R               = be_invoke_result_t< std::decay_t< F >,
+                                               std::allocator_arg_t,
+                                               Allocator< T > const&,
+                                               Args... >,
+              typename FuncType        = std::remove_reference_t< std::remove_cv_t< F > >,
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > &&
+                                    be::is_allocator_constructible< Promise< R > >::value &&
+                                    !be_is_void_v< R > && wants_allocator_v< F >,
+                                bool > = true >
+    BE_NODISGARD Future
+    submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, Args&&... args )
+    {
+        Promise< R > promise( x, allocator );
+        auto         future = promise.get_future();
+        push_task( make_task( x,
+                              allocator,
+                              [task_function = std::bind( std::forward< F >( task ),
+                                                          std::allocator_arg_t{},
+                                                          allocator,
+                                                          std::forward< Args >( args )... ),
+                               task_promise  = std::move( promise )]() mutable {
+                                  try
+                                  {
+                                      task_promise.set_value( task_function() );
+                                  }
+                                  catch ( ... )
+                                  {
+                                      task_promise.set_exception( std::current_exception() );
+                                  }
+                              } ) );
+        return future;
+    }
+    /**
+     * @brief Adds a callable to the task_pool returning a future with the result
+     */
+    template<
+        template< typename > class Promise = std::promise,
+        template< typename >
+        class Allocator,
+        typename F,
+        typename... Args,
+        typename R        = be_invoke_result_t< std::decay_t< F >, Args..., stop_token >,
+        typename FuncType = std::remove_reference_t< std::remove_cv_t< F > >,
+        typename T,
+        typename Future = decltype( std::declval< Promise< R > >().get_future() ),
+        std::enable_if_t<
+            be::is_promise_v< Promise > && be::is_allocator_constructible< Promise< R > >::value &&
+                !be_is_void_v< R > && wants_stop_token_v< F > && !wants_allocator_v< F >,
+            bool > = true >
+    BE_NODISGARD Future
+    submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, Args&&... args )
+    {
+        Promise< R > promise( x, allocator );
+        auto         future = promise.get_future();
+        push_task( make_task( x,
+                              allocator,
+                              [task_function = std::bind( std::forward< F >( task ),
+                                                          std::forward< Args >( args )...,
+                                                          get_stop_token() ),
+                               task_promise  = std::move( promise )]() mutable {
+                                  try
+                                  {
+                                      task_promise.set_value( task_function() );
+                                  }
+                                  catch ( ... )
+                                  {
+                                      task_promise.set_exception( std::current_exception() );
+                                  }
+                              } ) );
+        return future;
+    }
+
+    /**
+     * @brief Adds a callable to the task_pool returning a future with the result
+     */
+    template<
+        template< typename > class Promise = std::promise,
+        template< typename >
+        class Allocator,
+        typename F,
+        typename... Args,
+        typename T,
+        typename R        = be_invoke_result_t< std::decay_t< F >,
+                                         std::allocator_arg_t,
+                                         Allocator< T >,
+                                         Args...,
+                                         stop_token >,
+        typename FuncType = std::remove_reference_t< std::remove_cv_t< F > >,
+        typename Future   = decltype( std::declval< Promise< R > >().get_future() ),
+        std::enable_if_t<
+            be::is_promise_v< Promise > && be::is_allocator_constructible< Promise< R > >::value &&
+                !be_is_void_v< R > && wants_stop_token_v< F > && wants_allocator_v< F >,
+            bool > = true >
+    BE_NODISGARD Future
+    submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, Args&&... args )
+    {
+        Promise< R > promise( x, allocator );
+        auto         future = promise.get_future();
+        push_task( make_task( x,
+                              allocator,
+                              [task_function = std::bind( std::forward< F >( task ),
+                                                          std::allocator_arg_t{},
+                                                          allocator,
+                                                          std::forward< Args >( args )...,
+                                                          get_stop_token() ),
+                               task_promise  = std::move( promise )]() mutable {
+                                  try
+                                  {
+                                      task_promise.set_value( task_function() );
+                                  }
+                                  catch ( ... )
+                                  {
+                                      task_promise.set_exception( std::current_exception() );
+                                  }
+                              } ) );
+        return future;
+    }
+
+    /**
+     * @brief Adds a callable to the task_pool returning a future with the result
+     */
+    template< template< typename > class Promise = std::promise,
+              typename F,
+              typename... A,
+              typename R               = be_invoke_result_t< std::decay_t< F >,
+                                               future_argument_t< std::decay_t< A > >... >,
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > &&
+                                    contains_future< std::decay_t< A >... >::value,
+                                bool > = true >
+    Future submit( F&& task, A&&... args )
+    {
+        return make_defered_task< Promise >( std::forward< F >( task ),
+                                             std::forward< A >( args )... );
+    }
+
+    /**
+     * @brief Adds a callable to the task_pool returning a future with the result
+     */
+    template< template< typename > class Promise = std::promise,
+              typename F,
+              typename... A,
+              typename R               = be_invoke_result_t< std::decay_t< F >,
+                                               future_argument_t< std::decay_t< A > >...,
+                                               stop_token >,
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > &&
+                                    contains_future< std::decay_t< A >... >::value &&
+                                    wants_stop_token_v< F >,
+                                bool > = true >
+    Future submit( F&& task, A&&... args )
+    {
+        return make_defered_task< Promise >(
             get_stop_token(), std::forward< F >( task ), std::forward< A >( args )... );
     }
 
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
-    template< template< typename > class Allocator,
+    template< template< typename > class Promise = std::promise,
+              template< typename >
+              class Allocator,
               typename F,
               typename... A,
               typename T,
-              typename R = be_invoke_result_t< std::decay_t< F >,
+              typename R               = be_invoke_result_t< std::decay_t< F >,
                                                future_argument_t< std::decay_t< A > >... >,
-              std::enable_if_t< contains_future< std::decay_t< A >... >::value, bool > = true >
-    BE_NODISGARD std::future< R >
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > &&
+                                    contains_future< std::decay_t< A >... >::value,
+                                bool > = true >
+    BE_NODISGARD Future
     submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, A&&... args )
     {
-        return make_defered_task(
+        return make_defered_task< Promise >(
             x, allocator, std::forward< F >( task ), std::forward< A >( args )... );
     }
 
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
-    template< template< typename > class Allocator,
+    template< template< typename > class Promise = std::promise,
+              template< typename >
+              class Allocator,
               typename F,
               typename... A,
               typename T,
@@ -1622,20 +1737,24 @@ public:
                                                std::allocator_arg_t,
                                                Allocator< T >,
                                                future_argument_t< std::decay_t< A > >... >,
-              std::enable_if_t< wants_allocator_v< F > && !wants_stop_token_v< F > &&
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > && wants_allocator_v< F > &&
+                                    !wants_stop_token_v< F > &&
                                     contains_future< std::decay_t< A >... >::value,
                                 bool > = true >
-    BE_NODISGARD std::future< R >
+    BE_NODISGARD Future
     submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, A&&... args )
     {
-        return make_defered_task(
+        return make_defered_task< Promise >(
             x, allocator, std::forward< F >( task ), std::forward< A >( args )... );
     }
 
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
-    template< template< typename > class Allocator,
+    template< template< typename > class Promise = std::promise,
+              template< typename >
+              class Allocator,
               typename F,
               typename... A,
               typename T,
@@ -1644,40 +1763,46 @@ public:
                                                Allocator< T >,
                                                future_argument_t< std::decay_t< A > >...,
                                                stop_token >,
-              std::enable_if_t< wants_allocator_v< F > && wants_stop_token_v< F > &&
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > && wants_allocator_v< F > &&
+                                    wants_stop_token_v< F > &&
                                     contains_future< std::decay_t< A >... >::value,
                                 bool > = true >
-    BE_NODISGARD std::future< R >
+    BE_NODISGARD Future
     submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, A&&... args )
     {
-        return make_defered_task( x,
-                                  allocator,
-                                  get_stop_token(),
-                                  std::forward< F >( task ),
-                                  std::forward< A >( args )... );
+        return make_defered_task< Promise >( x,
+                                             allocator,
+                                             get_stop_token(),
+                                             std::forward< F >( task ),
+                                             std::forward< A >( args )... );
     }
 
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
-    template< template< typename > class Allocator,
+    template< template< typename > class Promise = std::promise,
+              template< typename >
+              class Allocator,
               typename F,
               typename... A,
               typename T,
               typename R               = be_invoke_result_t< std::decay_t< F >,
                                                future_argument_t< std::decay_t< A > >...,
                                                stop_token >,
-              std::enable_if_t< !wants_allocator_v< F > && wants_stop_token_v< F > &&
+              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+              std::enable_if_t< be::is_promise_v< Promise > && !wants_allocator_v< F > &&
+                                    wants_stop_token_v< F > &&
                                     contains_future< std::decay_t< A >... >::value,
                                 bool > = true >
-    BE_NODISGARD std::future< R >
+    BE_NODISGARD Future
     submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, A&&... args )
     {
-        return make_defered_task( x,
-                                  allocator,
-                                  get_stop_token(),
-                                  std::forward< F >( task ),
-                                  std::forward< A >( args )... );
+        return make_defered_task< Promise >( x,
+                                             allocator,
+                                             get_stop_token(),
+                                             std::forward< F >( task ),
+                                             std::forward< A >( args )... );
     }
 
 private:

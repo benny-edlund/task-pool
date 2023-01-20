@@ -1302,6 +1302,13 @@ TEST_CASE( "wants_allocator", "[task_pool][traits][allocator]" )
         be::wants_allocator< int ( * )( float, std::allocator_arg_t, int, double ) >::value );
     STATIC_REQUIRE( be::wants_allocator< void ( * )( std::allocator_arg_t ) >::value );
     STATIC_REQUIRE( be::wants_allocator_v< void ( * )( std::allocator_arg_t ) > );
+    STATIC_REQUIRE( be::is_allocator_constructible< std::promise< void > >::value );
+    STATIC_REQUIRE( be::is_allocator_constructible< std::promise< void > >::value );
+    struct mock
+    {
+        mock();
+    };
+    STATIC_REQUIRE_FALSE( be::is_allocator_constructible< mock >::value );
 
     auto func_one = []() {};
     STATIC_REQUIRE_FALSE( be::wants_allocator_v< decltype( func_one ) > );
@@ -1521,4 +1528,83 @@ TEST_CASE( "( allocator, future, stop_token ) -> void",
     REQUIRE( allocations.allocations > 0 );
     REQUIRE( allocations.constructions > value_counts );
     REQUIRE( allocations.deallocations > 0 );
+}
+
+//
+// Custom promise types
+//
+struct Future
+{
+    enum class Status
+    {
+        ready,
+        timeout,
+        deferred
+    };
+    void   get();
+    void   wait();
+    Status wait_for( std::chrono::steady_clock::duration );
+    Status wait_until( std::chrono::steady_clock::time_point );
+};
+
+template< typename T >
+struct Promise
+{
+    Promise();
+    // template<template<typename> class Allocator>
+    // Promise( std::allocator_arg_t x, Allocator<T> y );
+    Future get_future();
+};
+
+TEST_CASE( "is_future", "[traits]" )
+{
+    STATIC_REQUIRE( be::is_future< std::future< void > >::value );
+    STATIC_REQUIRE( be::is_future< Future >::value );
+}
+
+TEST_CASE( "is_promise", "[traits]" )
+{
+    STATIC_REQUIRE( be::is_promise< std::promise >::value );
+    STATIC_REQUIRE( be::is_promise< Promise >::value );
+    STATIC_REQUIRE( be::is_promise_v< Promise > );
+    STATIC_REQUIRE_FALSE( be::is_promise_v< std::future > );
+}
+
+template< typename T >
+struct my_future : public std::future< T >
+{
+    explicit my_future( std::future< T > x )
+        : std::future< T >( std::move( x ) )
+    {
+    }
+};
+
+template< typename T >
+struct my_promise : public std::promise< T >
+{
+    my_promise()
+        : std::promise< T >()
+    {
+    }
+    my_future< T > get_future()
+    {
+        return my_future< T >( std::move( std::promise< T >::get_future() ) );
+    }
+};
+
+TEST_CASE( " submit<my_promise>( ... )", "[submit][promises]" )
+{
+    static int const s_counts  = 1'000'000;
+    auto             make_data = []( std::size_t counts ) {
+        std::vector< int > values( counts );
+        std::iota( values.begin(), values.end(), 1 );
+        return values;
+    };
+    auto check_values = []( std::vector< int > vec ) { // NOLINT
+        REQUIRE( vec.size() == s_counts );
+    };
+    be::task_pool pool;
+    auto          value  = pool.submit( make_data, s_counts );
+    auto          result = pool.submit( check_values, std::move( value ) );
+    pool.wait_for_tasks();
 }
