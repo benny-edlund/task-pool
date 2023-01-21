@@ -150,8 +150,8 @@ jobs:
           pwd
           ctest -C ${{matrix.build_type}}
           pwd
-          ls -l 
-          gcovr -j ${{env.nproc}} --delete --root ../lib --print-summary --exclude-unreachable-branches --exclude-throw-branches --xml-pretty --xml coverage.xml . --gcov-executable '${{ matrix.gcov_executable }}'
+          ls ../lib -l 
+          gcovr -j ${{env.nproc}} --delete --root ../../lib --print-summary --exclude-unreachable-branches --exclude-throw-branches --xml-pretty --xml coverage.xml . --gcov-executable '${{ matrix.gcov_executable }}'
 
       - name: CPack
         if: matrix.package_generator != ''
