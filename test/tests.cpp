@@ -1594,17 +1594,17 @@ struct my_promise : public std::promise< T >
 
 TEST_CASE( " submit<my_promise>( ... )", "[submit][promises]" )
 {
-    static int const s_counts  = 1'000'000;
+    static int const counts  = 1'000'000;
     auto             make_data = []( std::size_t counts ) {
         std::vector< int > values( counts );
         std::iota( values.begin(), values.end(), 1 );
         return values;
     };
     auto check_values = []( std::vector< int > vec ) { // NOLINT
-        REQUIRE( vec.size() == s_counts );
+        REQUIRE( vec.size() == counts );
     };
     be::task_pool pool;
-    auto          value  = pool.submit( make_data, s_counts );
+    auto          value  = pool.submit( make_data, counts );
     auto          result = pool.submit( check_values, std::move( value ) );
     pool.wait_for_tasks();
 }
