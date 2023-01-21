@@ -55,7 +55,8 @@ generate_export_header(
 
 
 if ( UNIX AND ENABLE_COVERAGE )
-  include(CodeCoverage)
-  append_coverage_compiler_flags_to_target(task_pool)
-  append_coverage_compiler_flags_to_target(task_pool_static)
+  target_compile_options(task_pool PRIVATE -g -coverage )
+  target_compile_options(task_pool_static PRIVATE -g -coverage )
+  # target_link_libraries(task_pool PRIVATE gcov)
+  # target_link_libraries(task_pool_static PRIVATE gcov)
 endif()
