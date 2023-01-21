@@ -148,8 +148,7 @@ jobs:
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: |
           ctest -C ${{matrix.build_type}}
-          cat lib/CMakeFiles/task_pool_static.dir/Debug/task_pool.cpp.gcda
-          gcovr -j ${{env.nproc}} --delete --root ../lib --print-summary --exclude-unreachable-branches --exclude-throw-branches --xml-pretty --xml coverage.xml . --gcov-executable '${{ matrix.gcov_executable }}'
+          gcovr -j ${{env.nproc}} --delete --root ../ --print-summary --exclude-unreachable-branches --exclude-throw-branches --xml-pretty --xml coverage.xml . --gcov-executable '${{ matrix.gcov_executable }}'
 
       - name: CPack
         if: matrix.package_generator != ''
