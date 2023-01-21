@@ -1594,7 +1594,7 @@ struct my_promise : public std::promise< T >
 
 TEST_CASE( " submit<my_promise>( ... )", "[submit][promises]" )
 {
-    static int const counts  = 1'000'000;
+    static int const counts    = 1'000'000;
     auto             make_data = []( std::size_t counts ) {
         std::vector< int > values( counts );
         std::iota( values.begin(), values.end(), 1 );
