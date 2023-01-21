@@ -43,7 +43,7 @@ jobs:
           - Debug
         developer_mode:
           - OFF
-          #- ON
+          - ON
 
         exclude:
           # mingw is determined by this author to be too buggy to support
@@ -66,17 +66,17 @@ jobs:
             developer_mode: OFF
             package_generator: TBZ2
 
-          #- os: windows-2022
-          #  compiler: msvc
-          #  generator: "Visual Studio 17 2022"
-          #  build_type: Debug
-          #  developer_mode: On
+          - os: windows-2022
+            compiler: msvc
+            generator: "Visual Studio 17 2022"
+            build_type: Debug
+            developer_mode: On
 
-          #- os: windows-2022
-          #  compiler: msvc
-          #  generator: "Visual Studio 17 2022"
-          #  build_type: Release
-          #  developer_mode: On
+          - os: windows-2022
+            compiler: msvc
+            generator: "Visual Studio 17 2022"
+            build_type: Release
+            developer_mode: On
 
           - os: windows-2022
             compiler: msvc
