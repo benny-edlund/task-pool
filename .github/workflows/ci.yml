@@ -146,8 +146,12 @@ jobs:
         working-directory: ./build
         # Execute tests defined by the CMake configuration.
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-        run: 
-          ctest -C ${{matrix.build_type}} && gcovr -j ${{env.nproc}} --delete --root ../lib --print-summary --exclude-unreachable-branches --exclude-throw-branches --xml-pretty --xml coverage.xml . --gcov-executable '${{ matrix.gcov_executable }}'
+        run: |
+          pwd
+          ctest -C ${{matrix.build_type}}
+          pwd
+          ls -l 
+          gcovr -j ${{env.nproc}} --delete --root ../lib --print-summary --exclude-unreachable-branches --exclude-throw-branches --xml-pretty --xml coverage.xml . --gcov-executable '${{ matrix.gcov_executable }}'
 
       - name: CPack
         if: matrix.package_generator != ''
