@@ -207,8 +207,9 @@ namespace promise_api {
 template< typename Promise >
 using get_future_t = decltype( std::declval< Promise >().get_future() );
 
-template< typename Promise  >
-using set_value_t = decltype( &Promise::set_value ); // not the best option but only one i could get working 
+template< typename Promise >
+using set_value_t =
+    decltype( &Promise::set_value ); // not the best option but only one i could get working
 
 template< typename Promise >
 using set_exception_t =
@@ -220,10 +221,11 @@ struct is_supported : std::false_type
 };
 
 template< template< typename > class T, typename V >
-struct is_supported< T< V >, be_void_t< get_future_t< T< V > >, set_value_t< T < V > >,  set_exception_t< T< V > > > >
-    : std::conditional< is_future< get_future_t< T< V > > >::value,
-                        std::true_type,
-                        std::false_type >
+struct is_supported<
+    T< V >,
+    be_void_t< get_future_t< T< V > >, set_value_t< T< V > >, set_exception_t< T< V > > > >
+    : std::
+          conditional< is_future< get_future_t< T< V > > >::value, std::true_type, std::false_type >
 {
 };
 
