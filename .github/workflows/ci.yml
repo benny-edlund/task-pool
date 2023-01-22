@@ -146,6 +146,7 @@ jobs:
         working-directory: ./build
         run: |
           ctest -C ${{matrix.build_type}}
+          gcovr --version
           gcovr -v --delete --root ../lib/ --print-summary --exclude-unreachable-branches --exclude-throw-branches --xml-pretty --xml coverage.xml . --gcov-executable '${{ matrix.gcov_executable }}'
 
       - name: CPack
