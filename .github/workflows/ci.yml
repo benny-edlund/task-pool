@@ -36,7 +36,7 @@ jobs:
           - macos-11
         compiler:
           - llvm-13.0.0
-          - gcc-11
+          - gcc-9
         generator:
           - "Ninja Multi-Config"
         build_type:
@@ -49,7 +49,7 @@ jobs:
         exclude:
           # mingw is determined by this author to be too buggy to support
           - os: macos-11
-            compiler: gcc-11
+            compiler: gcc-9
           - os: ubuntu-20.04
             compiler: llvm-13.0.0
 
@@ -57,7 +57,7 @@ jobs:
         include:
           # Add appropriate variables for gcov version required. This will intentionally break
           # if you try to use a compiler that does not have gcov set
-          - compiler: gcc-11
+          - compiler: gcc-9
             gcov_executable: gcov
           - compiler: llvm-13.0.0
             gcov_executable: "llvm-cov gcov"
@@ -160,7 +160,7 @@ jobs:
             build/*-*${{ matrix.build_type }}*-*.*
 
       - name: Coverage
-        if: matrix.compiler == 'gcc-11' && matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF'
+        if: matrix.compiler == 'gcc-9' && matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF'
         working-directory: ./build
         run: |
           pip3 install fastcov
@@ -170,7 +170,7 @@ jobs:
       # Disabled as it keeps sending empty coverage using manual upload unti fixed
       # ~/codecov -t 40f0bacd-3dc4-46e4-b0b2-25fe417e46c2 -C 5ab4dc01b8e05566597380eb7f01c3b4ccbc18fe -f ./build/coverage.xml --slug '{user}/{project}'
       - name: Publish to codecov # Only  doing coverage from the GCC / Debug build
-        if: matrix.compiler == 'gcc-11' && matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF'
+        if: matrix.compiler == 'gcc-9' && matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF'
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
