@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <exception>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -206,23 +207,32 @@ namespace promise_api {
 template< typename Promise >
 using get_future_t = decltype( std::declval< Promise >().get_future() );
 
-template< template< typename > class T, typename V, typename = void >
+template< typename Promise >
+using set_value_t =
+    decltype( &Promise::set_value ); // not the best option but only one i could get working
+
+template< typename Promise >
+using set_exception_t =
+    decltype( std::declval< Promise >().set_exception( std::declval< std::exception_ptr >() ) );
+
+template< typename T, typename = void >
 struct is_supported : std::false_type
 {
 };
 
-template< template< typename > class T >
-struct is_supported< T, void, be_void_t< get_future_t< T< void > > > >
-    : std::conditional< is_future< get_future_t< T< void > > >::value,
-                        std::true_type,
-                        std::false_type >
+template< template< typename > class T, typename V >
+struct is_supported<
+    T< V >,
+    be_void_t< get_future_t< T< V > >, set_value_t< T< V > >, set_exception_t< T< V > > > >
+    : std::
+          conditional< is_future< get_future_t< T< V > > >::value, std::true_type, std::false_type >
 {
 };
 
 } // namespace promise_api
 
 template< template< typename > class T, typename V = void >
-struct is_promise : promise_api::is_supported< T, V >::type
+struct is_promise : promise_api::is_supported< T< V > >::type
 {
 };
 

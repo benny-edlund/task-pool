@@ -42,7 +42,7 @@ target_include_directories(
 target_include_directories(task_pool PRIVATE "${CMAKE_BINARY_DIR}/configured_files/include")
 target_link_libraries( task_pool PRIVATE project_options project_warnings)
 if (UNIX)
-target_link_libraries(task_pool PRIVATE pthread)
+  target_link_libraries(task_pool PRIVATE pthread)
 endif()
 
 generate_export_header(
@@ -52,4 +52,9 @@ generate_export_header(
   EXPORT_MACRO_NAME TASKPOOL_API
   NO_EXPORT_MACRO_NAME TASKPOOL_HIDDEN
 )
-# install(FILES ${CMAKE_CURRENT_BINARY_DIR}/task_pool/api.h DESTINATION ${INCLUDE_INSTALL_DIR}/task_pool/api.h )
+
+
+if ( CMAKE_COMPILER_IS_GNUCXX AND ENABLE_COVERAGE )
+  target_compile_options(task_pool PRIVATE -g -coverage )
+  target_compile_options(task_pool_static PRIVATE -g -coverage )
+endif()

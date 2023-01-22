@@ -1551,9 +1551,18 @@ template< typename T >
 struct Promise
 {
     Promise();
-    // template<template<typename> class Allocator>
-    // Promise( std::allocator_arg_t x, Allocator<T> y );
     Future get_future();
+    void   set_value( T );
+    void   set_exception( std::exception_ptr );
+};
+
+template<>
+struct Promise< void >
+{
+    Promise();
+    Future get_future();
+    void   set_value();
+    void   set_exception( std::exception_ptr );
 };
 
 TEST_CASE( "is_future", "[traits]" )
@@ -1594,17 +1603,17 @@ struct my_promise : public std::promise< T >
 
 TEST_CASE( " submit<my_promise>( ... )", "[submit][promises]" )
 {
-    static int const s_counts  = 1'000'000;
-    auto             make_data = []( std::size_t counts ) {
-        std::vector< int > values( counts );
+    static int const counts    = 1'000'000;
+    auto             make_data = []( std::size_t x ) {
+        std::vector< int > values( x );
         std::iota( values.begin(), values.end(), 1 );
         return values;
     };
     auto check_values = []( std::vector< int > vec ) { // NOLINT
-        REQUIRE( vec.size() == s_counts );
+        REQUIRE( vec.size() == counts );
     };
     be::task_pool pool;
-    auto          value  = pool.submit( make_data, s_counts );
+    auto          value  = pool.submit( make_data, counts );
     auto          result = pool.submit( check_values, std::move( value ) );
     pool.wait_for_tasks();
 }

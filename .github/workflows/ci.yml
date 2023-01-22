@@ -1,3 +1,4 @@
+
 name: ci
 on:
   pull_request:
@@ -35,7 +36,7 @@ jobs:
           - macos-11
         compiler:
           - llvm-13.0.0
-          - gcc-11
+          - gcc-9
         generator:
           - "Ninja Multi-Config"
         build_type:
@@ -43,12 +44,12 @@ jobs:
           - Debug
         developer_mode:
           - OFF
-          #- ON
+          - ON
 
         exclude:
           # mingw is determined by this author to be too buggy to support
           - os: macos-11
-            compiler: gcc-11
+            compiler: gcc-9
           - os: ubuntu-20.04
             compiler: llvm-13.0.0
 
@@ -56,7 +57,7 @@ jobs:
         include:
           # Add appropriate variables for gcov version required. This will intentionally break
           # if you try to use a compiler that does not have gcov set
-          - compiler: gcc-11
+          - compiler: gcc-9
             gcov_executable: gcov
           - compiler: llvm-13.0.0
             gcov_executable: "llvm-cov gcov"
@@ -65,18 +66,6 @@ jobs:
           - build_type: Release
             developer_mode: OFF
             package_generator: TBZ2
-
-          #- os: windows-2022
-          #  compiler: msvc
-          #  generator: "Visual Studio 17 2022"
-          #  build_type: Debug
-          #  developer_mode: On
-
-          #- os: windows-2022
-          #  compiler: msvc
-          #  generator: "Visual Studio 17 2022"
-          #  build_type: Release
-          #  developer_mode: On
 
           - os: windows-2022
             compiler: msvc
@@ -97,7 +86,7 @@ jobs:
         if: ${{ contains(matrix.compiler, 'llvm') && !contains(matrix.compiler, env.CLANG_TIDY_VERSION) }}
         uses: actions/github-script@v3
         with:
-          script: |
+          script: 
             core.setFailed('There is a mismatch between configured llvm compiler and clang-tidy version chosen')
 
       - uses: actions/checkout@v2
@@ -120,22 +109,22 @@ jobs:
           ninja: true
           conan: true
           vcpkg: false
-          ccache: true
-          #clangtidy: ${{ env.CLANG_TIDY_VERSION }}
+          ccache: false
+          clangtidy: ${{ env.CLANG_TIDY_VERSION }}
           cppcheck: true
 
           gcovr: true
-          opencppcoverage: true
+          opencppcoverage: false
 
       - name: Cleanup Conan system packages (they are not properly cached)
-        run: |
+        run: 
           conan remove -f '*/system'
 
         # make sure coverage is only enabled for Debug builds, since it sets -O0 to make sure coverage
         # has meaningful results
       - name: Configure CMake
-        run: |
-          cmake -S . -B ./build -G "${{matrix.generator}}" -DCMAKE_BUILD_TYPE:STRING=${{matrix.build_type}} -DENABLE_DEVELOPER_MODE:BOOL=${{matrix.developer_mode}} -DOPT_ENABLE_COVERAGE:BOOL=${{ matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF' }} -DGIT_SHA:STRING=${{ github.sha }}
+        run: 
+          cmake -S . -B ./build -G "${{matrix.generator}}" -DCMAKE_BUILD_TYPE:STRING=${{matrix.build_type}} -DENABLE_DEVELOPER_MODE:BOOL=${{matrix.developer_mode}} -DENABLE_COVERAGE:BOOL=${{ matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF' }} -DGIT_SHA:STRING=${{ github.sha }}
 
       - name: Build
         # Remove llvm from env to avoid issues with gcc
@@ -149,45 +138,41 @@ jobs:
           LIBRARY_PATH: ""
           CPATH: ""
         # Execute the build.  You can specify a specific target with "--target <NAME>"
-        run: |
-          cmake --build ./build --config ${{matrix.build_type}}
+        run: 
+          cmake --build ./build --config ${{matrix.build_type}} --verbose
 
-      - name: Unix - Test and coverage
-        if: runner.os != 'Windows'
-        working-directory: ./build
-        # Execute tests defined by the CMake configuration.
-        # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-        run: |
-          ctest -C ${{matrix.build_type}} --verbose
-          gcovr -j ${{env.nproc}} --delete --root ../src --print-summary --exclude-unreachable-branches --exclude-throw-branches --xml-pretty --xml coverage.xml . --gcov-executable '${{ matrix.gcov_executable }}'
-
-      - name: Windows - Test and coverage
-        if: runner.os == 'Windows'
+      - name: CTest
         working-directory: ./build
         run: |
-          OpenCppCoverage.exe --export_type cobertura:coverage.xml --cover_children -- ctest -C ${{matrix.build_type}} --verbose
+          ctest -C ${{matrix.build_type}}
 
       - name: CPack
         if: matrix.package_generator != ''
         working-directory: ./build
-        run: |
+        run: 
           cpack -C ${{matrix.build_type}} -G ${{matrix.package_generator}}
 
       - name: Publish Tagged Release
         uses: softprops/action-gh-release@v1
         if: ${{ startsWith(github.ref, 'refs/tags/') && matrix.package_generator != '' }}
         with:
-          files: |
+          files: 
             build/*-*${{ matrix.build_type }}*-*.*
+
+      - name: Coverage
+        # looks like there may be in bug preventing coverage reporting in gcc-11 so we only run this in in gcc-9 variant
+        if: matrix.compiler == 'gcc-9' && matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF'
+        working-directory: ./build
+        run: |
+          gcovr -j ${{env.nproc}} --delete --root ../lib/ --print-summary --exclude-unreachable-branches --exclude-throw-branches --xml-pretty --xml coverage.xml . --gcov-executable '${{ matrix.gcov_executable }}'
 
       # Disabled as it keeps sending empty coverage using manual upload unti fixed
       # ~/codecov -t 40f0bacd-3dc4-46e4-b0b2-25fe417e46c2 -C 5ab4dc01b8e05566597380eb7f01c3b4ccbc18fe -f ./build/coverage.xml --slug '{user}/{project}'
-      # - name: Publish to codecov # Only  doing coverage from the GCC / Debug build
-      #   if: matrix.compiler == 'gcc-11' && matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF'
-      #   uses: codecov/codecov-action@v3
-      #   with:
-      #     token: ${{ secrets.CODECOV_TOKEN }}
-      #     files: ./build/coverage.xml # optional
-      #     flags: unittests # optional
-      #     fail_ci_if_error: true # optional (default = false)
-      #     verbose: true # optional (default = false)
+      - name: Publish to codecov # Only  doing coverage from the GCC / Debug build
+        if: matrix.compiler == 'gcc-9' && matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF'
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: unittests # optional
+          fail_ci_if_error: true # optional (default = false)
+          verbose: true # optional (default = false)

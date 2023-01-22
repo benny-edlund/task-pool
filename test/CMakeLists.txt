@@ -13,13 +13,11 @@ add_executable(test_taskpool tests.cpp)
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../src/public")
 target_link_libraries(test_taskpool PRIVATE task_pool_static)
 target_link_libraries(test_taskpool PRIVATE project_warnings project_options catch_main)
-# if(CMAKE_COMPILER_IS_GNUCXX) # this SHOUILD be controlled by OPT_ENABLE_COVERAGE but doesnt seemt work
-#     if (CMAKE_BUILD_TYPE MATCHES "Debug")
-# 	    include(CodeCoverage)
-# 	    append_coverage_compiler_flags()
-#     endif()
-# endif()
-
+if ( CMAKE_COMPILER_IS_GNUCXX AND ENABLE_COVERAGE )
+  message("Building with coverage support")
+  target_compile_options(test_taskpool PRIVATE -g -coverage )
+  target_link_libraries(test_taskpool PRIVATE gcov)
+endif()
 # automatically discover tests that are defined in catch based test files you can modify the unittests. Set TEST_PREFIX
 # to whatever you want, or use different for different binaries
 
