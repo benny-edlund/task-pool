@@ -1425,7 +1425,8 @@ public:
         typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
         std::enable_if_t< be::is_promise_v< Promise > &&
                               be::is_allocator_constructible< Promise< R > >::value &&
-                              be_is_void_v< R > && wants_allocator_v< F >, bool > = true >
+                              be_is_void_v< R > && wants_allocator_v< F >,
+                          bool > = true >
     BE_NODISGARD Future submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task )
     {
         auto promise     = Promise< R >( x, allocator );
@@ -1575,22 +1576,23 @@ public:
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      */
-    template< template< typename > class Promise = std::promise,
-              template< typename >
-              class Allocator,
-              typename F,
-              typename... Args,
-              typename T,
-              typename R               = be_invoke_result_t< std::decay_t< F >,
-                                               std::allocator_arg_t,
-                                               Allocator< T > const&,
-                                               Args... >,
-              typename FuncType        = std::remove_reference_t< std::remove_cv_t< F > >,
-              typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
-              std::enable_if_t< be::is_promise_v< Promise > &&
-                                    be::is_allocator_constructible< Promise< R > >::value &&
-                                    !be_is_void_v< R > && wants_allocator_v< F >,
-                                bool > = true >
+    template<
+        template< typename > class Promise = std::promise,
+        template< typename >
+        class Allocator,
+        typename F,
+        typename... Args,
+        typename T,
+        typename R        = be_invoke_result_t< std::decay_t< F >,
+                                         std::allocator_arg_t,
+                                         Allocator< T > const&,
+                                         Args... >,
+        typename FuncType = std::remove_reference_t< std::remove_cv_t< F > >,
+        typename Future   = decltype( std::declval< Promise< R > >().get_future() ),
+        std::enable_if_t<
+            be::is_promise_v< Promise > && be::is_allocator_constructible< Promise< R > >::value &&
+                !be_is_void_v< R > && wants_allocator_v< F > && sizeof...( Args ) != 0,
+            bool > = true >
     BE_NODISGARD Future
     submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, Args&&... args )
     {
@@ -1606,6 +1608,45 @@ public:
                                   try
                                   {
                                       task_promise.set_value( task_function() );
+                                  }
+                                  catch ( ... )
+                                  {
+                                      task_promise.set_exception( std::current_exception() );
+                                  }
+                              } ) );
+        return future;
+    }
+
+    /**
+     * @brief Adds a callable to the task_pool returning a future with the result
+     */
+    template<
+        template< typename > class Promise = std::promise,
+        template< typename >
+        class Allocator,
+        typename F,
+        typename T,
+        typename R =
+            be_invoke_result_t< std::decay_t< F >, std::allocator_arg_t, Allocator< T > const& >,
+        typename FuncType        = std::remove_reference_t< std::remove_cv_t< F > >,
+        typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+        std::enable_if_t< be::is_promise_v< Promise > &&
+                              be::is_allocator_constructible< Promise< R > >::value &&
+                              !be_is_void_v< R > && wants_allocator_v< F >,
+                          bool > = true >
+    BE_NODISGARD Future submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task )
+    {
+        Promise< R > promise( x, allocator );
+        auto         future = promise.get_future();
+        push_task( make_task( x,
+                              allocator,
+                              [task_function = std::forward< F >( task ),
+                               alloc         = allocator,
+                               task_promise  = std::move( promise )]() mutable {
+                                  try
+                                  {
+                                      task_promise.set_value(
+                                          task_function( std::allocator_arg_t{}, alloc ) );
                                   }
                                   catch ( ... )
                                   {
