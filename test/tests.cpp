@@ -782,7 +782,7 @@ TEST_CASE( "bool(... be::stop_token)&& function throws", "[task_pool][submit][st
 //
 // Checking submit overloads with allocator - success branch
 //
-TEST_CASE( "void()& function with allocator", "[task_pool][submit][allocator]" )
+TEST_CASE( "void(allocator)& function with allocator", "[task_pool][submit][allocator]" )
 {
     std::allocator< int > alloc;
     std::atomic_bool      called;
@@ -907,10 +907,9 @@ TEST_CASE( "bool( alloc )&& function with allocator throws .no2",
     auto                  future =
         pool.submit( std::allocator_arg_t{},
                      alloc,
-                     [&]( std::allocator_arg_t /*tag*/, std::allocator< int > const& /*alloc*/ ) {
+                     [&]( std::allocator_arg_t /*tag*/, std::allocator< int > const& /*alloc*/ ) -> bool {
                          called = true;
                          throw test_exception{};
-                         return true;
                      } );
     REQUIRE_THROWS_AS( future.get(), test_exception );
     REQUIRE( called == true );

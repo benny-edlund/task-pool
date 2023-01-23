@@ -194,8 +194,8 @@ class TASKPOOL_API task_pool
             } )
         {
         }
-        ~task_proxy()                   = default;
-        task_proxy( task_proxy const& ) = delete;
+        ~task_proxy()                              = default;
+        task_proxy( task_proxy const& )            = delete;
         task_proxy& operator=( task_proxy const& ) = delete;
         task_proxy( task_proxy&& ) noexcept;
         task_proxy& operator=( task_proxy&& ) noexcept;
@@ -215,11 +215,11 @@ class TASKPOOL_API task_pool
             }
             using FuncType::operator();
             static bool     is_ready() { return true; }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         return task_proxy( new Task( std::forward< F >( task ) ) );
     }
@@ -244,11 +244,11 @@ class TASKPOOL_API task_pool
             using FuncType::  operator();
             static bool       is_ready() { return true; }
             Allocator< Task > alloc;
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Allocator< Task > task_allocator( allocator );
         Task*             typed_task =
@@ -293,11 +293,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Promise< R > promise;
         auto         future = promise.get_future();
@@ -346,11 +346,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Promise< R > promise;
         auto         future = promise.get_future();
@@ -396,11 +396,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Promise< R > promise;
         auto         future = promise.get_future();
@@ -448,11 +448,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Promise< R > promise;
         auto         future = promise.get_future();
@@ -518,11 +518,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
@@ -600,11 +600,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
@@ -673,11 +673,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
@@ -754,11 +754,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
@@ -834,11 +834,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
@@ -922,11 +922,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
@@ -1001,11 +1001,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
@@ -1088,11 +1088,11 @@ class TASKPOOL_API task_pool
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Promise< R >      promise( x, allocator );
         auto              future = promise.get_future();
@@ -1385,7 +1385,7 @@ public:
         typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
         std::enable_if_t< be::is_promise_v< Promise > &&
                               be::is_allocator_constructible< Promise< R > >::value &&
-                              be_is_void_v< R > && wants_allocator_v< F >,
+                              be_is_void_v< R > && wants_allocator_v< F > && sizeof...( A ) != 0,
                           bool > = true >
     BE_NODISGARD Future
     submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task, A&&... args )
@@ -1402,6 +1402,42 @@ public:
                                   try
                                   {
                                       task_function();
+                                      task_promise.set_value();
+                                  }
+                                  catch ( ... )
+                                  {
+                                      task_promise.set_exception( std::current_exception() );
+                                  }
+                              } ) );
+        return task_future;
+    }
+
+    /**
+     * @brief Adds a callable to the task_pool returning a future with the result
+     */
+    template<
+        template< typename > class Promise = std::promise,
+        template< typename >
+        class Allocator,
+        typename F,
+        typename T,
+        typename R = be_invoke_result_t< std::decay_t< F >, std::allocator_arg_t, Allocator< T > >,
+        typename Future          = decltype( std::declval< Promise< R > >().get_future() ),
+        std::enable_if_t< be::is_promise_v< Promise > &&
+                              be::is_allocator_constructible< Promise< R > >::value &&
+                              be_is_void_v< R > && wants_allocator_v< F >, bool > = true >
+    BE_NODISGARD Future submit( std::allocator_arg_t x, Allocator< T > const& allocator, F&& task )
+    {
+        auto promise     = Promise< R >( x, allocator );
+        auto task_future = promise.get_future();
+        push_task( make_task( x,
+                              allocator,
+                              [task_function = std::forward< F >( task ),
+                               alloc         = allocator,
+                               task_promise  = std::move( promise )]() mutable {
+                                  try
+                                  {
+                                      task_function( std::allocator_arg_t{}, alloc );
                                       task_promise.set_value();
                                   }
                                   catch ( ... )
