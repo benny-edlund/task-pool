@@ -1936,7 +1936,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> size_t throws #1",
 
     auto process_data = []( std::allocator_arg_t /*tag*/,
                             counting_allocator< int > const& /*alloc*/,
-                            std::vector< int > /*data*/,
+                            std::vector< int > /*data*/, // NOLINT
                             be::stop_token /*token*/ ) { throw test_exception{}; }; // NOLINT
 
     {
