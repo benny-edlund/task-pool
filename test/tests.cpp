@@ -1376,8 +1376,8 @@ TEST_CASE( "submit( allocator, f(allocator), future, ... ) -> void", "[task_pool
     REQUIRE( actual == X * Y );
 }
 
-
-TEST_CASE( "submit( allocator, f(allocator), future, ... ) -> void throws", "[task_pool][submit][throws]" )
+TEST_CASE( "submit( allocator, f(allocator), future, ... ) -> void throws",
+           "[task_pool][submit][throws]" )
 {
     std::allocator< int > alloc;
     const int             X = 42;
@@ -1385,11 +1385,11 @@ TEST_CASE( "submit( allocator, f(allocator), future, ... ) -> void throws", "[ta
     be::task_pool         pool( 1 );
     auto                  fun_a    = []( int x ) { return x; };
     std::future< int >    future_a = pool.submit( std::allocator_arg_t{}, alloc, fun_a, X );
-    auto                  fun_b =
-        [&]( std::allocator_arg_t /*tag*/, std::allocator< int > const& /*alloc*/, int /*x*/, int /*y*/ ) ->void {
-            throw test_exception{};
-        };
-    std::future< void > result =
+    auto                  fun_b    = [&]( std::allocator_arg_t /*tag*/,
+                      std::allocator< int > const& /*alloc*/,
+                      int /*x*/,
+                      int /*y*/ ) -> void { throw test_exception{}; };
+    std::future< void >   result =
         pool.submit( std::allocator_arg_t{}, alloc, fun_b, std::move( future_a ), Y );
     REQUIRE_THROWS_AS( result.get(), test_exception );
 }
