@@ -2194,27 +2194,31 @@ TEST_CASE( "abort when not started", "[stop_token]" )
 
 TEST_CASE( "task_proxy move assignment", "[task_proxy]" )
 {
-    be::task_pool pool;
-
-    auto us_1 = []() {
+    be::task_pool     pool;
+    static const auto s_us_100 = 100us;
+    static const auto s_us_10  = 10us;
+    static const auto s_us_1   = 1us;
+    static const auto s_ms_10  = 10ms;
+    static const auto s_ms_1   = 1ms;
+    auto              us_1     = []() {
         std::this_thread::sleep_for( 1us );
-        return 1us;
+        return s_us_1; //
     };
     auto us_10 = []() {
         std::this_thread::sleep_for( 10us );
-        return 10us;
+        return s_us_10;
     };
     auto us_100 = []() {
         std::this_thread::sleep_for( 100us );
-        return 100us;
+        return s_us_100;
     };
     auto ms_1 = []() {
         std::this_thread::sleep_for( 1ms );
-        return 1ms;
+        return s_ms_1;
     };
     auto ms_10 = []() {
         std::this_thread::sleep_for( 10ms );
-        return 10ms;
+        return s_ms_10;
     };
 
     // ok so what we want to do is submit some tasks that depend on some inputs in such a way
