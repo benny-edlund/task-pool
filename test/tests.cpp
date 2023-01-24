@@ -2236,5 +2236,4 @@ TEST_CASE( "task_proxy move assignment", "[task_proxy]" )
     REQUIRE( res_100us.get() == 100us );
     REQUIRE( res_10us.get() == 10us );
     REQUIRE( res_1us.get() == 1us );
-
 }
