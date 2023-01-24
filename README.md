@@ -29,9 +29,9 @@ auto task = []() { std::cerr<< "Hello World!\n"; };
 pool.submit( task );
 pool.wait_for_tasks();
 ```
-Here we first default construct a pool object. A lambda is then declared and passed by reference to `be::task_pool:submit` as a task to execute in the pool. 
+Here we first default construct a pool object. A lambda is then declared and passed by reference to `submit` as a task to execute in the pool. 
 
-Finally we use `be::task_pool::wait_for_tasks` to ensure all tasks submitted to the pool are completed before finishing.
+Finally we use `wait_for_tasks` to ensure all tasks submitted to the pool are completed before continuing.
 
 &nbsp;
 
@@ -48,21 +48,25 @@ struct work_data
 work_data make_data();  
 bool process_data( work_data );
 ```
-Given some some API to create and process a dataset the most obvious way to off load its work from the main thread may be to use a lambda.
+Given some some external API to create and process a dataset the most obvious way to off load its work from the main thread using `task_pool` can be to put it all in a single lambda.
 ```cpp
 auto result = pool.submit( []{ return process_data( make_data() ); } );
 ```
 The lambda is passed by value and stored in the `task_pool` executing the two function in sequence. A future is returned to acquire the result when the process is completed.
 
-We can however also pass the functions pointers themselves as tasks to execute.
+The main drawback with this approach is that both function calls must complete for our program to complete. If something unexpected happens that requires our program to exit we have no way to stop the task early.
+
+A better way may be to pass the functions pointers themselves as tasks to execute.
 ```cpp
 auto future = pool.submit( &make_data );
 auto result = pool.submit( &process_data, std::move(future) );
 ```
 Here we pass the function pointers by value directly to the thread pool capturing a future value from `make_data` and utilizing the `task_pool` to efficiently wait for this data to be available before processing it. 
 
-More on this later...
+Our program now also has a chance to exit before calling the second task.
 &nbsp;
+### More callable types..
+
 
 ```cpp
 struct processor
@@ -131,7 +135,7 @@ pool.submit( task, 42 ); // this will not compile
 &nbsp;
 ## Input arguments
 
-Its possible to pass arguments to tasks when submitting them to the pool. Required arguments for functions are simply passed to `submit` after the function itself in a similar fashion to [`std::invoke`](https://en.cppreference.com/w/cpp/utility/functional/invoke).
+Its possible to pass arguments to tasks when submitting them to the pool. Required arguments for functions are simply passed to `submit` after the function itself .
 
 ```cpp
 be::task_pool pool;
@@ -174,7 +178,7 @@ When the task arguments are ready the pool will execute the workload.
 namespace some_api 
 {
     std::future<LargeData> generate_data_async();
-    void process_data( LargeData );
+    int process_data( LargeData );
 }
 
 be::task_pool pool;
@@ -190,9 +194,133 @@ In this slightly contrived exampled some external api is used to generate and pr
 Instead of using an entire thread to wait for `future_data` to be ready we can immediately submit this future with the data processor to the pool and it will use the wait time in the pool to check when the future is ready and start the processing function as promptly as possible.
 
 This works for all future-like objects. [^2]
+
 &nbsp;
 
-## Custom promise / future types
+## Function composition
+By including `task_pool/pipes.h` applications may use the pipe operator to define pipelines out of descreet functions running in a task_pool. 
+
+This can help readability of your program a lot over time.
+
+Let's imagine again some external api that operates on special datatype we need
+```cpp
+namespace api {
+struct LargeData;
+
+std::vector<LargeData> make_data();         // creates some special data
+int process_data( std::vector<LargeData> ); // returns error code or zero
+
+}
+```
+
+A program utilizing pipes can be quite minimal and easy to read.
+```cpp
+#include <task_pool/task_pool.h>
+#include <task_pool/pipes.h>
+#include <largedata.h>
+
+int main()
+{
+    be::task_pool pool;
+    auto pipe = pool | api::make_data | api::process_data
+    return pipe.get();
+}
+```
+
+In comparison the explicitly defined program gets a bit more involved to read.
+
+```cpp
+#include <task_pool/task_pool.h>
+#include <task_pool/pipes.h>
+#include <largedata.h>
+
+int main()
+{
+    be::task_pool pool;
+    auto data = pool.submit(&api::make_data);
+    auto result = pool.submit(&api::process_data, std::move(data) );
+    return result.get();
+}
+```
+It's a bit more involed to read as there is more language noise and also we must exercise some braincells to evaluate the flow of the `data` variable in a review as we need to verify that it is not used after being moved. 
+
+Still not too bad. 
+
+Now lets say the next developer working on the program needs to insert logging prior to processing.
+
+
+```cpp
+#include <task_pool/task_pool.h>
+#include <task_pool/pipes.h>
+#include <largedata.h>
+
+template<typename Container>
+void print_container( Container const& ) { /* we know what goes here right? */}
+
+std::vector<api::LargeData> log_data( std::vector<api::LargeData> data ) {
+    print_container( data );
+    return data;
+}
+```
+First with imperative api
+```cpp
+int main()
+{
+    be::task_pool pool;
+    auto data = pool.submit(&api::make_data);
+    auto data_logged = pool.submit(&log_data, std::move(data) );
+    auto result = pool.submit(&api::process_data, std::move(data_logged) );
+    return result.get();
+}
+```
+Now using pipes
+```cpp
+int main()
+{
+    be::task_pool pool;
+    auto pipe = pool | api::make_data | log_data | api::process_data;
+    return pipe.get();
+}
+
+```
+The code using the imperative api quickly becomes a lot more involved to read and mentally verify as more lines need to change and more data dependencies need to be understood. The version using pipes in contrast features a single addition in the pipeline that is neatly diffirentiated from its previous iteration.
+
+As tasks pools pipe implementation utilizes lazy task arguments to pass values between pipeline stages it also quite naturally falls into value oriented programing which is a much safer way to structure asynchronous programs. Functions used in a pipeline can simply take and return inputs by value and `task_pool` will convert these into futures passed lazily between stages using `submit` by wrapping each stage into a dynamically generated temporary type, the `Pipe`. 
+
+This type contains only a reference to the executing pool and the `Future` of the previous stage. When a new stage is added on the future is moved into the task_pool as a lazy future and as such the resulting temporaries require very little stack storage.
+
+Pipe object that hold valid futures will call `Future::wait()` on destruction which means that uncaptured pipelines will safely block for completion before leaving a scope.
+```cpp
+int main()
+{
+    be::task_pool pool;
+    pool | api::make_data | log_data | api::process_data;
+    return 0;
+}
+```
+The program above will safely execute the entire pipeline before returning. This is because the resulting object left over after `api::process_data` has been piped is never materialized. The temporary object will be destroyed before exiting and since it will have a valid future its call to `Future::wait` ensures the whole pipeline is executed.
+
+`Pipe` objects that are captured are also `future-like` objects and can as such be used as lazy arguments to other tasks.
+
+```cpp
+int main()
+{
+    be::task_pool pool;
+    {
+        auto pipe_one = pool | api::make_data | log_data | api::process_data;
+        auto pipe_two = pool | api::make_data | log_data | api::process_data;
+
+        pool.submit( []( int x, int y ) {
+            fmt::print("Data processing complete! First result: {} Second result: {}\n", x, y);
+        }, std::move(pipe_one),std::move(pipe_two) );
+    }
+    pool.wait_for_tasks();
+    return 0;
+}
+```
+Above we use `task_pool`s type erased task storage to safely move the pipe lines out of their stack scope to continue doing other work.
+
+## Custom promise types
 
 As afore mentioned it is possible to use any future-like object as a lazy argument provided they support the same api as std::future.
 ```cpp
