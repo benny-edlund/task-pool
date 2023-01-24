@@ -1201,8 +1201,8 @@ private:
             } )
         {
         }
-        ~task_proxy()                              = default;
-        task_proxy( task_proxy const& )            = delete;
+        ~task_proxy()                   = default;
+        task_proxy( task_proxy const& ) = delete;
         task_proxy& operator=( task_proxy const& ) = delete;
         task_proxy( task_proxy&& ) noexcept;
         task_proxy& operator=( task_proxy&& ) noexcept;
@@ -1223,11 +1223,11 @@ private:
             }
             using FuncType::operator();
             static bool     is_ready() { return true; }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         return task_proxy( new Task( std::forward< Func >( task ) ) );
     }
@@ -1253,11 +1253,11 @@ private:
             using FuncType::  operator();
             static bool       is_ready() { return true; }
             Allocator< Task > alloc;
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Allocator< Task > task_allocator( allocator );
         Task*             typed_task =
@@ -1310,11 +1310,11 @@ private:
                     }
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Promise< Return > promise;
         auto              future = promise.get_future();
@@ -1371,11 +1371,11 @@ private:
                     }
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Promise< Return > promise;
         auto              future = promise.get_future();
@@ -1429,11 +1429,11 @@ private:
                     }
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Promise< Return > promise;
         auto              future = promise.get_future();
@@ -1489,11 +1489,11 @@ private:
                     }
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Promise< Return > promise;
         auto              future = promise.get_future();
@@ -1566,11 +1566,11 @@ private:
                     }
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Promise< Return > promise( x, allocator );
         auto              future = promise.get_future();
@@ -1654,11 +1654,11 @@ private:
                     }
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Promise< Return > promise( x, allocator );
         auto              future = promise.get_future();
@@ -1734,11 +1734,11 @@ private:
                     }
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Promise< Return > promise( x, allocator );
         auto              future = promise.get_future();
@@ -1821,11 +1821,11 @@ private:
                     }
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Promise< Return > promise( x, allocator );
         auto              future = promise.get_future();
@@ -1911,11 +1911,11 @@ private:
                     }
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Promise< Return > promise( x, allocator );
         auto              future = promise.get_future();
@@ -2008,11 +2008,11 @@ private:
                     }
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Promise< Return > promise( x, allocator );
         auto              future = promise.get_future();
@@ -2097,11 +2097,11 @@ private:
                     }
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Promise< Return > promise( x, allocator );
         auto              future = promise.get_future();
@@ -2193,11 +2193,11 @@ private:
                     }
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Promise< Return > promise( x, allocator );
         auto              future = promise.get_future();

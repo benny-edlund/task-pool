@@ -2296,33 +2296,31 @@ TEST_CASE( "pipe temporaries block", "[pipe]" )
     REQUIRE( called );
 }
 
-
 TEST_CASE( "pipe temporaries blocks", "[pipe]" )
 {
     be::task_pool    pool;
     std::atomic_bool called{ false };
     auto             first = [&]() -> int {
-        auto when = std::chrono::steady_clock::now()+1ms;
+        auto when = std::chrono::steady_clock::now() + 1ms;
         std::this_thread::sleep_until( when );
-        return 0; //NOLINT
+        return 0; // NOLINT
     };
-    auto second = [&]( int  ) { called = true; }; //NOLINT
+    auto second = [&]( int ) { called = true; }; // NOLINT
 
     pool | first | second; // destruction of temporary will block to complete
     REQUIRE( called );
 }
-
 
 TEST_CASE( "pipe temporaries throws", "[pipe][throws]" )
 {
     be::task_pool    pool;
     std::atomic_bool called{ false };
     auto             first = [&]() -> int {
-        auto when = std::chrono::steady_clock::now()+1ms;
+        auto when = std::chrono::steady_clock::now() + 1ms;
         std::this_thread::sleep_until( when );
         throw test_exception{};
     };
-    auto second = [&]( int  ) { called = true; }; //NOLINT
+    auto second = [&]( int ) { called = true; }; // NOLINT
 
     try
     {
