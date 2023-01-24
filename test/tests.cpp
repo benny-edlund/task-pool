@@ -996,6 +996,22 @@ TEST_CASE( "void()&& function with allocator throws", "[task_pool][submit][throw
     REQUIRE( called == true );
 }
 
+TEST_CASE( "submit( allocator, void(allocator)&& ) throws", "[task_pool][submit][throws]" )
+{
+    std::allocator< int > alloc;
+    std::atomic_bool      called;
+    be::task_pool         pool( 1 );
+    auto                  future =
+        pool.submit( std::allocator_arg_t{},
+                     alloc,
+                     [&]( std::allocator_arg_t /*x*/, std::allocator< int > /*alloc*/ ) { // NOLINT
+                         called = true;
+                         throw test_exception{};
+                     } );
+    REQUIRE_THROWS_AS( future.get(), test_exception );
+    REQUIRE( called == true );
+}
+
 TEST_CASE( "void(... be::stop_token)& function with allocator throws",
            "[task_pool][submit][stop_token][allocator][throws]" )
 {
@@ -1225,7 +1241,7 @@ TEST_CASE( "future_argument<T>", "[task_pool][traits]" )
     STATIC_REQUIRE( std::is_same< void, be::future_argument< std::future< void > >::type >::value );
 }
 
-TEST_CASE( "submit( f, future )->void", "[task_pool][submit]" )
+TEST_CASE( "submit( void(int), future )->void", "[task_pool][submit]" )
 {
     const int           expected = 42;
     std::atomic_int     actual{ 0 };
@@ -1238,7 +1254,7 @@ TEST_CASE( "submit( f, future )->void", "[task_pool][submit]" )
     REQUIRE( expected == actual );
 }
 
-TEST_CASE( "submit( f, future )->int", "[task_pool][submit]" )
+TEST_CASE( "submit( int(int), future )->int", "[task_pool][submit]" )
 {
     const int          expected = 42;
     be::task_pool      pool( 1 );
@@ -2191,9 +2207,8 @@ TEST_CASE( "abort when not started", "[stop_token]" )
         vec.clear();
     };
     static const std::size_t s_count = 1'000;
-
-    auto data   = pool.submit( make_data, s_count );
-    auto result = pool.submit( check_values, std::move( data ) );
+    auto                     data    = pool.submit( make_data, s_count );
+    auto                     result  = pool.submit( check_values, std::move( data ) );
     while ( !started )
     {
         std::this_thread::sleep_for( 1us );
@@ -2239,9 +2254,10 @@ TEST_CASE( "task_proxy move assignment", "[task_proxy]" )
 
     // ok so what we want to do is submit some tasks that depend on some inputs in such a way
     // that the items at the front of the checklist will finish after the items at the end of
-    // the checklist. When the pool is running the checklist this should then trigger iter_swap
-    // in the call to std::partion between the front and the back and this should test that our
-    // task_proxy::operator= function works as expected.
+    // the checklist. When the pool is running and going through the checklist this should then
+    // trigger iter_swap in the call to std::partion in check_tasks between the front and the back
+    // and this should test that our task_proxy::operator= function works as expected and transfers
+    // the correct function pointers and storage
 
     namespace cc = std::chrono;
     auto res_10ms =
