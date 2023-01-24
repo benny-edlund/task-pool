@@ -2201,23 +2201,23 @@ TEST_CASE( "task_proxy move assignment", "[task_proxy]" )
     static const auto s_ms_10  = 10ms;
     static const auto s_ms_1   = 1ms;
     auto              us_1     = []() {
-        std::this_thread::sleep_for( 1us );
+        std::this_thread::sleep_for( s_us_1 );
         return s_us_1; //
     };
     auto us_10 = []() {
-        std::this_thread::sleep_for( 10us );
+        std::this_thread::sleep_for( s_us_10 );
         return s_us_10;
     };
     auto us_100 = []() {
-        std::this_thread::sleep_for( 100us );
+        std::this_thread::sleep_for( s_us_100 );
         return s_us_100;
     };
     auto ms_1 = []() {
-        std::this_thread::sleep_for( 1ms );
+        std::this_thread::sleep_for( s_ms_1 );
         return s_ms_1;
     };
     auto ms_10 = []() {
-        std::this_thread::sleep_for( 10ms );
+        std::this_thread::sleep_for( s_ms_10 );
         return s_ms_10;
     };
 
@@ -2235,9 +2235,9 @@ TEST_CASE( "task_proxy move assignment", "[task_proxy]" )
     auto res_1us   = pool.submit( []( cc::microseconds x ) { return x; }, pool.submit( us_1 ) );
 
     pool.wait_for_tasks();
-    REQUIRE( res_10ms.get() == 10ms );
-    REQUIRE( res_1ms.get() == 1ms );
-    REQUIRE( res_100us.get() == 100us );
-    REQUIRE( res_10us.get() == 10us );
-    REQUIRE( res_1us.get() == 1us );
+    REQUIRE( res_10ms.get() == s_ms_10 );
+    REQUIRE( res_1ms.get() == s_ms_1 );
+    REQUIRE( res_100us.get() == s_us_100 );
+    REQUIRE( res_10us.get() == s_us_10 );
+    REQUIRE( res_1us.get() == s_us_1 );
 }
