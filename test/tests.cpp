@@ -9,6 +9,7 @@
 #include <memory>
 #include <numeric>
 #include <random>
+#include <task_pool/pipes.h>
 #include <task_pool/task_pool.h>
 #include <task_pool/traits.h>
 #include <thread>
@@ -2276,4 +2277,103 @@ TEST_CASE( "task_proxy move assignment", "[task_proxy]" )
     REQUIRE( res_100us.get() == s_us_100 * 2 );
     REQUIRE( res_10us.get() == s_us_10 * 2 );
     REQUIRE( res_1us.get() == s_us_1 * 2 );
+}
+
+TEST_CASE( "pipe temporaries block", "[pipe]" )
+{
+    be::task_pool pool;
+
+    std::atomic_bool called{ false };
+    auto             first = [] {
+        std::this_thread::sleep_for( 1us );
+        return 1;
+    };
+    auto second = [&]( int ) { called = true; }; // NOLINT
+
+    { // if a pipe object is left uncaptured it will call wait() on its future at destruction
+        pool | first | second;
+    }
+    REQUIRE( called );
+}
+
+TEST_CASE( "pipe temporaries blocks", "[pipe]" )
+{
+    be::task_pool    pool;
+    std::atomic_bool called{ false };
+    auto             first = [&]() -> int {
+        auto when = std::chrono::steady_clock::now() + 1ms;
+        std::this_thread::sleep_until( when );
+        return 0; // NOLINT
+    };
+    auto second = [&]( int ) { called = true; }; // NOLINT
+
+    pool | first | second; // destruction of temporary will block to complete
+    REQUIRE( called );
+}
+
+TEST_CASE( "pipe temporaries throws", "[pipe][throws]" )
+{
+    be::task_pool    pool;
+    std::atomic_bool called{ false };
+    auto             first = [&]() -> int {
+        auto when = std::chrono::steady_clock::now() + 1ms;
+        std::this_thread::sleep_until( when );
+        throw test_exception{};
+    };
+    auto second = [&]( int ) { called = true; }; // NOLINT
+
+    try
+    {
+        pool | first | second;
+    }
+    catch ( ... )
+    {
+    }
+    REQUIRE_FALSE( called );
+}
+
+TEST_CASE( "pipe futures do not block", "[pipe]" )
+{
+    be::task_pool pool;
+
+    std::atomic_bool start{ false };
+    std::atomic_bool called{ false };
+    auto             first = [&] {
+        while ( !start )
+        {
+            std::this_thread::sleep_for( 1us );
+        }
+        return 1;
+    };
+    auto second = [&]( int ) { called = true; }; // NOLINT
+
+    auto pipe = pool | first | second;
+    REQUIRE_FALSE( called );
+    start = true;
+    pipe.wait();
+    pipe.get();
+    REQUIRE( called );
+}
+
+TEST_CASE( "broken pipeline", "[pipe]" )
+{
+    be::task_pool pool;
+
+    std::atomic_bool start{ false };
+    std::atomic_bool called{ false };
+    auto             first = [&]() -> int {
+        while ( !start )
+        {
+            std::this_thread::sleep_for( 1us );
+        }
+        throw test_exception{};
+    };
+    auto second = [&]( int ) { called = true; }; // NOLINT
+
+    auto pipe   = pool | first | second;
+    start       = true;
+    auto status = pipe.wait_for( 1s );
+    REQUIRE( status == std::future_status::ready );
+    REQUIRE_THROWS( pipe.get() );
+    REQUIRE_FALSE( called );
 }
