@@ -1083,7 +1083,7 @@ TEST_CASE( "submit( allocator, bool(allocator, ... )&, ...) throws",
         throw test_exception{};
     };
     be::task_pool pool( 1 );
-    auto          future = pool.submit( std::allocator_arg_t{}, alloc, fun, true ); 
+    auto          future = pool.submit( std::allocator_arg_t{}, alloc, fun, true );
     REQUIRE_THROWS_AS( future.get(), test_exception );
     REQUIRE( called == true );
 }
@@ -2206,8 +2206,8 @@ TEST_CASE( "abort when not started", "[stop_token]" )
         vec.clear();
     };
     static const std::size_t s_count = 1'000;
-    auto data   = pool.submit( make_data, s_count );
-    auto result = pool.submit( check_values, std::move( data ) );
+    auto                     data    = pool.submit( make_data, s_count );
+    auto                     result  = pool.submit( check_values, std::move( data ) );
     while ( !started )
     {
         std::this_thread::sleep_for( 1us );
@@ -2276,5 +2276,4 @@ TEST_CASE( "task_proxy move assignment", "[task_proxy]" )
     REQUIRE( res_100us.get() == s_us_100 * 2 );
     REQUIRE( res_10us.get() == s_us_10 * 2 );
     REQUIRE( res_1us.get() == s_us_1 * 2 );
-
 }
