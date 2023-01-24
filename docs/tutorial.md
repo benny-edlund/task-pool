@@ -23,10 +23,7 @@ Most callable value types can be used as a task. Free and member functions point
 
 &nbsp;
 ```cpp
-struct work_data
-{
-    // lets imagine some large data structure here
-};
+struct work_data; // lets imagine some large data structure here
 work_data make_data();  
 bool process_data( work_data );
 ```
@@ -34,36 +31,43 @@ Given some some external API to create and process a dataset the most obvious wa
 ```cpp
 auto result = pool.submit( []{ return process_data( make_data() ); } );
 ```
-The lambda is passed by value and stored in the `task_pool` executing the two function in sequence. A future is returned to acquire the result when the process is completed.
+The lambda is passed by value and stored in the `task_pool` executing the two functions in sequence. A future is returned to acquire the result when the process is completed.
 
-The main drawback with this approach is that both function calls must complete for our program to complete. If something unexpected happens that requires our program to exit we have no way to stop the task early.
+The main drawback with this approach is that both function calls must complete or fail for our program to finish. If something unexpected happens that requires our program to exit we have no way to stop the task early.
 
 A better way may be to pass the functions pointers themselves as tasks to execute.
+
 ```cpp
 auto future = pool.submit( &make_data );
 auto result = pool.submit( &process_data, std::move(future) );
 ```
-Here we pass the function pointers by value directly to the thread pool capturing a future value from `make_data` and utilizing the `task_pool` to efficiently wait for this data to be available before processing it. 
+Here we pass the function pointers by value directly to the thread pool capturing a future value from `make_data` and utilizing the `task_pool` to efficiently wait for this data to be available before processing it in the call to `process_data`.
 
-Our program now also has a chance to exit before calling the second task.
+Our program now has a chance to exit before calling the second task and this can be futher improved by as we will see later on but first...
 &nbsp;
-### More callable types..
+
+### More callable types
 
 
 ```cpp
+struct data;
+
 struct processor
 {   
     using ptr = std::unique_ptr<processor>;
-    virtual void run() const = 0;
+    virtual void run(data&) const = 0;
 };
 
-std::vector<processor::ptr> workload = get_workload();
-for( processor::ptr const& work : workload )
-{
-    pool.submit(&processor::run, work.get() );
+void process_frame( data& frame) {
+    std::vector<processor::ptr> workload = get_workload();
+    for( processor::ptr const& work : workload )
+    {
+        pool.submit(&processor::run, work.get(), std::ref(frame) );
+    }
 }
 ```
-Here we have a user defined type and we pass its `run` function pointer by value along with pointers to the instances we wish to execute the method on. With this work load we need to make sure that the tasks have completed before the work items are destroyed.
+Here we have a user defined type and we pass its `run` function pointer by value along with pointers to the instances we wish to execute the method on. Additionally a reference to some data structure is passed to the processors. With member functions as well as when passing data by references we need to make sure we are careful to observe the lifetime requirements of our dataset.
+
 &nbsp;
 
 We can of course also simply pass callable types by value just like lambdas, even when they have elaborate call operators.
@@ -117,7 +121,7 @@ pool.submit( task, 42 ); // this will not compile
 &nbsp;
 ## Input arguments
 
-Its possible to pass arguments to tasks when submitting them to the pool. Required arguments for functions are simply passed to `submit` after the function itself .
+Its possible to pass arguments to tasks when submitting them to the pool. Required arguments for functions are simply passed to `submit` after the function itself. This is for example how we pass the instance pointer to for member functions.
 
 ```cpp
 be::task_pool pool;
@@ -147,18 +151,19 @@ void do_work( work_data& data ) {
     pool.submit(&process_data, std::ref(data) ); 
 }
 ```
-&nbsp;
 
+### Futures
 It is also possible to pass values to functions using futures without modifying function signatures or adding additional overloads.
 
-This is made possible because `be::task_pool` has the ability to match futures passed as arguments to `submit` against the value types of the task function. It can then placed the resulting task into a holding area while dependencies finish executing without blocking any additional threads. 
+This is made possible because `be::task_pool` has the ability to match futures passed as arguments to `submit` against the value types of the task function. It can then place the resulting task into a holding area while dependencies finish executing without blocking any additional threads. 
 
-When the task arguments are ready the pool will execute the workload.
+When the task arguments are ready the pool will queue the task into the pool where it will be executed.
 
 
 ```cpp
-namespace some_api 
+namespace api 
 {
+    struct LargeData;
     std::future<LargeData> generate_data_async();
     int process_data( LargeData );
 }
@@ -182,20 +187,18 @@ This works for all future-like objects. [^2]
 ## Function composition
 By including `task_pool/pipes.h` applications may use the pipe operator to define pipelines out of descreet functions running in a task_pool. 
 
-This can help readability of your program a lot over time.
+This can help readability of your program a lot as it evolves.
 
-Let's imagine again some external api that operates on special datatype we need
+Let's imagine again some external api that operates on a special datatype we are interested in.
 ```cpp
 namespace api {
-struct LargeData;
-
-std::vector<LargeData> make_data();         // creates some special data
-int process_data( std::vector<LargeData> ); // returns error code or zero
-
+    struct LargeData;
+    std::vector<LargeData> make_data();         // creates some special data
+    int process_data( std::vector<LargeData> ); // returns error code or zero
 }
 ```
 
-A program utilizing pipes can be quite minimal and easy to read.
+A program utilizing pipes to dispatch the data generation and processing as a sequence can be quite minimal and easy to read.
 ```cpp
 #include <task_pool/task_pool.h>
 #include <task_pool/pipes.h>
@@ -209,7 +212,7 @@ int main()
 }
 ```
 
-In comparison the explicitly defined program gets a bit more involved to read.
+In comparison the standard api used in a program gets a bit more verbose.
 
 ```cpp
 #include <task_pool/task_pool.h>
@@ -224,11 +227,11 @@ int main()
     return result.get();
 }
 ```
-It's a bit more involed to read as there is more language noise and also we must exercise some braincells to evaluate the flow of the `data` variable in a review as we need to verify that it is not used after being moved. 
+It's a bit more involed to read the code as there is more language noise and also we must exercise some braincells to evaluate the flow of the `data` variable as we need to verify that it is not used after being moved. 
 
 Still not too bad. 
 
-Now lets say the next developer working on the program needs to insert logging prior to processing.
+Now lets say the next developer working on the project needs to insert logging prior to processing. People can never get enough logging it seems...
 
 
 ```cpp
@@ -244,7 +247,7 @@ std::vector<api::LargeData> log_data( std::vector<api::LargeData> data ) {
     return data;
 }
 ```
-First with imperative api
+First with the standard api
 ```cpp
 int main()
 {
@@ -265,13 +268,13 @@ int main()
 }
 
 ```
-The code using the imperative api quickly becomes a lot more involved to read and mentally verify as more lines need to change and more data dependencies need to be understood. The version using pipes in contrast features a single addition in the pipeline that is neatly diffirentiated from its previous iteration.
+The code using the standard api quickly becomes a lot more involved to read and verify as more lines need to change and more data dependencies need to be understood. The version using pipes in contrast features a single addition in the pipeline that is neatly diffirentiated from its previous iteration.
 
-As tasks pools pipe implementation utilizes lazy task arguments to pass values between pipeline stages it also quite naturally falls into value oriented programing which is a much safer way to structure asynchronous programs. Functions used in a pipeline can simply take and return inputs by value and `task_pool` will convert these into futures passed lazily between stages using `submit` by wrapping each stage into a dynamically generated temporary type, the `Pipe`. 
+As `be::task_pool`s pipe implementation utilizes the lazy task arguments we read about previously to pass values between pipeline stages it also quite naturally falls into value oriented programing which is a much safer way to structure asynchronous programs. Functions used in such a pipeline can simply take and return inputs by value and `be::task_pool` will convert these into futures passed lazily between stages using `submit` by wrapping each stage into a dynamically generated type that suits the function, the `Pipe`. 
 
-This type contains only a reference to the executing pool and the `Future` of the previous stage. When a new stage is added on the future is moved into the task_pool as a lazy future and as such the resulting temporaries require very little stack storage.
+This type contains only a reference to the executing pool and the `Future` of the previous stage. When a new stage is added this future is moved into the task_pool as a lazy argument and as such the resulting temporaries require very little storage. There is only ever one future on the loose that can control the conclusion of the entire pipeline.
 
-Pipe object that hold valid futures will call `Future::wait()` on destruction which means that uncaptured pipelines will safely block for completion before leaving a scope.
+Pipe object that hold valid futures will call `Future::wait()` on destruction which means that uncaptured pipelines will safely block as if they where direct function calls.
 ```cpp
 int main()
 {
@@ -280,7 +283,7 @@ int main()
     return 0;
 }
 ```
-The program above will safely execute the entire pipeline before returning. This is because the resulting object left over after `api::process_data` has been piped is never materialized. The temporary object will be destroyed before exiting and since it will have a valid future its call to `Future::wait` ensures the whole pipeline is executed.
+The program above will safely execute the entire pipeline before returning. As the last binary operator concludes it leaves a temporary Pipe object that owns a valid future and since the destrcution of this temporary must occur prior to executing the next line we are guarenteed no dangling work is left over when returning.
 
 `Pipe` objects that are captured are also `future-like` objects and can as such be used as lazy arguments to other tasks.
 
@@ -300,7 +303,7 @@ int main()
     return 0;
 }
 ```
-Above we use `task_pool`s type erased task storage to safely move the pipe lines out of their stack scope to continue doing other work.
+Above we use `task_pool`s type erased task storage to safely move the pipelines out of their stack scope to continue doing other work after leaving the scope where they where defined.
 
 ## Custom promise types
 
@@ -321,7 +324,7 @@ struct Future
     Status wait_until( std::chrono::steady_clock::time_point );
 };
 ```
-Above is some custom future type defined in an api. This library requires the methods `get()`, `wait()`  to be called without arguments and it does not check the return types. For the methods `wait_for` and `wait_until` the library requires the that the methods are called with some appropriate `std::chrono` type matching std::future and it requires that the methods returns some kind of enum type that have the definitions `ready`, `timeout` and `deferred`. 
+Above is some custom future type defined in an api. This library requires the methods `get()`, `wait()`  to be called without arguments but it does not check the return types. For the methods `wait_for` and `wait_until` the library requires the that the methods are called with some appropriate `std::chrono` type matching std::future and it requires that the methods returns some kind of enum type that have the definitions `ready`, `timeout` and `deferred`. Any object furfiling this contract may be used as a lazy argument to a task function.
 
 It is also possible to customize what promise type should be used in the task execution which ultimately also affects what future type is returned from `be::task_pool::submit`
 
@@ -348,7 +351,7 @@ be::task_pool pool;
 auto data = pool.submit<Promise>(&make_data);
 auto result = pool.submit<Promise>(&process_data, std::move(data));
 ```
-Above the custom Promise template is used to instantate the task promise type and `submit` will return the future type returned by this promise.
+Above the custom Promise template is used to instantate the task promise type. `submit` will return the future type returned by this promise.
 
 Each task may have a different promise that suits the purpose.
 
