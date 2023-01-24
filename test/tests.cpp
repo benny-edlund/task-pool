@@ -2206,7 +2206,6 @@ TEST_CASE( "abort when not started", "[stop_token]" )
         vec.clear();
     };
     static const std::size_t s_count = 1'000;
-
     auto data   = pool.submit( make_data, s_count );
     auto result = pool.submit( check_values, std::move( data ) );
     while ( !started )
@@ -2277,4 +2276,5 @@ TEST_CASE( "task_proxy move assignment", "[task_proxy]" )
     REQUIRE( res_100us.get() == s_us_100 * 2 );
     REQUIRE( res_10us.get() == s_us_10 * 2 );
     REQUIRE( res_1us.get() == s_us_1 * 2 );
+
 }
