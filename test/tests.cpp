@@ -904,13 +904,13 @@ TEST_CASE( "bool( alloc )&& function with allocator throws .no2",
     std::allocator< int > alloc;
     std::atomic_bool      called;
     be::task_pool         pool( 1 );
-    auto                  future =
-        pool.submit( std::allocator_arg_t{},
-                     alloc,
-                     [&]( std::allocator_arg_t /*tag*/, std::allocator< int > const& /*alloc*/ ) -> bool {
-                         called = true;
-                         throw test_exception{};
-                     } );
+    auto                  future = pool.submit(
+        std::allocator_arg_t{},
+        alloc,
+        [&]( std::allocator_arg_t /*tag*/, std::allocator< int > const& /*alloc*/ ) -> bool {
+            called = true;
+            throw test_exception{};
+        } );
     REQUIRE_THROWS_AS( future.get(), test_exception );
     REQUIRE( called == true );
 }
@@ -1935,7 +1935,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> size_t throws #1",
 
     auto process_data = []( std::allocator_arg_t /*tag*/,
                             counting_allocator< int > const& /*alloc*/,
-                            std::vector< int > /*data*/, // NOLINT
+                            std::vector< int > /*data*/,                            // NOLINT
                             be::stop_token /*token*/ ) { throw test_exception{}; }; // NOLINT
 
     {
@@ -2151,28 +2151,93 @@ TEST_CASE( "submit<my_promise>( ... )", "[submit][promises]" )
     pool.wait_for_tasks();
 }
 
-/*
+//
+// Tasks with lazy arguments should be abortable without taking stop tokens if they have not started
+//
 
-submit( ... )
-    void (...)
-    void (..., stop_token )
-    void (std::allocator_arg_t, allocator const&, ...)
-    void (std::allocator_arg_t, allocator const&, ..., stop_token)
+TEST_CASE( "abort when not started", "[stop_token]" )
+{
+    be::task_pool    pool;
+    std::atomic_bool started{ false };
+    auto             make_data = [&]( std::size_t x, be::stop_token abort ) {
+        started = true;
+        std::vector< int > values( x );
+        std::iota( values.begin(), values.end(), 1 );
+        while ( !abort )
+        {
+            std::this_thread::sleep_for( 1us );
+        }
+        return values;
+    };
+    std::atomic_bool called{ false };
+    auto             check_values = [&]( std::vector< int > vec ) { // NOLINT
+        called = true;
+        vec.clear();
+    };
+    static const std::size_t s_count = 1'000;
 
-    R (...)
-    R (..., stop_token )
-    R (std::allocator_arg_t, allocator const&, ...)
-    R (std::allocator_arg_t, allocator const&, ..., stop_token)
+    auto data   = pool.submit( make_data, s_count );
+    auto result = pool.submit( check_values, std::move( data ) );
+    while ( !started )
+    {
+        std::this_thread::sleep_for( 1us );
+    }
+    // right so now make_data would have started so we should now be able to call abort on the
+    // submit function make_data should finish and check_values should not be called
+    pool.abort();
+    REQUIRE_FALSE( called );
+}
 
-submit<promise>( ... )
-    void (...)
-    void (..., stop_token )
-    void (std::allocator_arg_t, allocator const&, ...)
-    void (std::allocator_arg_t, allocator const&, ..., stop_token)
+//
+// Execicing task_proxy::operator()=
+//
 
-    R (...)
-    R (..., stop_token )
-    R (std::allocator_arg_t, allocator const&, ...)
-    R (std::allocator_arg_t, allocator const&, ..., stop_token)
+TEST_CASE( "task_proxy move assignment", "[task_proxy]" )
+{
+    be::task_pool     pool;
+    static const auto s_us_100 = 100us;
+    static const auto s_us_10  = 10us;
+    static const auto s_us_1   = 1us;
+    static const auto s_ms_10  = 10ms;
+    static const auto s_ms_1   = 1ms;
+    auto              us_1     = []() {
+        std::this_thread::sleep_for( s_us_1 );
+        return s_us_1; //
+    };
+    auto us_10 = []() {
+        std::this_thread::sleep_for( s_us_10 );
+        return s_us_10;
+    };
+    auto us_100 = []() {
+        std::this_thread::sleep_for( s_us_100 );
+        return s_us_100;
+    };
+    auto ms_1 = []() {
+        std::this_thread::sleep_for( s_ms_1 );
+        return s_ms_1;
+    };
+    auto ms_10 = []() {
+        std::this_thread::sleep_for( s_ms_10 );
+        return s_ms_10;
+    };
 
-*/
+    // ok so what we want to do is submit some tasks that depend on some inputs in such a way
+    // that the items at the front of the checklist will finish after the items at the end of
+    // the checklist. When the pool is running the checklist this should then trigger iter_swap
+    // in the call to std::partion between the front and the back and this should test that our
+    // task_proxy::operator= function works as expected.
+
+    namespace cc   = std::chrono;
+    auto res_10ms  = pool.submit( []( cc::milliseconds x ) { return x; }, pool.submit( ms_10 ) );
+    auto res_1ms   = pool.submit( []( cc::milliseconds x ) { return x; }, pool.submit( ms_1 ) );
+    auto res_100us = pool.submit( []( cc::microseconds x ) { return x; }, pool.submit( us_100 ) );
+    auto res_10us  = pool.submit( []( cc::microseconds x ) { return x; }, pool.submit( us_10 ) );
+    auto res_1us   = pool.submit( []( cc::microseconds x ) { return x; }, pool.submit( us_1 ) );
+
+    pool.wait_for_tasks();
+    REQUIRE( res_10ms.get() == s_ms_10 );
+    REQUIRE( res_1ms.get() == s_ms_1 );
+    REQUIRE( res_100us.get() == s_us_100 );
+    REQUIRE( res_10us.get() == s_us_10 );
+    REQUIRE( res_1us.get() == s_us_1 );
+}
