@@ -304,4 +304,29 @@ bool check_argument_status( Arguments& arguments, std::index_sequence< Is... > /
         args_status.begin(), args_status.end(), []( auto value ) { return value; } );
 }
 
+namespace pipe_api {
+
+template< typename Pipe >
+using pool_t = decltype( Pipe::pool_ );
+
+template< typename Pipe >
+using future_t = decltype( Pipe::future_ );
+
+} // namespace pipe_api
+
+template< typename T, typename = void >
+struct is_pipe : std::false_type
+{
+};
+
+class task_pool;
+template< typename T >
+struct is_pipe< T, be_void_t< pipe_api::pool_t< T >, pipe_api::future_t< T > > >
+    : std::conditional_t< std::is_same< be::task_pool&, pipe_api::pool_t< T > >::value &&
+                              std::is_move_constructible< T >::value,
+                          std::true_type,
+                          std::false_type >
+{
+};
+
 } // namespace be

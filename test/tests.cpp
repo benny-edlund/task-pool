@@ -9,6 +9,7 @@
 #include <memory>
 #include <numeric>
 #include <random>
+#include <task_pool/pipes.h>
 #include <task_pool/task_pool.h>
 #include <task_pool/traits.h>
 #include <thread>
@@ -1053,6 +1054,21 @@ TEST_CASE( "bool()& function with allocator throws", "[task_pool][submit][alloca
     };
     be::task_pool pool( 1 );
     auto          future = pool.submit( std::allocator_arg_t{}, alloc, fun );
+    REQUIRE_THROWS_AS( future.get(), test_exception );
+    REQUIRE( called == true );
+}
+
+TEST_CASE( "submit( allocator, bool(allocator, ... )&, ...) throws",
+           "[task_pool][submit][allocator][throws]" )
+{
+    std::allocator< int > alloc;
+    std::atomic_bool      called;
+    auto                  fun = [&]( bool value ) {
+        called = value;
+        throw test_exception{};
+    };
+    be::task_pool pool( 1 );
+    auto          future = pool.submit( std::allocator_arg_t{}, alloc, fun, true );
     REQUIRE_THROWS_AS( future.get(), test_exception );
     REQUIRE( called == true );
 }
@@ -2227,17 +2243,62 @@ TEST_CASE( "task_proxy move assignment", "[task_proxy]" )
     // in the call to std::partion between the front and the back and this should test that our
     // task_proxy::operator= function works as expected.
 
-    namespace cc   = std::chrono;
-    auto res_10ms  = pool.submit( []( cc::milliseconds x ) { return x; }, pool.submit( ms_10 ) );
-    auto res_1ms   = pool.submit( []( cc::milliseconds x ) { return x; }, pool.submit( ms_1 ) );
-    auto res_100us = pool.submit( []( cc::microseconds x ) { return x; }, pool.submit( us_100 ) );
-    auto res_10us  = pool.submit( []( cc::microseconds x ) { return x; }, pool.submit( us_10 ) );
-    auto res_1us   = pool.submit( []( cc::microseconds x ) { return x; }, pool.submit( us_1 ) );
+    namespace cc = std::chrono;
+    auto res_10ms =
+        pool.submit( [v = s_ms_10]( cc::milliseconds x ) { return x + v; }, pool.submit( ms_10 ) );
+    auto res_1ms =
+        pool.submit( [v = s_ms_1]( cc::milliseconds x ) { return x + v; }, pool.submit( ms_1 ) );
+    auto res_100us = pool.submit( [v = s_us_100]( cc::microseconds x ) { return x + v; },
+                                  pool.submit( us_100 ) );
+    auto res_10us =
+        pool.submit( [v = s_us_10]( cc::microseconds x ) { return x + v; }, pool.submit( us_10 ) );
+    auto res_1us =
+        pool.submit( [v = s_us_1]( cc::microseconds x ) { return x + v; }, pool.submit( us_1 ) );
 
     pool.wait_for_tasks();
-    REQUIRE( res_10ms.get() == s_ms_10 );
-    REQUIRE( res_1ms.get() == s_ms_1 );
-    REQUIRE( res_100us.get() == s_us_100 );
-    REQUIRE( res_10us.get() == s_us_10 );
-    REQUIRE( res_1us.get() == s_us_1 );
+    REQUIRE( res_10ms.get() == s_ms_10 * 2 );
+    REQUIRE( res_1ms.get() == s_ms_1 * 2 );
+    REQUIRE( res_100us.get() == s_us_100 * 2 );
+    REQUIRE( res_10us.get() == s_us_10 * 2 );
+    REQUIRE( res_1us.get() == s_us_1 * 2 );
+}
+
+TEST_CASE( "pipe temporaries block", "[pipe]" )
+{
+    be::task_pool pool;
+
+    std::atomic_bool called{ false };
+    auto             first = [] {
+        std::this_thread::sleep_for( 1ms );
+        return 1;
+    };
+    auto second = [&]( int ) { called = true; }; // NOLINT
+
+    { // if a pipe object is left uncaptured it will call wait() on its future at destruction
+        pool | first | second;
+    }
+    REQUIRE( called );
+}
+
+TEST_CASE( "pipe futures do not block", "[pipe]" )
+{
+    be::task_pool pool;
+
+    std::atomic_bool start{ false };
+    std::atomic_bool called{ false };
+    auto             first = [&] {
+        while ( !start )
+        {
+            std::this_thread::sleep_for( 1ms );
+        }
+        return 1;
+    };
+    auto second = [&]( int ) { called = true; }; // NOLINT
+
+    auto pipe = pool | first | second;
+    REQUIRE_FALSE( called );
+    start = true;
+    pipe.wait();
+    pipe.get();
+    REQUIRE( called );
 }
