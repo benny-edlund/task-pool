@@ -8,9 +8,18 @@
 &nbsp;  
 ## About the library
 
-The goal of task_pool was to write a minimal yet useful thread-pool library in C++14 with support for some non obvious features like allocators, efficiently linking tasks using futures and intuitive support for cooperative cancellation.
+The goal of task_pool was to write a minimal yet useful thread-pool library in C++14 with support for some non obvious features. 
 
-The library tries to be pragmatic rather then generic and provides some practial solutions to problems typically faced when developing asynchronous applications.
+The library currently support lazy task arguments, cooperative cancellation and function composition with pipes. It also allows passing user defined allocators to manage the intermediate storage of task functions and arguments as well as pass through given allocators to task functions at runtime.
+
+&nbsp;
+## Building
+The library is built with [`cmake`](https://cmake.org/install) and it uses [`conan`](https://docs.conan.io/en/latest/installation.html) for dependencies. The project uses the cmake module  [project_options](https://github.com/aminya/project_options) from `Amin Yahyaabadi` to provide many useful build configurations.
+
+```bash
+cmake -S . -B ./build -G "Ninja" -DCMAKE_BUILD_TYPE:STRING=RelWithDebInfo
+cmake --build ./build
+```
 
 &nbsp;
 ## Basic use
