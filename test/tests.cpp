@@ -2233,7 +2233,7 @@ TEST_CASE( "task_proxy move assignment", "[task_proxy]" )
     pool.wait_for_tasks();
     REQUIRE( res_10ms.get() == 10ms );
     REQUIRE( res_1ms.get() == 1ms );
-    REQUIRE( res_100us.get() == 1us );
+    REQUIRE( res_100us.get() == 100us );
     REQUIRE( res_10us.get() == 10us );
     REQUIRE( res_1us.get() == 1us );
 
