@@ -995,6 +995,22 @@ TEST_CASE( "void()&& function with allocator throws", "[task_pool][submit][throw
     REQUIRE( called == true );
 }
 
+TEST_CASE( "submit( allocator, void(allocator)&& ) throws", "[task_pool][submit][throws]" )
+{
+    std::allocator< int > alloc;
+    std::atomic_bool      called;
+    be::task_pool         pool( 1 );
+    auto                  future =
+        pool.submit( std::allocator_arg_t{},
+                     alloc,
+                     [&]( std::allocator_arg_t /*x*/, std::allocator< int > /*alloc*/ ) { // NOLINT
+                         called = true;
+                         throw test_exception{};
+                     } );
+    REQUIRE_THROWS_AS( future.get(), test_exception );
+    REQUIRE( called == true );
+}
+
 TEST_CASE( "void(... be::stop_token)& function with allocator throws",
            "[task_pool][submit][stop_token][allocator][throws]" )
 {
@@ -1053,6 +1069,21 @@ TEST_CASE( "bool()& function with allocator throws", "[task_pool][submit][alloca
     };
     be::task_pool pool( 1 );
     auto          future = pool.submit( std::allocator_arg_t{}, alloc, fun );
+    REQUIRE_THROWS_AS( future.get(), test_exception );
+    REQUIRE( called == true );
+}
+
+TEST_CASE( "submit( allocator, bool(allocator, ... )&, ...) throws",
+           "[task_pool][submit][allocator][throws]" )
+{
+    std::allocator< int > alloc;
+    std::atomic_bool      called;
+    auto                  fun = [&]( bool value ) {
+        called = value;
+        throw test_exception{};
+    };
+    be::task_pool pool( 1 );
+    auto          future = pool.submit( std::allocator_arg_t{}, alloc, fun, true ); 
     REQUIRE_THROWS_AS( future.get(), test_exception );
     REQUIRE( called == true );
 }
@@ -1209,7 +1240,7 @@ TEST_CASE( "future_argument<T>", "[task_pool][traits]" )
     STATIC_REQUIRE( std::is_same< void, be::future_argument< std::future< void > >::type >::value );
 }
 
-TEST_CASE( "submit( f, future )->void", "[task_pool][submit]" )
+TEST_CASE( "submit( void(int), future )->void", "[task_pool][submit]" )
 {
     const int           expected = 42;
     std::atomic_int     actual{ 0 };
@@ -1222,7 +1253,7 @@ TEST_CASE( "submit( f, future )->void", "[task_pool][submit]" )
     REQUIRE( expected == actual );
 }
 
-TEST_CASE( "submit( f, future )->int", "[task_pool][submit]" )
+TEST_CASE( "submit( int(int), future )->int", "[task_pool][submit]" )
 {
     const int          expected = 42;
     be::task_pool      pool( 1 );
@@ -2223,21 +2254,27 @@ TEST_CASE( "task_proxy move assignment", "[task_proxy]" )
 
     // ok so what we want to do is submit some tasks that depend on some inputs in such a way
     // that the items at the front of the checklist will finish after the items at the end of
-    // the checklist. When the pool is running the checklist this should then trigger iter_swap
-    // in the call to std::partion between the front and the back and this should test that our
-    // task_proxy::operator= function works as expected.
+    // the checklist. When the pool is running and going through the checklist this should then
+    // trigger iter_swap in the call to std::partion in check_tasks between the front and the back
+    // and this should test that our task_proxy::operator= function works as expected and transfers
+    // the correct function pointers and storage
 
-    namespace cc   = std::chrono;
-    auto res_10ms  = pool.submit( []( cc::milliseconds x ) { return x; }, pool.submit( ms_10 ) );
-    auto res_1ms   = pool.submit( []( cc::milliseconds x ) { return x; }, pool.submit( ms_1 ) );
-    auto res_100us = pool.submit( []( cc::microseconds x ) { return x; }, pool.submit( us_100 ) );
-    auto res_10us  = pool.submit( []( cc::microseconds x ) { return x; }, pool.submit( us_10 ) );
-    auto res_1us   = pool.submit( []( cc::microseconds x ) { return x; }, pool.submit( us_1 ) );
+    namespace cc = std::chrono;
+    auto res_10ms =
+        pool.submit( [v = s_ms_10]( cc::milliseconds x ) { return x + v; }, pool.submit( ms_10 ) );
+    auto res_1ms =
+        pool.submit( [v = s_ms_1]( cc::milliseconds x ) { return x + v; }, pool.submit( ms_1 ) );
+    auto res_100us = pool.submit( [v = s_us_100]( cc::microseconds x ) { return x + v; },
+                                  pool.submit( us_100 ) );
+    auto res_10us =
+        pool.submit( [v = s_us_10]( cc::microseconds x ) { return x + v; }, pool.submit( us_10 ) );
+    auto res_1us =
+        pool.submit( [v = s_us_1]( cc::microseconds x ) { return x + v; }, pool.submit( us_1 ) );
 
     pool.wait_for_tasks();
-    REQUIRE( res_10ms.get() == s_ms_10 );
-    REQUIRE( res_1ms.get() == s_ms_1 );
-    REQUIRE( res_100us.get() == s_us_100 );
-    REQUIRE( res_10us.get() == s_us_10 );
-    REQUIRE( res_1us.get() == s_us_1 );
+    REQUIRE( res_10ms.get() == s_ms_10 * 2 );
+    REQUIRE( res_1ms.get() == s_ms_1 * 2 );
+    REQUIRE( res_100us.get() == s_us_100 * 2 );
+    REQUIRE( res_10us.get() == s_us_10 * 2 );
+    REQUIRE( res_1us.get() == s_us_1 * 2 );
 }
