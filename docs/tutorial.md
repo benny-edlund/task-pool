@@ -9,11 +9,11 @@ The features of this library are certainly not unique and similar implementation
 be::task_pool pool;
 auto task = []() { std::cerr<< "Hello World!\n"; };
 pool.submit( task );
-pool.wait_for_tasks();
+pool.wait();
 ```
 Here we first default construct a pool object. A lambda is then declared and passed by reference to `submit` as a task to execute in the pool. 
 
-Finally we use `wait_for_tasks` to ensure all tasks submitted to the pool are completed before continuing.
+Finally we use `wait` to ensure all tasks submitted to the pool are completed before continuing.
 
 &nbsp;
 
