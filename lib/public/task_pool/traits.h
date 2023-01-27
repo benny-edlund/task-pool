@@ -350,7 +350,8 @@ template< typename Promise,
           typename Arguments,
           std::size_t... Is,
           std::enable_if_t<
-              be_is_void_v< future_api::get_result_t< promise_api::get_future_t< Promise > > >,
+              be_is_void_v< future_api::get_result_t< promise_api::get_future_t< Promise > > > &&
+                  std::is_object< Callable >::value,
               bool > = true >
 void invoke_deferred_task( Promise&   promise,
                            Callable   callable,
@@ -368,7 +369,8 @@ template< typename Promise,
           typename Arguments,
           std::size_t... Is,
           std::enable_if_t<
-              !be_is_void_v< future_api::get_result_t< promise_api::get_future_t< Promise > > >,
+              !be_is_void_v< future_api::get_result_t< promise_api::get_future_t< Promise > > > &&
+                  std::is_object< Callable >::value,
               bool > = true >
 void invoke_deferred_task( Promise&   promise,
                            Callable   callable,
@@ -377,6 +379,39 @@ void invoke_deferred_task( Promise&   promise,
                            std::index_sequence< Is... > /*Is*/ )
 {
     promise.set_value( callable( *self, std::get< Is >( arguments )()... ) );
+}
+
+template< typename Promise,
+          typename Callable,
+          typename Arguments,
+          std::size_t... Is,
+          std::enable_if_t<
+              be_is_void_v< future_api::get_result_t< promise_api::get_future_t< Promise > > > &&
+                  std::is_function< std::remove_pointer_t< Callable > >::value,
+              bool > = true >
+void invoke_deferred_task( Promise&   promise,
+                           Callable   callable,
+                           Arguments& arguments,
+                           std::index_sequence< Is... > /*Is*/ )
+{
+    callable( std::get< Is >( arguments )()... );
+    promise.set_value();
+}
+
+template< typename Promise,
+          typename Callable,
+          typename Arguments,
+          std::size_t... Is,
+          std::enable_if_t<
+              !be_is_void_v< future_api::get_result_t< promise_api::get_future_t< Promise > > > &&
+                  std::is_function< std::remove_pointer_t< Callable > >::value,
+              bool > = true >
+void invoke_deferred_task( Promise&   promise,
+                           Callable   callable,
+                           Arguments& arguments,
+                           std::index_sequence< Is... > /*Is*/ )
+{
+    promise.set_value( callable( std::get< Is >( arguments )()... ) );
 }
 
 template< typename Arguments, std::size_t... Is >

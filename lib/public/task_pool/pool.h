@@ -975,16 +975,15 @@ private:
 
     Future make_defered_task( Promise promise, Func&& task, ArgsTuple args_tuple )
     {
-        using FuncType = std::remove_reference_t< std::remove_cv_t< Func > >;
         struct TASKPOOL_HIDDEN Task
         {
             Allocator< Task > alloc;
-            FuncType          func_;
+            Func              func_;
             Promise           promise_;
             ArgsTuple         arguments_;
             Task( Allocator< Task > const& a, Promise&& p, Func&& f, ArgsTuple&& arg )
-                : FuncType( std::forward< Func >( f ) )
-                , alloc( a )
+                : alloc( a )
+                , func_( f )
                 , promise_( std::move( p ) )
                 , arguments_( std::move( arg ) )
             {
