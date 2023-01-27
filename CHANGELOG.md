@@ -3,7 +3,7 @@ Refined version reducing overload set by binding allocator to the pool itself an
 
 - [x] Remove allocator variants of task_pool::submit in favour of templating the task bool so that we do not need to pass allocators all the time.
 - [x] Change external API wait_for_tasks to wait()
-- [ ] Pools should be future-like
+- [x] Pools should be future-like
 - [x] Dropping support for callables with templated call operators
 - [x] Reduced overload set of `submit` and `make_deferred_task`
 - [x] Allow pipeline tasks to take allocators and stop_tokens

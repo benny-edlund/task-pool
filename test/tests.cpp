@@ -1995,3 +1995,100 @@ TEST_CASE( "pipe with allocator and stop_token", "[pipe][allocator][stop_token]"
     }
     REQUIRE( called );
 }
+
+//
+// Task pools are futures!
+//
+TEST_CASE( "pipe::get", "[future]" )
+{
+    be::task_pool pool;
+    STATIC_REQUIRE( be::is_future< be::task_pool >::value );
+
+    std::atomic_bool called{ false };
+    auto             first = [] {
+        std::this_thread::sleep_for( 1us );
+        return 1;
+    };
+    auto second = [&]( int /*value*/ ) { called = true; }; // NOLINT
+    auto pipe   = pool | first | second;
+    REQUIRE( pool.get() );
+    REQUIRE( called );
+}
+
+TEST_CASE( "pipe::wait_for, success", "[future]" )
+{
+    be::task_pool pool;
+    STATIC_REQUIRE( be::is_future< be::task_pool >::value );
+
+    std::atomic_bool called{ false };
+    auto             first = [] {
+        std::this_thread::sleep_for( 1us );
+        return 1;
+    };
+    auto second = [&]( int /*value*/ ) { called = true; }; // NOLINT
+    auto pipe   = pool | first | second;
+    REQUIRE( pool.wait_for( 1ms ) == std::future_status::ready );
+    REQUIRE( called );
+}
+
+TEST_CASE( "pipe::wait_for, fail", "[future]" )
+{
+    be::task_pool pool;
+    STATIC_REQUIRE( be::is_future< be::task_pool >::value );
+
+    std::atomic_bool called{ false };
+    std::atomic_bool finish{ false };
+    auto             first = [&] {
+        while ( !finish )
+        {
+            std::this_thread::sleep_for( 1us );
+        }
+        return 1;
+    };
+    auto second = [&]( int /*value*/ ) { called = true; }; // NOLINT
+    auto pipe   = pool | first | second;
+    REQUIRE( pool.wait_for( 1us ) == std::future_status::timeout );
+    finish = true;
+    pool.wait();
+    REQUIRE( called );
+}
+
+TEST_CASE( "pipe::wait_until, success", "[future]" )
+{
+    be::task_pool pool;
+    STATIC_REQUIRE( be::is_future< be::task_pool >::value );
+
+    std::atomic_bool called{ false };
+    auto             first = [] {
+        std::this_thread::sleep_for( 1us );
+        return 1;
+    };
+    auto second = [&]( int /*value*/ ) { called = true; }; // NOLINT
+    auto pipe   = pool | first | second;
+    REQUIRE( pool.wait_until( std::chrono::steady_clock::now() + 1ms ) ==
+             std::future_status::ready );
+    REQUIRE( called );
+}
+
+TEST_CASE( "pipe::wait_until, fail", "[future]" )
+{
+    be::task_pool pool;
+    STATIC_REQUIRE( be::is_future< be::task_pool >::value );
+
+    std::atomic_bool called{ false };
+    std::atomic_bool finish{ false };
+    auto             first = [&] {
+        while ( !finish )
+        {
+            std::this_thread::sleep_for( 1us );
+        }
+        return 1;
+    };
+    auto second = [&]( int /*value*/ ) { called = true; }; // NOLINT
+    auto pipe   = pool | first | second;
+    REQUIRE( pool.wait_until( std::chrono::steady_clock::now() + 1us ) ==
+             std::future_status::timeout );
+    finish = true;
+    pool.wait();
+    REQUIRE( called );
+}

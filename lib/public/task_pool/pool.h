@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <condition_variable>
 #include <exception>
 #include <functional>
 #include <future>
@@ -283,11 +284,39 @@ public:
     void unpause() noexcept { ( *runtime_ ).paused_ = false; }
 
     /**
+     * @brief Part of the future-like api `get()` is simply an alias for `wait()`. As task_pools
+     * have no inherent return value we simply return the boolean true to allow pools to be used
+     * in pipelines
+     */
+    bool get() noexcept
+    {
+        wait();
+        return true;
+    }
+    /**
      * @brief Blocks calling thread until all tasks have completed. No tasked may be submitted while
      * pool is waiting. If called while paused the function does nothing to avoid deadlocks
      */
     void wait() noexcept { ( *runtime_ ).wait(); }
 
+    /**
+     * @brief Part of the future-like api
+     *
+     * @tparam Duration
+     * @param x
+     * @return std::future_status
+     */
+    template< typename Duration >
+    std::future_status wait_for( Duration&& x ) noexcept
+    {
+        return ( *runtime_ ).wait_for( std::forward< Duration >( x ) );
+    }
+
+    template< typename Timepoint >
+    std::future_status wait_until( Timepoint&& x ) noexcept
+    {
+        return ( *runtime_ ).wait_until( std::forward< Timepoint >( x ) );
+    }
     /**
      * @brief Returns a stop token for the pool.
      */
@@ -816,8 +845,8 @@ private:
             } )
         {
         }
-        ~task_proxy()                   = default;
-        task_proxy( task_proxy const& ) = delete;
+        ~task_proxy()                              = default;
+        task_proxy( task_proxy const& )            = delete;
         task_proxy& operator=( task_proxy const& ) = delete;
         task_proxy( task_proxy&& other ) noexcept
             : check_task( other.check_task )
@@ -856,11 +885,11 @@ private:
             using FuncType::  operator();
             static bool       is_ready() { return true; }
             Allocator< Task > alloc;
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Allocator< Task > task_allocator( allocator_ );
         Task*             typed_task =
@@ -916,11 +945,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator_ );
@@ -981,11 +1010,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator_ );
@@ -1043,10 +1072,10 @@ private:
             create_threads();
         }
         ~pool_runtime() { destroy_threads(); }
-        pool_runtime( pool_runtime const& ) = delete;
+        pool_runtime( pool_runtime const& )            = delete;
         pool_runtime& operator=( pool_runtime const& ) = delete;
         pool_runtime( pool_runtime&& )                 = delete;
-        pool_runtime& operator=( pool_runtime&& ) = delete;
+        pool_runtime& operator=( pool_runtime&& )      = delete;
 
         void create_threads()
         {
@@ -1116,6 +1145,47 @@ private:
                 // TODO: implement user logging facility
             }
             waiting_ = false;
+        }
+
+        std::future_status wait_for( std::chrono::steady_clock::duration duration ) noexcept
+        {
+            return wait_until( std::chrono::steady_clock::now() + duration );
+        }
+
+        std::future_status wait_until( std::chrono::steady_clock::time_point deadline ) noexcept
+        {
+            waiting_ = true;
+            try
+            {
+                std::unique_lock< std::mutex > tasks_lock( tasks_mutex_ );
+                task_added_.notify_all();
+                auto stop_waiting = [this] {
+                    if ( paused_ )
+                    {
+                        return true;
+                    }
+                    return ( tasks_queued_ + tasks_running_ + tasks_waiting_ == 0 );
+                };
+                while ( !stop_waiting() )
+                {
+                    switch ( task_completed_.wait_until( tasks_lock, deadline ) )
+                    {
+                        case std::cv_status::timeout:
+                        {
+                            waiting_ = false;
+                            return std::future_status::timeout;
+                        }
+                        default:
+                            break;
+                    }
+                }
+            }
+            catch ( std::system_error const& e ) // std::mutex::lock may throw
+            {
+                // TODO: implement user logging facility
+            }
+            waiting_ = false;
+            return std::future_status::ready;
         }
 
         void push_task( task_proxy proxy )
