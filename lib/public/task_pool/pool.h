@@ -143,7 +143,7 @@ public:
     {
     }
     /**
-     * @brief Destroys the task_pool. Will attempt to cancel tasks that allow it
+     * @brief Destroys the task_pool. Will attempt to cancel tasks that support it
      * and join all threads.
      */
     ~task_pool_t() { runtime_.reset(); }
@@ -181,7 +181,7 @@ public:
      * @brief Resets the task_pool to the given amount of threads (completes all
      * currently running tasks)
      */
-    void reset( const unsigned requested_thread_count = 0 )
+    void reset( const unsigned requested_thread_count = 0 ) noexcept( noexcept( wait() ) )
     {
         const bool was_paused = is_paused();
         pause();
@@ -258,7 +258,10 @@ public:
      * @brief Blocks calling thread until all tasks have completed. No tasked may be submitted while
      * pool is waiting. If called while paused the function does nothing to avoid deadlocks
      */
-    void wait() { ( *runtime_ ).wait(); }
+    void wait() noexcept( noexcept( std::declval< pool_runtime >().wait() ) )
+    {
+        ( *runtime_ ).wait();
+    }
 
     /**
      * @brief Returns a stop token for the pool.
@@ -788,8 +791,8 @@ private:
             } )
         {
         }
-        ~task_proxy()                   = default;
-        task_proxy( task_proxy const& ) = delete;
+        ~task_proxy()                              = default;
+        task_proxy( task_proxy const& )            = delete;
         task_proxy& operator=( task_proxy const& ) = delete;
         task_proxy( task_proxy&& other ) noexcept
             : check_task( other.check_task )
@@ -828,11 +831,11 @@ private:
             using FuncType::  operator();
             static bool       is_ready() { return true; }
             Allocator< Task > alloc;
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Allocator< Task > task_allocator( allocator_ );
         Task*             typed_task =
@@ -888,11 +891,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator_ );
@@ -953,11 +956,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator_ );
@@ -1015,10 +1018,10 @@ private:
             create_threads();
         }
         ~pool_runtime() { destroy_threads(); }
-        pool_runtime( pool_runtime const& ) = delete;
+        pool_runtime( pool_runtime const& )            = delete;
         pool_runtime& operator=( pool_runtime const& ) = delete;
         pool_runtime( pool_runtime&& )                 = delete;
-        pool_runtime& operator=( pool_runtime&& ) = delete;
+        pool_runtime& operator=( pool_runtime&& )      = delete;
 
         void create_threads()
         {
@@ -1048,7 +1051,7 @@ private:
             threads_.reset();
             thread_count_ = 0;
         }
-        static unsigned compute_thread_count( const unsigned thread_count )
+        static unsigned compute_thread_count( const unsigned thread_count ) noexcept
         {
             // we need at least two threads to process work and check futures
             if ( thread_count > 0 )
@@ -1068,7 +1071,7 @@ private:
             }
         }
 
-        void wait()
+        void wait() noexcept
         {
             waiting_ = true;
             std::unique_lock< std::mutex > tasks_lock( tasks_mutex_ );
