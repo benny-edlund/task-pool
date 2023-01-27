@@ -7,6 +7,7 @@ Refined version reducing overload set by binding allocator to the pool itself an
 - [x] Dropping support for callables with templated call operators
 - [x] Reduced overload set of `submit` and `make_deferred_task`
 - [x] Allow pipeline tasks to take allocators and stop_tokens
+- [x] Changed `task_pool.h` to simply `pool.h`
 
 # v1.0
 Initial version supporting full set of features

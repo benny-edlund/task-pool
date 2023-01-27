@@ -7,7 +7,8 @@ set(HEADER_LIST
 	${CMAKE_CURRENT_BINARY_DIR}/task_pool/api.h
 	${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/fallbacks.h
 	${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/traits.h
-	${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/task_pool.h 
+	${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/pool.h 
+	${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/pipes.h 
 )
 
 # Static library

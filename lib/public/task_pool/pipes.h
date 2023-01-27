@@ -1,7 +1,7 @@
 #pragma once
 #include <chrono>
 #include <task_pool/fallbacks.h>
-#include <task_pool/task_pool.h>
+#include <task_pool/pool.h>
 #include <task_pool/traits.h>
 #include <type_traits>
 #include <utility>
