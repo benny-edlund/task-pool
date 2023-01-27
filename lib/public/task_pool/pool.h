@@ -7,6 +7,7 @@
 #include <future>
 #include <memory>
 #include <mutex>
+#include <new>
 #include <queue>
 #include <task_pool/api.h>
 #include <task_pool/fallbacks.h>
@@ -179,15 +180,29 @@ public:
 
     /**
      * @brief Resets the task_pool to the given amount of threads (completes all
-     * currently running tasks)
+     * currently running tasks).
+     *
+     * @details Most methods have as a precondition that the pool_runtime will never be nullptr and
+     * so if that is the post condition of this method we can not continue and std::terminate will
+     * be called. This can only occure if `new` throws std::bad_alloc and as such the program has
+     * pretty much done everything it can do.
+     *
      */
-    void reset( const unsigned requested_thread_count = 0 ) noexcept( noexcept( wait() ) )
+    void reset( const unsigned requested_thread_count = 0 ) noexcept
     {
         const bool was_paused = is_paused();
         pause();
         wait();
-        auto latency = ( *runtime_ ).task_check_latency_;
+        static const std::chrono::nanoseconds s_1000_ns( 1'000 );
+        auto latency = runtime_ ? runtime_->task_check_latency_ : s_1000_ns;
         runtime_.reset( new pool_runtime( latency, requested_thread_count ) );
+        if ( !runtime_ )
+        {
+            // new reset() will only throw in the case of std::bad_alloc and since we have
+            // a precondition to most methods that the runtime can never be nullptr we
+            // simply can not continue in this situation and must terminate.
+            std::terminate();
+        }
         if ( !was_paused )
         {
             unpause();
@@ -258,10 +273,7 @@ public:
      * @brief Blocks calling thread until all tasks have completed. No tasked may be submitted while
      * pool is waiting. If called while paused the function does nothing to avoid deadlocks
      */
-    void wait() noexcept( noexcept( std::declval< pool_runtime >().wait() ) )
-    {
-        ( *runtime_ ).wait();
-    }
+    void wait() noexcept { ( *runtime_ ).wait(); }
 
     /**
      * @brief Returns a stop token for the pool.
@@ -1074,15 +1086,22 @@ private:
         void wait() noexcept
         {
             waiting_ = true;
-            std::unique_lock< std::mutex > tasks_lock( tasks_mutex_ );
-            task_added_.notify_all();
-            task_completed_.wait( tasks_lock, [this] {
-                if ( paused_ )
-                {
-                    return true;
-                }
-                return ( tasks_queued_ + tasks_running_ + tasks_waiting_ == 0 );
-            } );
+            try
+            {
+                std::unique_lock< std::mutex > tasks_lock( tasks_mutex_ );
+                task_added_.notify_all();
+                task_completed_.wait( tasks_lock, [this] {
+                    if ( paused_ )
+                    {
+                        return true;
+                    }
+                    return ( tasks_queued_ + tasks_running_ + tasks_waiting_ == 0 );
+                } );
+            }
+            catch ( std::system_error const& e ) // std::mutex::lock may throw
+            {
+                // TODO: implement user logging facility
+            }
             waiting_ = false;
         }
 
