@@ -220,6 +220,7 @@ public:
      */
     task_pool_t( task_pool_t&& other ) noexcept
         : runtime_( std::move( other.runtime_ ) )
+        , allocator_( std::move( other.allocator_ ) )
     {
     }
     /**
@@ -229,6 +230,7 @@ public:
     {
         reset();
         std::swap( runtime_, other.runtime_ );
+        allocator_ = std::move(other.allocator_);
         return *this;
     }
 
