@@ -491,50 +491,37 @@ When any task of check_data completes we will fall through the while loop and th
 
 ## Using allocators
 
-Tasks submitted to `be::task_pool` require storage on the heap until the task is invoked and this can become a limiting factor to applications. To help task_pool supports using custom allocators for allocating storage for tasks until executed as well as storing the shared state of the std::futures used to return results.
+Tasks submitted to `be::task_pool` require storage on the heap until the task is invoked and this can become a limiting factor to applications. 
+
+To help task_pool supports using custom allocators.
 
 ```cpp
-struct LargeInputData
-{
-  // Lets picture some large dataset
-};
-LargeInputData generate_data();
 
-struct ComplexResultData
-{
-    // Lets imagine some more large data here
-};
+namespace beans {
+    struct bean;
+    template<typename T = bean>
+    struct pool_allocator;
+}
 
-ComplexResultData process_data( LargeInputData const& );
 ```
-So given some API that operates on non trivial data we may find that we wish to control how the data is allocated in our program and that using some specific custom allocators would help performance in our application.
+First lets assume the `beans` library defines some allocator type that we would like to use. We can use this allocator in our pool to allocate storage for our task wrappers and any storage the given promise types requires by simple taking it as a template parameter when declaring our pool.
 
 ```cpp
-cool_beans::pool_allocator allocator;
-be::task_pool pool;
 
-auto result = pool.submit( std::allocator_arg_t{}, allocator, [work_data = generate_data()]() { 
-    return process_data( work_data );
-} );
+beans::pool_allocator<> alloc(1'000'000);
+be::task_pool_t<beans::pool_allocator> pool(alloc);
+
 ```
-Above we pass a custom allocator to submit which allow it to be used to allocate both the storage for the following task function that captures a potentially large object by value and also the storage needed for returning data asynchronously from `process_data` using a future. `std::allocator_arg_t` is an empty class used only to disambiguate the overloads to `be::task_pool::submit`
 
-Now allocations are in control of `cool_beans` that promises to be much faster then new/delete. 
+Here we initialize our (fictional) allocator with a million beans and then declare that our pool will use this allocator by passing it as a template parameter to `be::task_pool_t` following by constructing our pool taking a reference to the allocator instance. This would likely only be necessary if the allocator is stateful or if it can not be default constructible. 
 
-Additionally if we are able to adapt the signature of our task function `task_pool` can also forward the given allocator to your task function when it executes allowing you to use its to allocate any resources your task requires.
+The default allocator for `be::task_pool_t` is perhaps unsupricingly [`std::allocator`](https://en.cppreference.com/w/cpp/memory/allocator) and it for example can be default constructed and hence does not need to be passed to the constructor. In fact `be::task_pool` that we have been using so far is just a type alias for `be::task_pool_t<std::allocator>`
 
 ```cpp
 
-struct LargeData
-{
-    // lets picture some large data there
-};
-using Allocator = cool_beans::pool_allocator<LargeData>;
-using Vector =  std::vector<LargeData, Allocator>;
+struct LargeData; // lets picture some large data there
 
-Allocator allocator;
-be::task_pool pool;
-
+using Vector =  std::vector<LargeData, beans::pool_allocator<LargeData>>;
 auto make_data = [](std::allocator_arg_t, Allocator const& alloc, std::size_t x) {
     return Vector( x, alloc );
 }
@@ -547,14 +534,16 @@ auto process_data = []( Vector x ) {
     return x;
 }
 
-auto data = pool.submit( std::allocator_arg_t{}, allocator, make_data, 1'000'000 ); 
+auto data = pool.submit( make_data, 1'000'000 ); 
 auto result = pool.submit( process_data, std::move(data)); 
 
 ```
-Here the first task function `make_data` adds the special signature `( std::allocator_arg_t, Allocator const&, ... )` which allows `task_pool::submit` to detect that it wants the task allocator to be passed down and will do so when the function is called allowing the task function to perform any allocations it wants using this allocator. The allocated vector is then passed on by value to the process function. This is made efficient as future input arguments to functions utilize RVO from `std::future::get` to pass resulting value directly to the function call.
 
-The locallity of this example makes it a bit contrived as the allocator could also simply be captured to the lambda to furfill the same end result however we can easily imagine how the allocators, contains and calls to submit may be hidden behind some application API.
+Here the first task function `make_data` adds the special signature `( std::allocator_arg_t, beans::pool_allocator<LargeData> const&, ... )` which allows `task_pool::submit` to detect that it wants the pool allocator to be passed down when it is called. The allocated vector is then passed on by value to the process function. This is made efficient as future input arguments to functions utilize RVO from `std::future::get` to pass resulting value directly to the function call.
 
+`std::allocator_arg_t` is an empty class used only to detect the need to pass an allocator to the task.
+
+&nbsp;
 
 
 [^1]: Futher improvents needed here to reduce copies and temporaries. Currently the most effcient way seems to be to take const reference in the task function and move/construct into the submit call. This will move into the bind expression and the function call will then reference out of this bind expresssion. Yes improvements are possible and will be done.
