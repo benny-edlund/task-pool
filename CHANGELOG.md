@@ -8,7 +8,7 @@ Refined version reducing overload set by binding allocator to the pool itself an
 - [x] Reduced overload set of `submit` and `make_deferred_task`
 - [x] Allow pipeline tasks to take allocators and stop_tokens
 - [x] Changed `task_pool.h` to simply `pool.h`
-- [x] API is not const and noexcept correct ( to the best of my mortal abilities )
+- [x] API is now const and noexcept correct ( to the best of my mortal abilities )
 # v1.0
 Initial version supporting full set of features
 
