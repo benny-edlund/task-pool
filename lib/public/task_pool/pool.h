@@ -791,8 +791,8 @@ private:
             } )
         {
         }
-        ~task_proxy()                              = default;
-        task_proxy( task_proxy const& )            = delete;
+        ~task_proxy()                   = default;
+        task_proxy( task_proxy const& ) = delete;
         task_proxy& operator=( task_proxy const& ) = delete;
         task_proxy( task_proxy&& other ) noexcept
             : check_task( other.check_task )
@@ -831,11 +831,11 @@ private:
             using FuncType::  operator();
             static bool       is_ready() { return true; }
             Allocator< Task > alloc;
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         Allocator< Task > task_allocator( allocator_ );
         Task*             typed_task =
@@ -891,11 +891,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator_ );
@@ -956,11 +956,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator_ );
@@ -1018,10 +1018,10 @@ private:
             create_threads();
         }
         ~pool_runtime() { destroy_threads(); }
-        pool_runtime( pool_runtime const& )            = delete;
+        pool_runtime( pool_runtime const& ) = delete;
         pool_runtime& operator=( pool_runtime const& ) = delete;
         pool_runtime( pool_runtime&& )                 = delete;
-        pool_runtime& operator=( pool_runtime&& )      = delete;
+        pool_runtime& operator=( pool_runtime&& ) = delete;
 
         void create_threads()
         {
