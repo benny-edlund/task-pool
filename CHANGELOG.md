@@ -1,5 +1,5 @@
 # v2.0
-Refined version reducing overload set by binding allocator to the pool itself and adding pipe operator for function composition
+Refined version reducing overload set by binding allocator to the pool itself and adding pipe operator and future api for function composition
 
 - [x] Remove allocator variants of task_pool::submit in favour of templating the task bool so that we do not need to pass allocators all the time.
 - [x] Change external API wait_for_tasks to wait()
