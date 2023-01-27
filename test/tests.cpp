@@ -2079,7 +2079,7 @@ TEST_CASE( "pipe::wait_for, success", "[future]" )
     };
     auto second = [&]( int /*value*/ ) { called = true; }; // NOLINT
     auto pipe   = pool | first | second;
-    REQUIRE( pool.wait_for( 1ms ) == std::future_status::ready );
+    REQUIRE( pool.wait_for( 1s ) == std::future_status::ready );
     REQUIRE( called );
 }
 
@@ -2117,7 +2117,7 @@ TEST_CASE( "pipe::wait_until, success", "[future]" )
     };
     auto second = [&]( int /*value*/ ) { called = true; }; // NOLINT
     auto pipe   = pool | first | second;
-    REQUIRE( pool.wait_until( std::chrono::steady_clock::now() + 1ms ) ==
+    REQUIRE( pool.wait_until( std::chrono::steady_clock::now() + 1s ) ==
              std::future_status::ready );
     REQUIRE( called );
 }
