@@ -1,12 +1,18 @@
 # v2.0
-[X]: Remove allocator variants of task_pool::submit in favour of templating the task bool so that we do not need to pass allocators all the time.
+Refined version reducing overload set by binding allocator to the pool itself and adding pipe operator for function composition
 
-[X]: Change external API wait_for_tasks to wait()
+- [x] Remove allocator variants of task_pool::submit in favour of templating the task bool so that we do not need to pass allocators all the time.
+- [x] Change external API wait_for_tasks to wait()
+- [ ] Pools should be future-like
+- [x] Dropping support for callables with templated call operators
+- [x] Reduced overload set of `submit` and `make_deferred_task`
+- [x] Allow pipeline tasks to take allocators and stop_tokens
 
-[ ]: Pools should be future-like
+# v1.0
+Initial version supporting full set of features
 
-[X]: Dropping support for callables with templated call operators
-
-[X]: Reduced overload set of `submit` and `make_deferred_task`
-
-[x]: Allow pipeline tasks to take allocators and stop_tokens
+- [x] Allow tasks from function pointers, free and member
+- [x] Allow cancelling tasks after started by passing token type
+- [x] Allow using custom allocators to allocate future states
+- [x] Allow using custom allocators to allocate tasks storage
+- [x] Allow using custom allocators inside tasks perform allocations
