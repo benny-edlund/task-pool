@@ -43,11 +43,7 @@ auto result = pool.submit( &process_data, std::move(future) );
 ```
 Here we pass the function pointers by value directly to the thread pool capturing a future value from `make_data` and utilizing the `task_pool` to efficiently wait for this data to be available before processing it in the call to `process_data`.
 
-Our program now has a chance to exit before calling the second task and this can be futher improved by as we will see later on but first...
-&nbsp;
-
-### More callable types
-
+Our program now has a chance to exit before calling the second task and this can be futher improved as we will see later on. 
 
 ```cpp
 struct data;
@@ -67,27 +63,6 @@ void process_frame( data& frame) {
 }
 ```
 Here we have a user defined type and we pass its `run` function pointer by value along with pointers to the instances we wish to execute the method on. Additionally a reference to some data structure is passed to the processors. With member functions as well as when passing data by references we need to make sure we are careful to observe the lifetime requirements of our dataset.
-
-&nbsp;
-
-We can of course also simply pass callable types by value just like lambdas, even when they have elaborate call operators.
-```cpp
-
-struct Data
-{
-    int value;
-};
-struct Work
-{
-    template< typename WorkType>
-    auto operator()( WorkType data ) {
-        return data.value;
-    }
-};
-auto result = pool.submit( Work{}, Data{ 42 } );
-```
-
-Here `task_pool` will check that `Work::operator()( Data )` is a valid function call prior to submitting and will generate compilation error in the case it is not.
 
 &nbsp;
 ## Return values
@@ -274,7 +249,7 @@ As `be::task_pool`s pipe implementation utilizes the lazy task arguments we read
 
 This type contains only a reference to the executing pool and the `Future` of the previous stage. When a new stage is added this future is moved into the task_pool as a lazy argument and as such the resulting temporaries require very little storage. There is only ever one future on the loose that can control the conclusion of the entire pipeline.
 
-Pipe object that hold valid futures will call `Future::wait()` on destruction which means that uncaptured pipelines will safely block as if they where direct function calls.
+Pipe object that hold valid futures will call `Future::wait()` on destruction which means that uncaptured pipelines will safely block as if they where direct function calls while allowing cancellation.
 ```cpp
 int main()
 {
@@ -283,7 +258,7 @@ int main()
     return 0;
 }
 ```
-The program above will safely execute the entire pipeline before returning. As the last binary operator concludes it leaves a temporary Pipe object that owns a valid future and since the destrcution of this temporary must occur prior to executing the next line we are guarenteed no dangling work is left over when returning.
+As the last binary operator concludes it leaves a temporary Pipe object that owns a valid future and since the destruction of this temporary must occur prior to executing the next expression we are guarenteed no dangling work is left over when returning.
 
 `Pipe` objects that are captured are also `future-like` objects and can as such be used as lazy arguments to other tasks.
 
@@ -299,11 +274,143 @@ int main()
             fmt::print("Data processing complete! First result: {} Second result: {}\n", x, y);
         }, std::move(pipe_one),std::move(pipe_two) );
     }
-    pool.wait_for_tasks();
+    pool.wait();
     return 0;
 }
 ```
 Above we use `task_pool`s type erased task storage to safely move the pipelines out of their stack scope to continue doing other work after leaving the scope where they where defined.
+
+## Cooperative cancellation
+
+Task functions may also take a `be::stop_token` by value as their last argument to participate in the libraries support for cooperative cancellation. This type has a boolean conversion operator that will be true only if the pool has signalled abort.
+
+Tasks may use this to break out of contiguous or other long running work allowing the pool to shutdown faster.
+
+```cpp
+be::task_pool pool;
+auto do_until = []( auto timeout, be::stop_token abort ) { 
+    while( !abort && std::chrono::now()<timeout ) {
+        do_work();
+    }
+};
+auto done = pool.submit( &do_until, std::chrono::now()+std::chrono::minutes(10) );
+while ( done.wait(0s) != std::future_status::ready )
+{
+    if ( exit() ) {
+        pool.abort();
+        shutdown();
+    }
+    else {
+        process_events();
+    }
+}
+```
+Above `be::task_pool::abort` will ask running tasks to cancel and if `do_until` did not take and check the `stop_token` the pool may need to wait the full 10 minutes it takes for the task to time out before being allowed to shutdown.
+
+Note that the `stop_token` is not passed as an argument to `submit` as it can detect that `do_until` wants a token and will insert one for it when called.
+
+Stop tokens may also be generated in user code by calling `be::task_pool::get_stop_token` which can be useful when combining multiple asynchronouse systems together.
+
+```cpp
+auto abort = pool.get_stop_token();
+while (!abort)
+{
+    QApplication::instance()->processEvents();
+}
+```
+
+It is of course also possible to use cancellation with the pipe syntax if we can modify the functions to take tokens.  Let's revise our previous pipe example using `be::stop_token`
+
+```cpp
+
+struct LargeData;
+std::vector<LargeData> make_data(be::stop_token);         
+int process_data( std::vector<LargeData>, be::stop_token ); 
+
+bool exit(); // checks some exit condition
+
+int main()
+{
+    be::task_pool pool;
+    auto pipe = pool | api::make_data | log_data | api::process_data;
+    while( pipe.wait_for(0s) != std::future_status::ready ) {
+        std:;this_thread::sleep_for(1ms)
+        if (exit()) {
+            pool.abort();
+        }
+    };
+    return 0;
+}
+```
+Here our task functions take `be::stop_token` and lets assume they use them to break out quickly from their running work. When the `exit()` condition is true we call abort which sets the token stopping any current work. All dependent futures will unblock allowing the while loop to exit.
+
+&nbsp;
+
+## Initialization and lifetime
+  
+Default constructed task_pool objects will hold the amount of threads return by [`std::thread::hardware_concurrency`](https://en.cppreference.com/w/cpp/thread/thread/hardware_concurrency). This would typically be the amount of concurrent task a system can support in hardware.
+
+To create a pool with a different amount of threads you may provide the desired amount of threads to the task_pool constructor.
+
+```cpp
+be::task_pool pool(1);
+```
+
+Task pool thread counts may be changed during the lifetime of the pool instance but not while the pool is executing tasks. To query the amount of threads currently used by a pool call `be::task_pool::get_thread_count` and to change the thread count call `be::task_pool::reset` with your desired amount of threads.
+
+```cpp
+be::task_pool pool(1);
+// some time later
+if ( pool.get_thread_count() < 8 ) {
+    pool.reset(8);
+}
+```
+`be::task_pool::reset` will block threads attempting to submit new tasks while waiting for current tasks to finish so should not be used during time sensitive program sections.
+
+When a `task_pool` is destroyed it will ensure only that the currently executing tasks finish so its is up to the user to ensure destruction occurs only after desired workload is completed.
+
+```cpp
+
+struct work_item
+{
+    void operator()();
+};
+
+void do_work( std::vector<work_item> const& work) {
+    be::task_pool pool(4);
+    for( auto const& x : work )
+    {
+        pool.submit( x );
+    }
+    pool.wait_for_tasks();
+}
+```
+When destroyed all enqueuing of work is stopped and any running threads are joined disgarding any tasks that have yet to be started. So if the wait statement at the end of `do_work` above is omitted only the work currently executing in the pools four threads would finish processing which is likely not the intended outcome.
+
+Destruction of a `task_pool` also sets the `stop_token`.
+
+```cpp
+void check_data( work_data const&, be::stop_token );
+
+void find_the_anwser( std::vector<work_data> const& data )
+{
+    be::task_pool pool;
+    std::vector<std::future<void>> results(data.size());
+    std::transform( data.begin(), data.end(), results.begin(), []( work_data const& x ) {
+        return pool.submit( &check_data, std::ref(x) );
+    });
+    auto is_ready = []( std:future<void> const& x ) { 
+        return x.wait(0s)==std::future_status::ready; 
+    };
+    while ( std::none_of( results.begin(), results.end(), is_ready ) )
+    {
+        std::this_thread::sleep_for(1ms);
+    }
+}
+```
+When any task of check_data completes we will fall through the while loop and the pool will be destroyed at the end of the function. Because `check_data` takes a `be::stop_token` any running tasks of that function has the ability stop doing work and return early allowing the pool destructor to complete and the `find_the_anwser` function to return to the caller. 
+&nbsp;
+
 
 ## Custom promise types
 
@@ -384,110 +491,6 @@ auto result = pool.submit<Promise>(&process_data, std::move(data));
 ```
 &nbsp;
 
-## Cooperative cancellation
-
-Task functions may also take a `be::stop_token` by value as their last argument to participate in the libraries support for cooperative cancellation. This type has a boolean conversion operator that will be true only if the pool has signalled abort.
-
-Tasks may use this to break out of contiguous or other long running work allowing the pool to shutdown faster.
-
-```cpp
-be::task_pool pool;
-auto do_until = []( auto timeout, be::stop_token abort ) { 
-    while( !abort && std::chrono::now()<timeout ) {
-        do_work();
-    }
-};
-auto done = pool.submit( &do_until, std::chrono::now()+std::chrono::minutes(10) );
-while ( done.wait(0s) != std::future_status::ready )
-{
-    if ( exit() ) {
-        pool.abort();
-        shutdown();
-    }
-    else {
-        process_events();
-    }
-}
-```
-Above `be::task_pool::abort` will ask running tasks to cancel and if `do_until` did not take and check the `stop_token` the pool may need to wait the full 10 minutes it takes for the task to time out before being allowed to shutdown.
-
-Note that the `stop_token` is not passed as an argument to `submit` as it can detect that `do_until` wants a token and will insert one for it when called.
-
-Stop tokens may also be generated in user code by calling `be::task_pool::get_stop_token` which can be useful when combining multiple asynchronouse systems together.
-
-```cpp
-auto abort = pool.get_stop_token();
-while (!abort)
-{
-    QApplication::instance()->processEvents();
-}
-```
-&nbsp;
-
-## Initialization and lifetime
-  
-Default constructed task_pool objects will hold the amount of threads return by [`std::thread::hardware_concurrency`](https://en.cppreference.com/w/cpp/thread/thread/hardware_concurrency). This would typically be the amount of concurrent task a system can support in hardware.
-
-To create a pool with a different amount of threads you may provide the desired amount of threads to the task_pool constructor.
-
-```cpp
-be::task_pool pool(1);
-```
-
-Task pool thread counts may be changed during the lifetime of the pool instance but not while the pool is executing tasks. To query the amount of threads currently used by a pool call `be::task_pool::get_thread_count` and to change the thread count call `be::task_pool::reset` with your desired amount of threads.
-
-```cpp
-be::task_pool pool(1);
-// some time later
-if ( pool.get_thread_count() < 8 ) {
-    pool.reset(8);
-}
-```
-`be::task_pool::reset` will block threads attempting to submit new tasks while waiting for current tasks to finish so should not be used during time sensitive program sections.
-
-When a `task_pool` is destroyed it will ensure only that the currently executing tasks finish so its is up to the user to ensure destruction occurs only after desired workload is completed.
-
-```cpp
-
-struct work_item
-{
-    void operator()();
-};
-
-void do_work( std::vector<work_item> const& work) {
-    be::task_pool pool(4);
-    for( auto const& x : work )
-    {
-        pool.submit( x );
-    }
-    pool.wait_for_tasks();
-}
-```
-When destroyed all enqueuing of work is stopped and any running threads are joined disgarding any tasks that have yet to be started. So if the wait statement at the end of `do_work` above is omitted only the work currently executing in the pools four threads would finish processing which is likely not the intended outcome.
-
-Destruction of a `task_pool` also sets the `stop_token`.
-
-```cpp
-void check_data( work_data const&, be::stop_token );
-
-void find_the_anwser( std::vector<work_data> const& data )
-{
-    be::task_pool pool;
-    std::vector<std::future<void>> results(data.size());
-    std::transform( data.begin(), data.end(), results.begin(), []( work_data const& x ) {
-        return pool.submit( &check_data, std::ref(x) );
-    });
-    auto is_ready = []( std:future<void> const& x ) { 
-        return x.wait(0s)==std::future_status::ready; 
-    };
-    while ( std::none_of( results.begin(), results.end(), is_ready ) )
-    {
-        std::this_thread::sleep_for(1ms);
-    }
-}
-```
-When any task of check_data completes we will fall through the while loop and the pool will be destroyed at the end of the function. Because `check_data` takes a `be::stop_token` any running tasks of that function has the ability stop doing work and return early allowing the pool destructor to complete and the `find_the_anwser` function to return to the caller. 
-&nbsp;
 
 ## Using allocators
 
