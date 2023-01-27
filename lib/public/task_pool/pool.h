@@ -127,7 +127,7 @@ public:
     }
 
     /**
-     * @brief Construct a new task pool t object
+     * @brief Construct a new task pool object
      *
      * @tparam Value       - Value type of the given allocator (unused)
      * @param thread_count - The desired amount of threads for the pool
@@ -200,26 +200,35 @@ public:
      * @details After abort all threads a shutdown and destroyed so we must call reset on the
      * task_pool before it can start process tasks again.
      */
-    void abort() { runtime_.reset(); }
+    void abort() noexcept { runtime_.reset(); }
 
     /**
      * @brief Returns the amount of tasks in the pool not currently running
      */
-    BE_NODISGARD std::size_t get_tasks_queued() const { return ( *runtime_ ).tasks_queued_; }
+    BE_NODISGARD std::size_t get_tasks_queued() const noexcept
+    {
+        return ( *runtime_ ).tasks_queued_;
+    }
 
     /**
      * @brief Returns the amount of tasks in the pool currently running
      */
-    BE_NODISGARD std::size_t get_tasks_running() const { return ( *runtime_ ).tasks_running_; }
+    BE_NODISGARD std::size_t get_tasks_running() const noexcept
+    {
+        return ( *runtime_ ).tasks_running_;
+    }
     /**
      * @brief Returns the amount of tasks in the pool currently awaiting input arguments
      */
-    BE_NODISGARD std::size_t get_tasks_waiting() const { return ( *runtime_ ).tasks_waiting_; }
+    BE_NODISGARD std::size_t get_tasks_waiting() const noexcept
+    {
+        return ( *runtime_ ).tasks_waiting_;
+    }
 
     /**
      * @brief Returns the total amount of tasks in the pool, queued, running and waiting
      */
-    BE_NODISGARD std::size_t get_tasks_total() const
+    BE_NODISGARD std::size_t get_tasks_total() const noexcept
     {
         return ( *runtime_ ).tasks_queued_ + ( *runtime_ ).tasks_running_ +
                ( *runtime_ ).tasks_waiting_;
@@ -228,22 +237,22 @@ public:
     /**
      * @brief Returns the amount of threads in the pool
      */
-    BE_NODISGARD unsigned get_thread_count() const { return ( *runtime_ ).thread_count_; }
+    BE_NODISGARD unsigned get_thread_count() const noexcept { return ( *runtime_ ).thread_count_; }
 
     /**
      * @brief Returns if the pool has been paused
      */
-    BE_NODISGARD bool is_paused() const { return ( *runtime_ ).paused_; }
+    BE_NODISGARD bool is_paused() const noexcept { return ( *runtime_ ).paused_; }
 
     /**
      * @brief Pauses the pool. No tasked will be queued while the pool is paused
      */
-    void pause() { ( *runtime_ ).paused_ = true; }
+    void pause() noexcept { ( *runtime_ ).paused_ = true; }
 
     /**
      * @brief Resumes the enqueueing of tasks in the pool
      */
-    void unpause() { ( *runtime_ ).paused_ = false; }
+    void unpause() noexcept { ( *runtime_ ).paused_ = false; }
 
     /**
      * @brief Blocks calling thread until all tasks have completed. No tasked may be submitted while
@@ -254,14 +263,17 @@ public:
     /**
      * @brief Returns a stop token for the pool.
      */
-    stop_token get_stop_token() const { return stop_token{ ( *runtime_ ).abort_ }; };
+    stop_token get_stop_token() const noexcept { return stop_token{ ( *runtime_ ).abort_ }; };
 
     /**
      * @brief Get the maximum duration used to wait prior to checking lazy input arguments
      *
      * @return std::chrono::nanoseconds
      */
-    std::chrono::nanoseconds get_check_latency() const { return ( *runtime_ ).task_check_latency_; }
+    std::chrono::nanoseconds get_check_latency() const noexcept
+    {
+        return ( *runtime_ ).task_check_latency_;
+    }
 
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
