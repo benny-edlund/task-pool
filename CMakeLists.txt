@@ -110,6 +110,8 @@ dynamic_project_options(
   --suppress=passedByValue
   --suppress=syntaxError
   --suppress=constParameter # buggy
+  --suppress=nullPointer # buggy
+  --suppress=constStatement # doesnt like pipes
   --inconclusive
 )
 
