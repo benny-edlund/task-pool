@@ -9,11 +9,11 @@ The features of this library are certainly not unique and similar implementation
 be::task_pool pool;
 auto task = []() { std::cerr<< "Hello World!\n"; };
 pool.submit( task );
-pool.wait_for_tasks();
+pool.wait();
 ```
 Here we first default construct a pool object. A lambda is then declared and passed by reference to `submit` as a task to execute in the pool. 
 
-Finally we use `wait_for_tasks` to ensure all tasks submitted to the pool are completed before continuing.
+Finally we use `wait` to ensure all tasks submitted to the pool are completed before continuing.
 
 &nbsp;
 
@@ -43,11 +43,7 @@ auto result = pool.submit( &process_data, std::move(future) );
 ```
 Here we pass the function pointers by value directly to the thread pool capturing a future value from `make_data` and utilizing the `task_pool` to efficiently wait for this data to be available before processing it in the call to `process_data`.
 
-Our program now has a chance to exit before calling the second task and this can be futher improved by as we will see later on but first...
-&nbsp;
-
-### More callable types
-
+Our program now has a chance to exit before calling the second task and this can be futher improved as we will see later on. 
 
 ```cpp
 struct data;
@@ -67,27 +63,6 @@ void process_frame( data& frame) {
 }
 ```
 Here we have a user defined type and we pass its `run` function pointer by value along with pointers to the instances we wish to execute the method on. Additionally a reference to some data structure is passed to the processors. With member functions as well as when passing data by references we need to make sure we are careful to observe the lifetime requirements of our dataset.
-
-&nbsp;
-
-We can of course also simply pass callable types by value just like lambdas, even when they have elaborate call operators.
-```cpp
-
-struct Data
-{
-    int value;
-};
-struct Work
-{
-    template< typename WorkType>
-    auto operator()( WorkType data ) {
-        return data.value;
-    }
-};
-auto result = pool.submit( Work{}, Data{ 42 } );
-```
-
-Here `task_pool` will check that `Work::operator()( Data )` is a valid function call prior to submitting and will generate compilation error in the case it is not.
 
 &nbsp;
 ## Return values
@@ -274,7 +249,7 @@ As `be::task_pool`s pipe implementation utilizes the lazy task arguments we read
 
 This type contains only a reference to the executing pool and the `Future` of the previous stage. When a new stage is added this future is moved into the task_pool as a lazy argument and as such the resulting temporaries require very little storage. There is only ever one future on the loose that can control the conclusion of the entire pipeline.
 
-Pipe object that hold valid futures will call `Future::wait()` on destruction which means that uncaptured pipelines will safely block as if they where direct function calls.
+Pipe object that hold valid futures will call `Future::wait()` on destruction which means that uncaptured pipelines will safely block as if they where direct function calls while allowing cancellation.
 ```cpp
 int main()
 {
@@ -283,7 +258,7 @@ int main()
     return 0;
 }
 ```
-The program above will safely execute the entire pipeline before returning. As the last binary operator concludes it leaves a temporary Pipe object that owns a valid future and since the destrcution of this temporary must occur prior to executing the next line we are guarenteed no dangling work is left over when returning.
+As the last binary operator concludes it leaves a temporary Pipe object that owns a valid future and since the destruction of this temporary must occur prior to executing the next expression we are guarenteed no dangling work is left over when returning.
 
 `Pipe` objects that are captured are also `future-like` objects and can as such be used as lazy arguments to other tasks.
 
@@ -299,11 +274,143 @@ int main()
             fmt::print("Data processing complete! First result: {} Second result: {}\n", x, y);
         }, std::move(pipe_one),std::move(pipe_two) );
     }
-    pool.wait_for_tasks();
+    pool.wait();
     return 0;
 }
 ```
 Above we use `task_pool`s type erased task storage to safely move the pipelines out of their stack scope to continue doing other work after leaving the scope where they where defined.
+
+## Cooperative cancellation
+
+Task functions may also take a `be::stop_token` by value as their last argument to participate in the libraries support for cooperative cancellation. This type has a boolean conversion operator that will be true only if the pool has signalled abort.
+
+Tasks may use this to break out of contiguous or other long running work allowing the pool to shutdown faster.
+
+```cpp
+be::task_pool pool;
+auto do_until = []( auto timeout, be::stop_token abort ) { 
+    while( !abort && std::chrono::now()<timeout ) {
+        do_work();
+    }
+};
+auto done = pool.submit( &do_until, std::chrono::now()+std::chrono::minutes(10) );
+while ( done.wait(0s) != std::future_status::ready )
+{
+    if ( exit() ) {
+        pool.abort();
+        shutdown();
+    }
+    else {
+        process_events();
+    }
+}
+```
+Above `be::task_pool::abort` will ask running tasks to cancel and if `do_until` did not take and check the `stop_token` the pool may need to wait the full 10 minutes it takes for the task to time out before being allowed to shutdown.
+
+Note that the `stop_token` is not passed as an argument to `submit` as it can detect that `do_until` wants a token and will insert one for it when called.
+
+Stop tokens may also be generated in user code by calling `be::task_pool::get_stop_token` which can be useful when combining multiple asynchronouse systems together.
+
+```cpp
+auto abort = pool.get_stop_token();
+while (!abort)
+{
+    QApplication::instance()->processEvents();
+}
+```
+
+It is of course also possible to use cancellation with the pipe syntax if we can modify the functions to take tokens.  Let's revise our previous pipe example using `be::stop_token`
+
+```cpp
+
+struct LargeData;
+std::vector<LargeData> make_data(be::stop_token);         
+int process_data( std::vector<LargeData>, be::stop_token ); 
+
+bool exit(); // checks some exit condition
+
+int main()
+{
+    be::task_pool pool;
+    auto pipe = pool | api::make_data | log_data | api::process_data;
+    while( pipe.wait_for(0s) != std::future_status::ready ) {
+        std:;this_thread::sleep_for(1ms)
+        if (exit()) {
+            pool.abort();
+        }
+    };
+    return 0;
+}
+```
+Here our task functions take `be::stop_token` and lets assume they use them to break out quickly from their running work. When the `exit()` condition is true we call abort which sets the token stopping any current work. All dependent futures will unblock allowing the while loop to exit.
+
+&nbsp;
+
+## Initialization and lifetime
+  
+Default constructed task_pool objects will hold the amount of threads return by [`std::thread::hardware_concurrency`](https://en.cppreference.com/w/cpp/thread/thread/hardware_concurrency). This would typically be the amount of concurrent task a system can support in hardware.
+
+To create a pool with a different amount of threads you may provide the desired amount of threads to the task_pool constructor.
+
+```cpp
+be::task_pool pool(1);
+```
+
+Task pool thread counts may be changed during the lifetime of the pool instance but not while the pool is executing tasks. To query the amount of threads currently used by a pool call `be::task_pool::get_thread_count` and to change the thread count call `be::task_pool::reset` with your desired amount of threads.
+
+```cpp
+be::task_pool pool(1);
+// some time later
+if ( pool.get_thread_count() < 8 ) {
+    pool.reset(8);
+}
+```
+`be::task_pool::reset` will block threads attempting to submit new tasks while waiting for current tasks to finish so should not be used during time sensitive program sections.
+
+When a `task_pool` is destroyed it will ensure only that the currently executing tasks finish so its is up to the user to ensure destruction occurs only after desired workload is completed.
+
+```cpp
+
+struct work_item
+{
+    void operator()();
+};
+
+void do_work( std::vector<work_item> const& work) {
+    be::task_pool pool(4);
+    for( auto const& x : work )
+    {
+        pool.submit( x );
+    }
+    pool.wait_for_tasks();
+}
+```
+When destroyed all enqueuing of work is stopped and any running threads are joined disgarding any tasks that have yet to be started. So if the wait statement at the end of `do_work` above is omitted only the work currently executing in the pools four threads would finish processing which is likely not the intended outcome.
+
+Destruction of a `task_pool` also sets the `stop_token`.
+
+```cpp
+void check_data( work_data const&, be::stop_token );
+
+void find_the_anwser( std::vector<work_data> const& data )
+{
+    be::task_pool pool;
+    std::vector<std::future<void>> results(data.size());
+    std::transform( data.begin(), data.end(), results.begin(), []( work_data const& x ) {
+        return pool.submit( &check_data, std::ref(x) );
+    });
+    auto is_ready = []( std:future<void> const& x ) { 
+        return x.wait(0s)==std::future_status::ready; 
+    };
+    while ( std::none_of( results.begin(), results.end(), is_ready ) )
+    {
+        std::this_thread::sleep_for(1ms);
+    }
+}
+```
+When any task of check_data completes we will fall through the while loop and the pool will be destroyed at the end of the function. Because `check_data` takes a `be::stop_token` any running tasks of that function has the ability stop doing work and return early allowing the pool destructor to complete and the `find_the_anwser` function to return to the caller. 
+&nbsp;
+
 
 ## Custom promise types
 
@@ -384,157 +491,40 @@ auto result = pool.submit<Promise>(&process_data, std::move(data));
 ```
 &nbsp;
 
-## Cooperative cancellation
-
-Task functions may also take a `be::stop_token` by value as their last argument to participate in the libraries support for cooperative cancellation. This type has a boolean conversion operator that will be true only if the pool has signalled abort.
-
-Tasks may use this to break out of contiguous or other long running work allowing the pool to shutdown faster.
-
-```cpp
-be::task_pool pool;
-auto do_until = []( auto timeout, be::stop_token abort ) { 
-    while( !abort && std::chrono::now()<timeout ) {
-        do_work();
-    }
-};
-auto done = pool.submit( &do_until, std::chrono::now()+std::chrono::minutes(10) );
-while ( done.wait(0s) != std::future_status::ready )
-{
-    if ( exit() ) {
-        pool.abort();
-        shutdown();
-    }
-    else {
-        process_events();
-    }
-}
-```
-Above `be::task_pool::abort` will ask running tasks to cancel and if `do_until` did not take and check the `stop_token` the pool may need to wait the full 10 minutes it takes for the task to time out before being allowed to shutdown.
-
-Note that the `stop_token` is not passed as an argument to `submit` as it can detect that `do_until` wants a token and will insert one for it when called.
-
-Stop tokens may also be generated in user code by calling `be::task_pool::get_stop_token` which can be useful when combining multiple asynchronouse systems together.
-
-```cpp
-auto abort = pool.get_stop_token();
-while (!abort)
-{
-    QApplication::instance()->processEvents();
-}
-```
-&nbsp;
-
-## Initialization and lifetime
-  
-Default constructed task_pool objects will hold the amount of threads return by [`std::thread::hardware_concurrency`](https://en.cppreference.com/w/cpp/thread/thread/hardware_concurrency). This would typically be the amount of concurrent task a system can support in hardware.
-
-To create a pool with a different amount of threads you may provide the desired amount of threads to the task_pool constructor.
-
-```cpp
-be::task_pool pool(1);
-```
-
-Task pool thread counts may be changed during the lifetime of the pool instance but not while the pool is executing tasks. To query the amount of threads currently used by a pool call `be::task_pool::get_thread_count` and to change the thread count call `be::task_pool::reset` with your desired amount of threads.
-
-```cpp
-be::task_pool pool(1);
-// some time later
-if ( pool.get_thread_count() < 8 ) {
-    pool.reset(8);
-}
-```
-`be::task_pool::reset` will block threads attempting to submit new tasks while waiting for current tasks to finish so should not be used during time sensitive program sections.
-
-When a `task_pool` is destroyed it will ensure only that the currently executing tasks finish so its is up to the user to ensure destruction occurs only after desired workload is completed.
-
-```cpp
-
-struct work_item
-{
-    void operator()();
-};
-
-void do_work( std::vector<work_item> const& work) {
-    be::task_pool pool(4);
-    for( auto const& x : work )
-    {
-        pool.submit( x );
-    }
-    pool.wait_for_tasks();
-}
-```
-When destroyed all enqueuing of work is stopped and any running threads are joined disgarding any tasks that have yet to be started. So if the wait statement at the end of `do_work` above is omitted only the work currently executing in the pools four threads would finish processing which is likely not the intended outcome.
-
-Destruction of a `task_pool` also sets the `stop_token`.
-
-```cpp
-void check_data( work_data const&, be::stop_token );
-
-void find_the_anwser( std::vector<work_data> const& data )
-{
-    be::task_pool pool;
-    std::vector<std::future<void>> results(data.size());
-    std::transform( data.begin(), data.end(), results.begin(), []( work_data const& x ) {
-        return pool.submit( &check_data, std::ref(x) );
-    });
-    auto is_ready = []( std:future<void> const& x ) { 
-        return x.wait(0s)==std::future_status::ready; 
-    };
-    while ( std::none_of( results.begin(), results.end(), is_ready ) )
-    {
-        std::this_thread::sleep_for(1ms);
-    }
-}
-```
-When any task of check_data completes we will fall through the while loop and the pool will be destroyed at the end of the function. Because `check_data` takes a `be::stop_token` any running tasks of that function has the ability stop doing work and return early allowing the pool destructor to complete and the `find_the_anwser` function to return to the caller. 
-&nbsp;
 
 ## Using allocators
 
-Tasks submitted to `be::task_pool` require storage on the heap until the task is invoked and this can become a limiting factor to applications. To help task_pool supports using custom allocators for allocating storage for tasks until executed as well as storing the shared state of the std::futures used to return results.
+Tasks submitted to `be::task_pool` require storage on the heap until the task is invoked and this can become a limiting factor to applications. 
+
+To help task_pool supports using custom allocators.
 
 ```cpp
-struct LargeInputData
-{
-  // Lets picture some large dataset
-};
-LargeInputData generate_data();
 
-struct ComplexResultData
-{
-    // Lets imagine some more large data here
-};
+namespace beans {
+    struct bean;
+    template<typename T = bean>
+    struct pool_allocator;
+}
 
-ComplexResultData process_data( LargeInputData const& );
 ```
-So given some API that operates on non trivial data we may find that we wish to control how the data is allocated in our program and that using some specific custom allocators would help performance in our application.
+First lets assume the `beans` library defines some allocator type that we would like to use. We can use this allocator in our pool to allocate storage for our task wrappers and any storage the given promise types requires by simple taking it as a template parameter when declaring our pool.
 
 ```cpp
-cool_beans::pool_allocator allocator;
-be::task_pool pool;
 
-auto result = pool.submit( std::allocator_arg_t{}, allocator, [work_data = generate_data()]() { 
-    return process_data( work_data );
-} );
+beans::pool_allocator<> alloc(1'000'000);
+be::task_pool_t<beans::pool_allocator> pool(alloc);
+
 ```
-Above we pass a custom allocator to submit which allow it to be used to allocate both the storage for the following task function that captures a potentially large object by value and also the storage needed for returning data asynchronously from `process_data` using a future. `std::allocator_arg_t` is an empty class used only to disambiguate the overloads to `be::task_pool::submit`
 
-Now allocations are in control of `cool_beans` that promises to be much faster then new/delete. 
+Here we initialize our (fictional) allocator with a million beans and then declare that our pool will use this allocator by passing it as a template parameter to `be::task_pool_t` following by constructing our pool taking a reference to the allocator instance. This would likely only be necessary if the allocator is stateful or if it can not be default constructible. 
 
-Additionally if we are able to adapt the signature of our task function `task_pool` can also forward the given allocator to your task function when it executes allowing you to use its to allocate any resources your task requires.
+The default allocator for `be::task_pool_t` is perhaps unsupricingly [`std::allocator`](https://en.cppreference.com/w/cpp/memory/allocator) and it for example can be default constructed and hence does not need to be passed to the constructor. In fact `be::task_pool` that we have been using so far is just a type alias for `be::task_pool_t<std::allocator>`
 
 ```cpp
 
-struct LargeData
-{
-    // lets picture some large data there
-};
-using Allocator = cool_beans::pool_allocator<LargeData>;
-using Vector =  std::vector<LargeData, Allocator>;
+struct LargeData; // lets picture some large data there
 
-Allocator allocator;
-be::task_pool pool;
-
+using Vector =  std::vector<LargeData, beans::pool_allocator<LargeData>>;
 auto make_data = [](std::allocator_arg_t, Allocator const& alloc, std::size_t x) {
     return Vector( x, alloc );
 }
@@ -547,14 +537,16 @@ auto process_data = []( Vector x ) {
     return x;
 }
 
-auto data = pool.submit( std::allocator_arg_t{}, allocator, make_data, 1'000'000 ); 
+auto data = pool.submit( make_data, 1'000'000 ); 
 auto result = pool.submit( process_data, std::move(data)); 
 
 ```
-Here the first task function `make_data` adds the special signature `( std::allocator_arg_t, Allocator const&, ... )` which allows `task_pool::submit` to detect that it wants the task allocator to be passed down and will do so when the function is called allowing the task function to perform any allocations it wants using this allocator. The allocated vector is then passed on by value to the process function. This is made efficient as future input arguments to functions utilize RVO from `std::future::get` to pass resulting value directly to the function call.
 
-The locallity of this example makes it a bit contrived as the allocator could also simply be captured to the lambda to furfill the same end result however we can easily imagine how the allocators, contains and calls to submit may be hidden behind some application API.
+Here the first task function `make_data` adds the special signature `( std::allocator_arg_t, beans::pool_allocator<LargeData> const&, ... )` which allows `task_pool::submit` to detect that it wants the pool allocator to be passed down when it is called. The allocated vector is then passed on by value to the process function. This is made efficient as future input arguments to functions utilize RVO from `std::future::get` to pass resulting value directly to the function call.
 
+`std::allocator_arg_t` is an empty class used only to detect the need to pass an allocator to the task.
+
+&nbsp;
 
 
 [^1]: Futher improvents needed here to reduce copies and temporaries. Currently the most effcient way seems to be to take const reference in the task function and move/construct into the submit call. This will move into the bind expression and the function call will then reference out of this bind expresssion. Yes improvements are possible and will be done.

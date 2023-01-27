@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <exception>
 #include <future>
@@ -114,14 +115,14 @@ struct allocator_value< T, be_void_t< typename std::decay_t< T >::value_type > >
 
 template< std::size_t N,
           typename TupleArgs,
-          std::enable_if_t< std::less< std::size_t >{}( // NOLINT
-                                std::tuple_size< std::decay_t< TupleArgs > >::value, N + 1 ),
+          std::enable_if_t< std::less_equal< std::size_t >{}(
+                                std::tuple_size< std::decay_t< TupleArgs > >::value, N ),
                             bool > = true >
 void nth_allocator_value( TupleArgs& );
 
 template< std::size_t N,
           typename TupleArgs,
-          std::enable_if_t< std::greater< std::size_t >{}(// NOLINT
+          std::enable_if_t< std::greater< std::size_t >{}(
                                 std::tuple_size< std::decay_t< TupleArgs > >::value, N ),
                             bool > = true >
 auto nth_allocator_value( TupleArgs& ) ->
