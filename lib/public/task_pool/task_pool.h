@@ -230,7 +230,7 @@ public:
     {
         reset();
         std::swap( runtime_, other.runtime_ );
-        allocator_ = std::move(other.allocator_);
+        allocator_ = std::move( other.allocator_ );
         return *this;
     }
 
