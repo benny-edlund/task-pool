@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <exception>
 #include <future>
@@ -29,6 +30,35 @@ struct is_one_of< T, T, Ts... > : std::true_type
 template< typename T, typename U, typename... Ts >
 struct is_one_of< T, U, Ts... > : is_one_of< T, Ts... >
 {
+};
+
+template< typename T, typename Functor = std::remove_reference_t< std::remove_cv_t< T > > >
+struct arguments : public arguments< decltype( &Functor::operator() ) >
+{
+};
+
+template< typename R, typename... Args >
+struct arguments< R( Args... ) >
+{
+    using type = typename std::tuple< Args... >;
+};
+
+template< typename R, typename... Args >
+struct arguments< R ( * )( Args... ) >
+{
+    using type = typename std::tuple< Args... >;
+};
+
+template< class C, typename R, typename... Args >
+struct arguments< R ( C::* )( Args... ) >
+{
+    using type = typename std::tuple< Args... >;
+};
+
+template< class C, typename R, typename... Args >
+struct arguments< R ( C::* )( Args... ) const >
+{
+    using type = typename std::tuple< Args... >;
 };
 
 struct stop_token;
@@ -71,7 +101,34 @@ struct contains_allocator_arg : is_one_of< std::allocator_arg_t, Ts... >
 {
 };
 
-template< typename T, typename Functor = std::remove_reference_t< std::remove_cv_t< T > > >
+template< typename T, typename = void >
+struct allocator_value
+{
+    using type = void;
+};
+
+template< typename T >
+struct allocator_value< T, be_void_t< typename std::decay_t< T >::value_type > >
+{
+    using type = typename std::decay_t< T >::value_type;
+};
+
+template< std::size_t N,
+          typename TupleArgs,
+          std::enable_if_t< std::less_equal< std::size_t >{}(
+                                std::tuple_size< std::decay_t< TupleArgs > >::value, N ),
+                            bool > = true >
+void nth_allocator_value( TupleArgs& );
+
+template< std::size_t N,
+          typename TupleArgs,
+          std::enable_if_t< std::greater< std::size_t >{}(
+                                std::tuple_size< std::decay_t< TupleArgs > >::value, N ),
+                            bool > = true >
+auto nth_allocator_value( TupleArgs& ) ->
+    typename allocator_value< std::tuple_element_t< N, std::decay_t< TupleArgs > > >::type;
+
+template< typename T, typename Functor = std::decay_t< T > >
 struct wants_allocator : public wants_allocator< decltype( &Functor::operator() ) >
 {
 };
@@ -79,21 +136,29 @@ struct wants_allocator : public wants_allocator< decltype( &Functor::operator() 
 template< typename R, typename... Args >
 struct wants_allocator< R( Args... ) > : public contains_allocator_arg< Args... >
 {
+    using value_type =
+        decltype( nth_allocator_value< 1 >( std::declval< std::tuple< Args... >& >() ) );
 };
 
 template< typename R, typename... Args >
 struct wants_allocator< R ( * )( Args... ) > : public contains_allocator_arg< Args... >
 {
+    using value_type =
+        decltype( nth_allocator_value< 1 >( std::declval< std::tuple< Args... >& >() ) );
 };
 
 template< class C, typename R, typename... Args >
 struct wants_allocator< R ( C::* )( Args... ) > : public contains_allocator_arg< Args... >
 {
+    using value_type =
+        decltype( nth_allocator_value< 1 >( std::declval< std::tuple< Args... >& >() ) );
 };
 
 template< class C, typename R, typename... Args >
 struct wants_allocator< R ( C::* )( Args... ) const > : public contains_allocator_arg< Args... >
 {
+    using value_type =
+        decltype( nth_allocator_value< 1 >( std::declval< std::tuple< Args... >& >() ) );
 };
 
 template< typename T, typename = void, typename... Us >
@@ -279,21 +344,74 @@ auto wrap_future_argument( T&& t )
     return func_{ std::forward< T >( t ) };
 }
 
-template< typename Callable, typename Arguments, std::size_t... Is >
-auto invoke_deferred_task( Callable&  callable,
+template< typename Promise,
+          typename Callable,
+          typename Instance,
+          typename Arguments,
+          std::size_t... Is,
+          std::enable_if_t<
+              be_is_void_v< future_api::get_result_t< promise_api::get_future_t< Promise > > > &&
+                  std::is_object< Callable >::value,
+              bool > = true >
+void invoke_deferred_task( Promise&   promise,
+                           Callable   callable,
+                           Instance*  self,
                            Arguments& arguments,
                            std::index_sequence< Is... > /*Is*/ )
 {
-    return callable( std::get< Is >( arguments )()... );
+    callable( *self, std::get< Is >( arguments )()... );
+    promise.set_value();
 }
 
-template< typename Callable, typename Arguments, std::size_t... Is >
-auto invoke_deferred_task( stop_token const& token,
-                           Callable&         callable,
-                           Arguments&        arguments,
+template< typename Promise,
+          typename Callable,
+          typename Instance,
+          typename Arguments,
+          std::size_t... Is,
+          std::enable_if_t<
+              !be_is_void_v< future_api::get_result_t< promise_api::get_future_t< Promise > > > &&
+                  std::is_object< Callable >::value,
+              bool > = true >
+void invoke_deferred_task( Promise&   promise,
+                           Callable   callable,
+                           Instance*  self,
+                           Arguments& arguments,
                            std::index_sequence< Is... > /*Is*/ )
 {
-    return callable( std::get< Is >( arguments )()..., token );
+    promise.set_value( callable( *self, std::get< Is >( arguments )()... ) );
+}
+
+template< typename Promise,
+          typename Callable,
+          typename Arguments,
+          std::size_t... Is,
+          std::enable_if_t<
+              be_is_void_v< future_api::get_result_t< promise_api::get_future_t< Promise > > > &&
+                  std::is_function< std::remove_pointer_t< Callable > >::value,
+              bool > = true >
+void invoke_deferred_task( Promise&   promise,
+                           Callable   callable,
+                           Arguments& arguments,
+                           std::index_sequence< Is... > /*Is*/ )
+{
+    callable( std::get< Is >( arguments )()... );
+    promise.set_value();
+}
+
+template< typename Promise,
+          typename Callable,
+          typename Arguments,
+          std::size_t... Is,
+          std::enable_if_t<
+              !be_is_void_v< future_api::get_result_t< promise_api::get_future_t< Promise > > > &&
+                  std::is_function< std::remove_pointer_t< Callable > >::value,
+              bool > = true >
+void invoke_deferred_task( Promise&   promise,
+                           Callable   callable,
+                           Arguments& arguments,
+                           std::index_sequence< Is... > /*Is*/ )
+{
+    promise.set_value( callable( std::get< Is >( arguments )()... ) );
 }
 
 template< typename Arguments, std::size_t... Is >
@@ -303,5 +421,31 @@ bool check_argument_status( Arguments& arguments, std::index_sequence< Is... > /
     return std::all_of(
         args_status.begin(), args_status.end(), []( auto value ) { return value; } );
 }
+
+namespace pipe_api {
+
+template< typename Pipe >
+using pool_t = decltype( Pipe::pool_ );
+
+template< typename Pipe >
+using future_t = decltype( Pipe::future_ );
+
+} // namespace pipe_api
+
+template< typename T, typename = void >
+struct is_pipe : std::false_type
+{
+};
+
+template< template< typename > class Allocator = std::allocator >
+class task_pool_t;
+template< typename T >
+struct is_pipe< T, be_void_t< pipe_api::pool_t< T >, pipe_api::future_t< T > > >
+    : std::conditional_t< std::is_same< be::task_pool_t<>&, pipe_api::pool_t< T > >::value &&
+                              std::is_move_constructible< T >::value,
+                          std::true_type,
+                          std::false_type >
+{
+};
 
 } // namespace be
