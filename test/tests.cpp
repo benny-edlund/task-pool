@@ -168,7 +168,6 @@ TEST_CASE( "get_tasks_running", "[task_pool]" )
     REQUIRE( pool.get_tasks_running() == 0 );
 }
 
-
 TEST_CASE( "get_tasks_waiting", "[task_pool]" )
 {
     std::atomic_bool started{ false };
@@ -183,7 +182,7 @@ TEST_CASE( "get_tasks_waiting", "[task_pool]" )
         }
         return true;
     } );
-    auto done = pool.submit( []( bool /*yup*/){}, std::move(future) );
+    auto done   = pool.submit( []( bool /*yup*/ ) {}, std::move( future ) );
     while ( !started )
     {
         std::this_thread::sleep_for( 1ms );
