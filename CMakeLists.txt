@@ -124,7 +124,6 @@ add_library(task-pool::project_warnings INTERFACE IMPORTED)
 
 # configure files based on CMake configuration options
 add_subdirectory(configured_files)
-
 add_subdirectory(lib)
 
 # Adding the tests:
@@ -137,6 +136,11 @@ endif()
 option(ENABLE_FUZZING "Enable the fuzz tests" OFF)
 if(ENABLE_FUZZING)
   add_subdirectory(fuzz_test)
+endif()
+
+option(ENABLE_EXAMPLES "Enable the project examples" ON)
+if(ENABLE_EXAMPLES)
+  add_subdirectory(examples)
 endif()
 
 # If MSVC is being used, and ASAN is enabled, we need to set the debugger environment
