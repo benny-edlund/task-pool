@@ -845,8 +845,8 @@ private:
             } )
         {
         }
-        ~task_proxy()                   = default;
-        task_proxy( task_proxy const& ) = delete;
+        ~task_proxy()                              = default;
+        task_proxy( task_proxy const& )            = delete;
         task_proxy& operator=( task_proxy const& ) = delete;
         task_proxy( task_proxy&& other ) noexcept
             : check_task( other.check_task )
@@ -885,11 +885,11 @@ private:
             using FuncType::  operator();
             static bool       is_ready() { return true; }
             Allocator< Task > alloc;
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         Allocator< Task > task_allocator( allocator_ );
         Task*             typed_task =
@@ -945,11 +945,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator_ );
@@ -965,14 +965,12 @@ private:
         return future;
     }
 
-    template<
-        class Promise,
-        typename Func,
-        typename ArgsTuple,
-        typename Future = promise_api::get_future_t< Promise >,
-        typename Return = future_api::get_result_t< Future >,
-        std::enable_if_t< std::is_function< std::remove_pointer_t< Func > >::value, bool > = true >
-
+    template< class Promise,
+              typename Func,
+              typename ArgsTuple,
+              typename Future = promise_api::get_future_t< Promise >,
+              typename Return = future_api::get_result_t< Future >,
+              std::enable_if_t< be::is_function_pointer_v< Func >, bool > = true >
     Future make_defered_task( Promise promise, Func&& task, ArgsTuple args_tuple )
     {
         struct TASKPOOL_HIDDEN Task
@@ -1009,11 +1007,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         auto              future = promise.get_future();
         Allocator< Task > task_allocator( allocator_ );
@@ -1024,6 +1022,72 @@ private:
                                                                task_allocator,
                                                                std::move( promise ),
                                                                std::forward< Func >( task ),
+                                                               std::move( args_tuple ) );
+        ( *runtime_ ).push_task( task_proxy( typed_task ) );
+        return future;
+    }
+
+    template< class Promise,
+              typename Func,
+              typename ArgsTuple,
+              typename Future = promise_api::get_future_t< Promise >,
+              typename Return = future_api::get_result_t< Future >,
+              std::enable_if_t< std::is_member_function_pointer< Func >::value, bool > = true >
+
+    Future make_defered_task( Promise promise, Func task, ArgsTuple args_tuple )
+    {
+        struct TASKPOOL_HIDDEN Task
+        {
+            Allocator< Task > alloc;
+            Func              func_;
+            Promise           promise_;
+            ArgsTuple         arguments_;
+            Task( Allocator< Task > const& a, Promise&& p, Func f, ArgsTuple&& arg )
+                : alloc( a )
+                , func_( f )
+                , promise_( std::move( p ) )
+                , arguments_( std::move( arg ) )
+            {
+            }
+
+            bool is_ready() const
+            {
+                return check_argument_status(
+                    arguments_, std::make_index_sequence< std::tuple_size< ArgsTuple >{} >{} );
+            }
+            auto operator()()
+            {
+                try
+                {
+                    auto self = std::get< 0 >( arguments_ )();
+                    auto args = tail( arguments_ );
+                    invoke_deferred_task(
+                        promise_,
+                        std::mem_fn( func_ ),
+                        self,
+                        args,
+                        std::make_index_sequence< std::tuple_size< decltype( args ) >{} >{} );
+                }
+                catch ( ... )
+                {
+                    promise_.set_exception( std::current_exception() );
+                }
+            }
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
+            Task& operator=( Task const& ) = delete;
+            Task( Task&& ) noexcept        = delete;
+            Task& operator=( Task&& )      = delete;
+        };
+        auto              future = promise.get_future();
+        Allocator< Task > task_allocator( allocator_ );
+        Task*             typed_task =
+            std::allocator_traits< Allocator< Task > >::allocate( task_allocator, 1 );
+        std::allocator_traits< Allocator< Task > >::construct( task_allocator,
+                                                               typed_task,
+                                                               task_allocator,
+                                                               std::move( promise ),
+                                                               task,
                                                                std::move( args_tuple ) );
         ( *runtime_ ).push_task( task_proxy( typed_task ) );
         return future;
@@ -1071,10 +1135,10 @@ private:
             create_threads();
         }
         ~pool_runtime() { destroy_threads(); }
-        pool_runtime( pool_runtime const& ) = delete;
+        pool_runtime( pool_runtime const& )            = delete;
         pool_runtime& operator=( pool_runtime const& ) = delete;
         pool_runtime( pool_runtime&& )                 = delete;
-        pool_runtime& operator=( pool_runtime&& ) = delete;
+        pool_runtime& operator=( pool_runtime&& )      = delete;
 
         void create_threads()
         {

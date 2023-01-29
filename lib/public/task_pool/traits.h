@@ -16,6 +16,10 @@
 
 namespace be {
 
+template< typename Func >
+static constexpr bool is_function_pointer_v =
+    std::is_function< typename std::remove_pointer< Func >::type >::value;
+
 // Thank you Walter
 template< typename T, typename... Ts >
 struct is_one_of;
@@ -387,7 +391,7 @@ template< typename Promise,
           std::size_t... Is,
           std::enable_if_t<
               be_is_void_v< future_api::get_result_t< promise_api::get_future_t< Promise > > > &&
-                  std::is_function< std::remove_pointer_t< Callable > >::value,
+                  is_function_pointer_v< Callable >,
               bool > = true >
 void invoke_deferred_task( Promise&   promise,
                            Callable   callable,
@@ -398,13 +402,25 @@ void invoke_deferred_task( Promise&   promise,
     promise.set_value();
 }
 
+template < std::size_t... Ns , typename... Ts >
+auto tail_impl( std::index_sequence<Ns...> /*Is*/, std::tuple<Ts...>& t )
+{
+   return  std::make_tuple( std::move(std::get<Ns+1U>(t))... );
+}
+
+template < typename... Ts >
+auto tail( std::tuple<Ts...>& t )
+{
+   return  tail_impl( std::make_index_sequence<sizeof...(Ts) - 1U>() , t );
+}
+
 template< typename Promise,
           typename Callable,
           typename Arguments,
           std::size_t... Is,
           std::enable_if_t<
               !be_is_void_v< future_api::get_result_t< promise_api::get_future_t< Promise > > > &&
-                  std::is_function< std::remove_pointer_t< Callable > >::value,
+                  is_function_pointer_v< Callable >,
               bool > = true >
 void invoke_deferred_task( Promise&   promise,
                            Callable   callable,
