@@ -13,3 +13,6 @@ boost/1.78.0
 
 [generators]
 cmake_find_package_multi
+
+[options]
+boost:header_only=True
