@@ -9,6 +9,7 @@ cli11/2.2.0
 libcurl/7.87.0 
 libjpeg-turbo/2.1.4
 fmt/9.1.0
+boost/1.78.0
 
 [generators]
 cmake_find_package_multi

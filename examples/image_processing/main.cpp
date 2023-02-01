@@ -1,12 +1,17 @@
+#include <CLI/CLI.hpp>
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <fmt/core.h>
+#include <fstream>
+#include <ios>
 #include <memory>
 #include <random>
 #include <task_pool/pipes.h>
 #include <task_pool/pool.h>
+#include <turbojpeg.h>
 
 static const std::uint8_t s_max = 255;
 
@@ -35,19 +40,20 @@ class Image
 
 public:
     Image() = delete;
-    explicit Image( dimentions dims ) //NOLINT
+    explicit Image( dimentions dims ) // NOLINT
         : dims_{ dims }
         , pixels_( dims_.size(), pixel{ 0, 0, 0, s_max } )
     {
     }
     dimentions            dims() const noexcept { return dims_; }
-    std::vector< pixel >& data() noexcept { return pixels_; }
+    std::vector< pixel >& pixels() noexcept { return pixels_; }
     explicit              operator bool() const noexcept { return pixels_.size() == dims_.size(); }
 };
 
 struct processor
 {
-    using ptr                        = std::unique_ptr< processor >;
+    using ptr = std::unique_ptr< processor >;
+
     virtual ~processor()             = default;
     virtual Image run( Image ) const = 0;
 
@@ -63,7 +69,7 @@ struct scaler : public processor
 {
     Image run( Image img ) const override
     {
-        fmt::print("Scaler running on Image[{},{}]\n",img.dims().width,img.dims().height);
+        fmt::print( "Scaler running on Image[{},{}]\n", img.dims().width, img.dims().height );
         float f = static_cast< float >( Factor ) / 100.F;
         if ( img )
         {
@@ -73,20 +79,20 @@ struct scaler : public processor
             auto const inv_factor = 1 / f;
             float      w          = 0;
             float      h          = 0;
-            for ( pixel& pix : out.data() )
+            for ( pixel& pix : out.pixels() )
             {
                 std::size_t index =
                     static_cast< std::size_t >( w * inv_factor ) +
                     ( img.dims().width * static_cast< std::size_t >( h * inv_factor ) );
                 assert( index < img.dims().size() ); // NOLINT
-                pix = img.data()[index];
+                pix = img.pixels()[index];
                 if ( static_cast< std::size_t >( ++w ) == out.dims().width )
                 {
                     w = 0;
                     ++h;
                 }
             }
-            fmt::print("Scaler returning Image[{},{}]\n",out.dims().width,out.dims().height);
+            fmt::print( "Scaler returning Image[{},{}]\n", out.dims().width, out.dims().height );
             return out;
         }
         return img;
@@ -97,11 +103,11 @@ struct randomize : public processor
 {
     Image run( Image img ) const override
     {
-        fmt::print("randomize running on Image[{},{}]\n",img.dims().width,img.dims().height);
+        fmt::print( "randomize running on Image[{},{}]\n", img.dims().width, img.dims().height );
         std::random_device                            rd{};
         std::mt19937                                  gen( rd() );
         std::uniform_int_distribution< std::uint8_t > distrib( 0, s_max );
-        std::generate( img.data().begin(), img.data().end(), [&]() {
+        std::generate( img.pixels().begin(), img.pixels().end(), [&]() {
             return pixel{ distrib( gen ), distrib( gen ), distrib( gen ), s_max };
         } );
         return img;
@@ -120,16 +126,16 @@ struct crop : public processor
 {
     Image run( Image img ) const override
     {
-        fmt::print("crop running on Image[{},{}]\n",img.dims().width,img.dims().height);
+        fmt::print( "crop running on Image[{},{}]\n", img.dims().width, img.dims().height );
         Image out( dimentions{ End::x - Start::x, End::y - Start::y } );
         if ( Start::x < img.dims().width && Start::y < img.dims().height &&
              End::x < img.dims().width && End::y < img.dims().height )
         {
             std::size_t w = Start::x;
             std::size_t h = Start::y;
-            for ( auto& pix : out.data() )
+            for ( auto& pix : out.pixels() )
             {
-                pix = img.data()[w + w * h];
+                pix = img.pixels()[w + w * h];
                 if ( ++w == End::x )
                 {
                     w = Start::x;
@@ -137,7 +143,7 @@ struct crop : public processor
                 }
             }
         }
-        fmt::print("crop returning Image[{},{}]\n",out.dims().width,out.dims().height);
+        fmt::print( "crop returning Image[{},{}]\n", out.dims().width, out.dims().height );
         return out;
     }
 };
@@ -148,20 +154,81 @@ std::array< processor::ptr, sizeof...( Task ) > get_workload()
     return { std::unique_ptr< processor >( new Task() )... };
 }
 
-int main() // NOLINT
+auto compress( Image img ) // NOLINT
 {
+    const int         JPEG_QUALITY    = 75;
+    int               width           = static_cast< int >( img.dims().width );
+    int               height          = static_cast< int >( img.dims().height );
+    long unsigned int jpegSize        = 0;
+    unsigned char*    compressedImage = nullptr;
+
+    tjhandle                     jpegCompressor = tjInitCompress();
+    std::vector< unsigned char > raw_image( img.dims().width * img.dims().height * 3 );
+    std::size_t                  i = 0;
+    for ( auto const& pxl : img.pixels() )
+    {
+        raw_image[i++] = pxl.red;
+        raw_image[i++] = pxl.green;
+        raw_image[i++] = pxl.blue;
+    }
+    tjCompress2( jpegCompressor,
+                 raw_image.data(),
+                 width,
+                 0,
+                 height,
+                 TJPF_RGB,
+                 &compressedImage,
+                 &jpegSize,
+                 TJSAMP_444,
+                 JPEG_QUALITY,
+                 TJFLAG_FASTDCT );
+
+    tjDestroy( jpegCompressor );
+
+    return std::make_pair( compressedImage, jpegSize );
+}
+
+unsigned char* write( std::pair< unsigned char*, long unsigned int > data,
+                      std::string const&                             filename )
+{
+    std::ofstream writer;
+    writer.open( filename, std::ios::out | std::ios::binary );
+    // NOLINTNEXTLINE
+    writer.write( reinterpret_cast< char* >( data.first ), std::streamsize( data.second ) );
+    return data.first;
+}
+
+int main( int argc, char** argv ) // NOLINT
+{
+    CLI::App    app;
+    std::string filename;
+    app.add_option( "filename", filename, "Output filename" )->required();
+    CLI11_PARSE( app, argc, argv );
+
     be::task_pool        pool;
-    std::future< Image > result   = pool.submit( []() {
+    std::future< Image > result = pool.submit( []() {
         return Image( dimentions{ s_max, s_max } );
     } );
-    auto                 workload = get_workload< randomize,
+
+    auto workload = get_workload< randomize,
                                   crop< point< 10, 10 >, point< 200, 200 > >, // NOLINT
-                                  scaler< 50 > >(); // NOLINT
+                                  scaler< 50 > >();                           // NOLINT
     for ( auto const& work : workload )
     {
         result = pool.submit( &processor::run, work.get(), std::move( result ) );
     }
-    Image image = result.get(); 
-    fmt::print("Result Image[{},{}]\n",image.dims().width,image.dims().height);
-    return 0;
+    auto jpeg_data = pool.submit( &compress, std::move( result ) );
+    auto jpeg_ptr  = pool.submit( &write, std::move( jpeg_data ), std::ref( filename ) );
+    auto done      = pool.submit( &tjFree, std::move( jpeg_ptr ) );
+    try
+    {
+        done.get();
+        fmt::print( "Result written to {}\n", filename );
+        return 0;
+    }
+    catch ( std::exception const& e )
+    {
+        fmt::print( "Failed to write image [{}]", e.what() );
+        return -1;
+    }
 }
