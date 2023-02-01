@@ -111,6 +111,7 @@ dynamic_project_options(
   --suppress=syntaxError
   --suppress=constParameter # buggy
   --suppress=nullPointer    # buggy
+  --suppress=functionStatic # buggy
   --suppress=constStatement # doesnt like pipes
   --suppress=throwInNoexceptFunction # does not know about new(std::nothrow)
   --inconclusive

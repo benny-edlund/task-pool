@@ -509,10 +509,10 @@ TEST_CASE( "submit with result allocator", "[task_pool][submit][allocator]" )
 {
     std::atomic_bool           called{ false };
     counts                     amounts;
-    counting_allocator< void > alloc( amounts );
+    counting_allocator< int > alloc( amounts );
 
     {
-        be::task_pool_t< counting_allocator > pool( 1, alloc );
+        be::task_pool_t< counting_allocator<int> > pool( 1, alloc );
         pool.pause();
         std::future< int > f;
         {
@@ -1277,8 +1277,8 @@ TEST_CASE( "( allocator, ... ) -> void", "[task_pool][submit][allocator]" )
         actual = data.size();
     };
 
-    std::size_t const                     value_counts = 1000;
-    be::task_pool_t< counting_allocator > pool( allocator );
+    std::size_t const                            value_counts = 1000;
+    be::task_pool_t< counting_allocator< int > > pool( allocator );
     auto result = pool.submit( make_data, std::size_t{ value_counts } );
     pool.wait();
     REQUIRE_NOTHROW( result.get() );
@@ -1301,8 +1301,8 @@ TEST_CASE( "( allocator, ... ) -> void throws", "[task_pool][submit][allocator][
         throw test_exception{};
     };
 
-    std::size_t const                     value_counts = 1000;
-    be::task_pool_t< counting_allocator > pool( allocator );
+    std::size_t const                            value_counts = 1000;
+    be::task_pool_t< counting_allocator< int > > pool( allocator );
     auto result = pool.submit( make_data, std::size_t{ value_counts } );
     pool.wait();
     REQUIRE_THROWS_AS( result.get(), test_exception );
@@ -1328,8 +1328,8 @@ TEST_CASE( "( allocator, ... ) -> size_t", "[task_pool][submit][allocator]" )
         actual = data.size();
     };
 
-    std::size_t const                     value_counts = 1000;
-    be::task_pool_t< counting_allocator > pool( allocator );
+    std::size_t const                            value_counts = 1000;
+    be::task_pool_t< counting_allocator< int > > pool( allocator );
 
     auto result = pool.submit( make_data, std::size_t{ value_counts } );
     pool.wait();
@@ -1352,8 +1352,8 @@ TEST_CASE( "( allocator, ..., stop_token) -> size_t", "[task_pool][submit][alloc
 
     auto process_data = []( data_type&& x ) { return x.size(); };
 
-    std::size_t const                     value_counts = 1000;
-    be::task_pool_t< counting_allocator > pool( allocator );
+    std::size_t const                            value_counts = 1000;
+    be::task_pool_t< counting_allocator< int > > pool( allocator );
     auto data   = pool.submit( make_data, std::size_t{ value_counts } );
     auto result = pool.submit( process_data, std::move( data ) );
     pool.wait();
@@ -1377,8 +1377,8 @@ TEST_CASE( "( allocator, ..., stop_token) -> size_t throws",
 
     auto process_data = []( data_type&& x ) { return x.size(); };
 
-    std::size_t const                     value_counts = 1000;
-    be::task_pool_t< counting_allocator > pool( allocator );
+    std::size_t const                            value_counts = 1000;
+    be::task_pool_t< counting_allocator< int > > pool( allocator );
     auto data   = pool.submit( make_data, std::size_t{ value_counts } );
     auto result = pool.submit( process_data, std::move( data ) );
     pool.wait();
@@ -1397,8 +1397,8 @@ TEST_CASE( "( allocator, ... ) -> void no.2", "[task_pool][submit][allocator]" )
 
     auto process_data = []( data_type&& x ) { return x.clear(); };
 
-    std::size_t const                     value_counts = 1000;
-    be::task_pool_t< counting_allocator > pool( allocator );
+    std::size_t const                            value_counts = 1000;
+    be::task_pool_t< counting_allocator< int > > pool( allocator );
     auto data   = pool.submit( make_data, std::size_t{ value_counts } );
     auto result = pool.submit( process_data, std::move( data ) );
     pool.wait();
@@ -1421,8 +1421,8 @@ TEST_CASE( "( allocator, ..., stop_token ) -> void", "[task_pool][submit][alloca
 
     auto process_data = []( data_type&& x ) { return x.clear(); };
 
-    std::size_t const                     value_counts = 1000;
-    be::task_pool_t< counting_allocator > pool( allocator );
+    std::size_t const                            value_counts = 1000;
+    be::task_pool_t< counting_allocator< int > > pool( allocator );
     auto data   = pool.submit( make_data, std::size_t{ value_counts } );
     auto result = pool.submit( process_data, std::move( data ) );
     pool.wait();
@@ -1449,11 +1449,11 @@ TEST_CASE( "( allocator, future ) -> size_t", "[task_pool][submit][allocator]" )
     auto process_data = []( data_type&& x ) { return x.size(); };
 
     {
-        be::task_pool_t< counting_allocator > pool( allocator );
-        auto                                  get_count = []() { return value_counts; };
-        auto                                  value     = pool.submit( get_count );
-        auto                                  data = pool.submit( make_data, std::move( value ) );
-        auto result                                = pool.submit( process_data, std::move( data ) );
+        be::task_pool_t< counting_allocator< int > > pool( allocator );
+        auto                                         get_count = []() { return value_counts; };
+        auto                                         value     = pool.submit( get_count );
+        auto data   = pool.submit( make_data, std::move( value ) );
+        auto result = pool.submit( process_data, std::move( data ) );
         REQUIRE( value_counts == result.get() ); // doh
         REQUIRE( allocations.allocations > 0 );
         REQUIRE( allocations.constructions > value_counts );
@@ -1475,7 +1475,7 @@ TEST_CASE( "( allocator, future ) -> size_t throws #1", "[task_pool][submit][all
     auto process_data = []( data_type&& x ) { return x.size(); };
 
     {
-        be::task_pool_t< counting_allocator > pool( allocator );
+        be::task_pool_t< counting_allocator< int > > pool( allocator );
 
         auto get_count = []() { return value_counts; };
         auto value     = pool.submit( get_count );
@@ -1500,7 +1500,7 @@ TEST_CASE( "( allocator, future ) -> size_t throws #2", "[task_pool][submit][all
     }; // NOLINT
 
     {
-        be::task_pool_t< counting_allocator > pool( allocator );
+        be::task_pool_t< counting_allocator< int > > pool( allocator );
 
         auto get_count = []() { return value_counts; };
         auto value     = pool.submit( get_count );
@@ -1527,7 +1527,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> void",
     }; // NOLINT
 
     {
-        be::task_pool_t< counting_allocator > pool( allocator );
+        be::task_pool_t< counting_allocator< int > > pool( allocator );
 
         auto get_count = []() { return value_counts; };
         auto value     = pool.submit( get_count );
@@ -1554,7 +1554,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> void throws",
     }; // NOLINT
 
     {
-        be::task_pool_t< counting_allocator > pool( allocator );
+        be::task_pool_t< counting_allocator< int > > pool( allocator );
 
         auto get_count = []() { return value_counts; };
         auto value     = pool.submit( get_count );
@@ -1579,7 +1579,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> size_t throws #1",
                             be::stop_token /*token*/ ) { throw test_exception{}; }; // NOLINT
 
     {
-        be::task_pool_t< counting_allocator > pool( allocator );
+        be::task_pool_t< counting_allocator< int > > pool( allocator );
 
         auto get_count = []() { return value_counts; };
         auto value     = pool.submit( get_count );
@@ -1605,7 +1605,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> size_t",
 
     auto process_data = []( data_type&& x ) { return x.size(); };
 
-    be::task_pool_t< counting_allocator > pool( allocator );
+    be::task_pool_t< counting_allocator< int > > pool( allocator );
 
     auto value  = pool.submit( get_count );
     auto data   = pool.submit( make_data, std::move( value ) );
@@ -1636,7 +1636,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> size_t no.2",
                             data_type&& /*x*/,
                             be::stop_token /*token*/ ) -> std::size_t { throw test_exception{}; };
 
-    be::task_pool_t< counting_allocator > pool( allocator );
+    be::task_pool_t< counting_allocator< int > > pool( allocator );
 
     auto value  = pool.submit( get_count );
     auto data   = pool.submit( make_data, std::move( value ) );
@@ -1664,7 +1664,7 @@ TEST_CASE( "( allocator, future ) -> void", "[task_pool][submit][allocator]" )
 
     auto process_data = []( data_type&& x ) { return x.clear(); };
 
-    be::task_pool_t< counting_allocator > pool( allocator );
+    be::task_pool_t< counting_allocator< int > > pool( allocator );
 
     auto value  = pool.submit( get_count );
     auto data   = pool.submit( make_data, std::move( value ) );
@@ -1695,7 +1695,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> void no.2",
                             data_type&& x,
                             be::stop_token /*token*/ ) { return x.clear(); };
 
-    be::task_pool_t< counting_allocator > pool( allocator );
+    be::task_pool_t< counting_allocator< int > > pool( allocator );
 
     auto value  = pool.submit( get_count );
     auto data   = pool.submit( make_data, std::move( value ) );
@@ -1899,6 +1899,8 @@ TEST_CASE( "pipe temporaries block", "[pipe]" )
 {
     be::task_pool pool;
 
+    static_assert( be::is_pool< be::task_pool >::value, "nop" );
+
     std::atomic_bool called{ false };
     auto             first = [] {
         std::this_thread::sleep_for( 1us );
@@ -1907,14 +1909,17 @@ TEST_CASE( "pipe temporaries block", "[pipe]" )
     auto second = [&]( int ) { called = true; }; // NOLINT
 
     { // if a pipe object is left uncaptured it will call wait() on its future at destruction
-        pool | first | second;
+        auto pipe       = pool | first | second;
     }
     REQUIRE( called );
 }
 
 TEST_CASE( "pipe temporaries blocks", "[pipe]" )
 {
-    be::task_pool    pool;
+    be::task_pool pool;
+
+    static_assert( be::is_pool< be::task_pool >::value, "nop" );
+
     std::atomic_bool called{ false };
     auto             first = [&]() -> int {
         auto when = std::chrono::steady_clock::now() + 1ms;
@@ -1923,7 +1928,11 @@ TEST_CASE( "pipe temporaries blocks", "[pipe]" )
     };
     auto second = [&]( int ) { called = true; }; // NOLINT
 
-    pool | first | second; // destruction of temporary will block to complete
+    auto p          = pool | first | second; // destruction of temporary will block to complete
+    using pipe_type = decltype( p );
+    using pool_type = be::pipe_api::pool_t< pipe_type >;
+    static_assert( be::is_pool< pool_type >::value, "nop" );
+    static_assert( be::is_pipe< pipe_type >::value, "nop" );
     REQUIRE( called );
 }
 

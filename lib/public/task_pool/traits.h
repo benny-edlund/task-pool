@@ -16,6 +16,19 @@
 
 namespace be {
 
+template< class Allocator >
+class task_pool_t;
+
+// template< template< typename, typename... > class Allocator, typename Value, typename... Ts >
+// class task_pool_t< Allocator< Value, Ts... > >;
+
+template< typename T >
+struct is_pool;
+template< template< typename > class T, class U >
+struct is_pool< T< U > > : public std::is_same< T< U >, be::task_pool_t< U > >
+{
+};
+
 template< typename Func >
 static constexpr bool is_function_pointer_v =
     std::is_function< typename std::remove_pointer< Func >::type >::value;
@@ -33,6 +46,16 @@ struct is_one_of< T, T, Ts... > : std::true_type
 };
 template< typename T, typename U, typename... Ts >
 struct is_one_of< T, U, Ts... > : is_one_of< T, Ts... >
+{
+};
+
+template< typename T, typename = void >
+struct is_duration : std::false_type
+{
+};
+
+template< typename T >
+struct is_duration< T, be_void_t< typename T::rep, typename T::period > > : std::true_type
 {
 };
 
@@ -402,16 +425,16 @@ void invoke_deferred_task( Promise&   promise,
     promise.set_value();
 }
 
-template < std::size_t... Ns , typename... Ts >
-auto tail_impl( std::index_sequence<Ns...> /*Is*/, std::tuple<Ts...>& t )
+template< std::size_t... Ns, typename... Ts >
+auto tail_impl( std::index_sequence< Ns... > /*Is*/, std::tuple< Ts... >& t )
 {
-   return  std::make_tuple( std::move(std::get<Ns+1U>(t))... );
+    return std::make_tuple( std::move( std::get< Ns + 1U >( t ) )... );
 }
 
-template < typename... Ts >
-auto tail( std::tuple<Ts...>& t )
+template< typename... Ts >
+auto tail( std::tuple< Ts... >& t )
 {
-   return  tail_impl( std::make_index_sequence<sizeof...(Ts) - 1U>() , t );
+    return tail_impl( std::make_index_sequence< sizeof...( Ts ) - 1U >(), t );
 }
 
 template< typename Promise,
@@ -441,7 +464,7 @@ bool check_argument_status( Arguments& arguments, std::index_sequence< Is... > /
 namespace pipe_api {
 
 template< typename Pipe >
-using pool_t = decltype( Pipe::pool_ );
+using pool_t = typename std::remove_reference< decltype( Pipe::pool_ ) >::type;
 
 template< typename Pipe >
 using future_t = decltype( Pipe::future_ );
@@ -453,15 +476,28 @@ struct is_pipe : std::false_type
 {
 };
 
-template< template< typename > class Allocator = std::allocator >
-class task_pool_t;
 template< typename T >
 struct is_pipe< T, be_void_t< pipe_api::pool_t< T >, pipe_api::future_t< T > > >
-    : std::conditional_t< std::is_same< be::task_pool_t<>&, pipe_api::pool_t< T > >::value &&
+    : std::conditional_t< is_pool< pipe_api::pool_t< T > >::value &&
                               std::is_move_constructible< T >::value,
                           std::true_type,
                           std::false_type >
 {
 };
 
+template< typename T,
+          typename Allocator,
+          std::enable_if_t< !std::is_void< T >::value, bool > = true >
+auto rebind_alloc( Allocator const& x )
+{
+    return typename std::allocator_traits< Allocator >::template rebind_alloc< T >( x );
+}
+
+template< typename T,
+          typename Allocator,
+          std::enable_if_t< std::is_void< T >::value, bool > = true >
+auto rebind_alloc( Allocator const& x )
+{
+    return Allocator( x );
+}
 } // namespace be
