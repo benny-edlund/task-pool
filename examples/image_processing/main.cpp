@@ -57,11 +57,11 @@ struct processor
     virtual ~processor()             = default;
     virtual Image run( Image ) const = 0;
 
-    processor()                              = default;
-    processor( processor const& )            = default;
+    processor()                   = default;
+    processor( processor const& ) = default;
     processor& operator=( processor const& ) = default;
     processor( processor&& )                 = default;
-    processor& operator=( processor&& )      = default;
+    processor& operator=( processor&& ) = default;
 };
 
 template< std::size_t Factor >
