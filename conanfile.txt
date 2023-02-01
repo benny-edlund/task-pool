@@ -16,3 +16,4 @@ cmake_find_package_multi
 
 [options]
 boost:header_only=True
+turbojpeg:shared=True
