@@ -507,12 +507,12 @@ constexpr bool operator!=( const counting_allocator< T >& /*T*/,
 
 TEST_CASE( "submit with result allocator", "[task_pool][submit][allocator]" )
 {
-    std::atomic_bool           called{ false };
-    counts                     amounts;
+    std::atomic_bool          called{ false };
+    counts                    amounts;
     counting_allocator< int > alloc( amounts );
 
     {
-        be::task_pool_t< counting_allocator<int> > pool( 1, alloc );
+        be::task_pool_t< counting_allocator< int > > pool( 1, alloc );
         pool.pause();
         std::future< int > f;
         {
@@ -1912,7 +1912,6 @@ TEST_CASE( "pipe temporaries block", "[pipe]" )
     pool | first | second;
     REQUIRE( called );
 }
-
 
 TEST_CASE( "pipe temporaries throws", "[pipe][throws]" )
 {
