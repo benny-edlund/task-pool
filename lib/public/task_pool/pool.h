@@ -1374,6 +1374,6 @@ private:
     Allocator                       allocator_{};
 };
 
-using task_pool = task_pool_t< std::allocator< char > >;
-extern template class task_pool_t< std::allocator< char > >;
+using task_pool = task_pool_t< std::allocator< void > >;
+extern template class task_pool_t< std::allocator< void > >;
 } // namespace be

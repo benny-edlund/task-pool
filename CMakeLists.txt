@@ -138,7 +138,7 @@ if(ENABLE_FUZZING)
   add_subdirectory(fuzz_test)
 endif()
 
-option(ENABLE_EXAMPLES "Enable the project examples" ON)
+option(ENABLE_EXAMPLES "Enable the project examples" OFF)
 if(ENABLE_EXAMPLES)
   add_subdirectory(examples)
 endif()

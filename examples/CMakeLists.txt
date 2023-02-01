@@ -1,2 +1,4 @@
 add_subdirectory(image_processing)
-add_subdirectory(webserver)
+if ( UNIX )
+    add_subdirectory(webserver)
+endif()

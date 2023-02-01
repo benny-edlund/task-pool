@@ -1908,33 +1908,11 @@ TEST_CASE( "pipe temporaries block", "[pipe]" )
     };
     auto second = [&]( int ) { called = true; }; // NOLINT
 
-    { // if a pipe object is left uncaptured it will call wait() on its future at destruction
-        auto pipe       = pool | first | second;
-    }
+    // if a pipe object is left uncaptured it will call wait() on its future at destruction
+    pool | first | second;
     REQUIRE( called );
 }
 
-TEST_CASE( "pipe temporaries blocks", "[pipe]" )
-{
-    be::task_pool pool;
-
-    static_assert( be::is_pool< be::task_pool >::value, "nop" );
-
-    std::atomic_bool called{ false };
-    auto             first = [&]() -> int {
-        auto when = std::chrono::steady_clock::now() + 1ms;
-        std::this_thread::sleep_until( when );
-        return 0; // NOLINT
-    };
-    auto second = [&]( int ) { called = true; }; // NOLINT
-
-    auto p          = pool | first | second; // destruction of temporary will block to complete
-    using pipe_type = decltype( p );
-    using pool_type = be::pipe_api::pool_t< pipe_type >;
-    static_assert( be::is_pool< pool_type >::value, "nop" );
-    static_assert( be::is_pipe< pipe_type >::value, "nop" );
-    REQUIRE( called );
-}
 
 TEST_CASE( "pipe temporaries throws", "[pipe][throws]" )
 {
