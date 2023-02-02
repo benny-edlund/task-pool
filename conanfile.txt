@@ -1,8 +1,8 @@
 # Docs at https://docs.conan.io/en/latest/reference/conanfile_txt.html
 
 [requires]
+# for tests
 catch2/2.13.9
-
 
 [generators]
 cmake_find_package_multi

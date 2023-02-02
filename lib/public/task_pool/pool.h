@@ -837,8 +837,8 @@ private:
             } )
         {
         }
-        ~task_proxy()                              = default;
-        task_proxy( task_proxy const& )            = delete;
+        ~task_proxy()                   = default;
+        task_proxy( task_proxy const& ) = delete;
         task_proxy& operator=( task_proxy const& ) = delete;
         task_proxy( task_proxy&& other ) noexcept
             : check_task( other.check_task )
@@ -869,7 +869,7 @@ private:
     {
         struct TASKPOOL_HIDDEN Task : FuncType
         {
-            using TaskAllocator = decltype( rebind_alloc<Task>( std::declval<Allocator>() ) );
+            using TaskAllocator = decltype( rebind_alloc< Task >( std::declval< Allocator >() ) );
             Task( TaskAllocator const& a, Func&& f )
                 : FuncType( std::forward< Func >( f ) )
                 , alloc( a )
@@ -878,11 +878,11 @@ private:
             using FuncType::operator();
             static bool     is_ready() { return true; }
             TaskAllocator   alloc;
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
 
         typename Task::TaskAllocator task_allocator( allocator_ );
@@ -941,11 +941,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         auto                         future = promise.get_future();
         typename Task::TaskAllocator task_allocator( allocator_ );
@@ -1006,11 +1006,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         auto                         future = promise.get_future();
         typename Task::TaskAllocator task_allocator( allocator_ );
@@ -1075,11 +1075,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()                        = default;
-            Task( Task const& )            = delete;
+            ~Task()             = default;
+            Task( Task const& ) = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& )      = delete;
+            Task& operator=( Task&& ) = delete;
         };
         auto                         future = promise.get_future();
         typename Task::TaskAllocator task_allocator( allocator_ );
@@ -1136,10 +1136,10 @@ private:
             create_threads();
         }
         ~pool_runtime() { destroy_threads(); }
-        pool_runtime( pool_runtime const& )            = delete;
+        pool_runtime( pool_runtime const& ) = delete;
         pool_runtime& operator=( pool_runtime const& ) = delete;
         pool_runtime( pool_runtime&& )                 = delete;
-        pool_runtime& operator=( pool_runtime&& )      = delete;
+        pool_runtime& operator=( pool_runtime&& ) = delete;
 
         void create_threads()
         {
@@ -1374,6 +1374,6 @@ private:
     Allocator                       allocator_{};
 };
 
-using task_pool = task_pool_t< std::allocator< char > >;
-extern template class task_pool_t< std::allocator< char > >;
+using task_pool = task_pool_t< std::allocator< void > >;
+extern template class task_pool_t< std::allocator< void > >;
 } // namespace be

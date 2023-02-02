@@ -159,6 +159,32 @@
             }
         },
         {
+            "name": "unixlike-gcc-coverage",
+            "displayName": "gcc coverage",
+            "description": "Target Unix-like OS with the gcc compiler, debug build type with coverage",
+            "inherits": "conf-unixlike-common",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ENABLE_DEVELOPER_MODE": "OFF",
+                "ENABLE_COVERAGE" :"ON"
+            }
+        },
+        {
+            "name": "unixlike-gcc-examples",
+            "displayName": "gcc examples",
+            "description": "Target Unix-like OS with the gcc compiler, debug build type with examples",
+            "inherits": "conf-unixlike-common",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ENABLE_DEVELOPER_MODE": "OFF",
+                "ENABLE_EXAMPLES": "ON"
+            }
+        },
+        {
             "name": "unixlike-clang-debug",
             "displayName": "clang Debug",
             "description": "Target Unix-like OS with the clang compiler, debug build type",
@@ -250,5 +276,20 @@
             "inherits": "test-common",
             "configurePreset": "unixlike-clang-release"
         }
+    ],
+    "buildPresets": [
+        {
+            "name": "developer",
+            "description": "Default developer mode",
+            "displayName": "DEV",
+            "configurePreset": "unixlike-gcc-debug"
+        },
+        {
+            "name": "Coverage",
+            "description": "Debug build with coverage",
+            "displayName": "COV",
+            "configurePreset": "unixlike-gcc-coverage"
+        }
+
     ]
 }

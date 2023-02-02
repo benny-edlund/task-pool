@@ -32,7 +32,7 @@ auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func, Args&&... args 
                 future_.wait();
             }
         }
-        pipe_( pipe_ const& )            = delete;
+        pipe_( pipe_ const& ) = delete;
         pipe_& operator=( pipe_ const& ) = delete;
         pipe_( pipe_&& x ) noexcept
             : pool_( x.pool_ )
