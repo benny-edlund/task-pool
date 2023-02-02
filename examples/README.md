@@ -1,8 +1,8 @@
 # Task pool examples
-As most examples in tests and the documentation are rather contrived these examples here are provided to show task-pool workflows in real applications that actually do something real.
+As most examples in tests and the documentation are rather contrived these examples here are provided to show task-pool workflows in real applications that actually do something.
 
 ## Building
-First build the task-pool and install to some temporary location
+First build task-pool and install to some temporary location
 
 ```bash
 git clone https://github.com/benny-edlund/task-pool.git

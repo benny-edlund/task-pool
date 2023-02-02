@@ -2078,6 +2078,27 @@ TEST_CASE( "pipe with allocator and stop_token", "[pipe][allocator][stop_token]"
     REQUIRE( called );
 }
 
+
+TEST_CASE( "detach pipelines", "[pipe]" )
+{
+    be::task_pool pool;
+
+    std::atomic_bool called{ false };
+    auto             first = [] {
+        std::this_thread::sleep_for( 1us );
+        return 1;
+    };
+
+    auto second = [&]( std::allocator_arg_t /*x*/,
+                       std::allocator< int > const& /*alloc*/,
+                       int /*value*/,
+                       be::stop_token /*token*/ ) { called = true; }; // NOLINT
+    {
+        pool | first | second | be::detach;
+    }
+    REQUIRE( called );
+}
+
 //
 // Task pools are futures!
 //

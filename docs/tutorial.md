@@ -62,7 +62,7 @@ void process_frame( data& frame) {
     }
 }
 ```
-Here we have a user defined type and we pass its `run` function pointer by value along with pointers to the instances we wish to execute the method on. Additionally a reference to some data structure is passed to the processors. With member functions as well as when passing data by references we need to make sure we are careful to observe the lifetime requirements of our dataset.
+Here we have a user defined type and we pass its `run` function pointer by value along with pointers to the instances we wish to execute the method on. Additionally a reference to some data structure is passed to the processors. With member functions as well as when passing data by references we need to make sure we are careful to observe the lifetime requirements of our dataset. It is typically safer to build value orient pipelines in asynchronous applications when ever possible.
 
 &nbsp;
 ## Return values
@@ -76,7 +76,7 @@ auto result = pool.submit( task );
 auto the_awnser = result.get();
 ```
 
-When using `task_pool` it is only required to capture the futures of tasks that return values however using `std::future<void>`from functions that do not return values to check for task completions using its  [`std::future::wait_for`](https://en.cppreference.com/w/cpp/thread/future/wait_for) API is still recommended as it is typically well optimized by compilers.
+When using `task_pool` it is only required to capture the futures of tasks that return values however using `std::future<void>`from functions that do not return values to check for task completions using its  [`std::future::wait_for`](https://en.cppreference.com/w/cpp/thread/future/wait_for) API is still recommended for a fork-join workflow and is typically well optimized by compilers.
 
 ```cpp
 be::task_pool pool;
@@ -117,7 +117,7 @@ void do_work( work_data& data ) {
 ```
 This example will compile however the task function will not operate on the work_data value referenced into the `do_work` function. This is because the underlying bind expression must copy the `work_data` value passed by reference to submit into the task storage and when executed the task will reference this data instead.
 
-The solution may be to use a [std::reference_wrapper](https://en.cppreference.com/w/cpp/utility/functional/reference_wrapper) value to hold the reference to the origial `work_data`.
+A solution can be to use a [std::reference_wrapper](https://en.cppreference.com/w/cpp/utility/functional/reference_wrapper) value to hold the reference to the origial `work_data` however life time rules must be carefully observed.
 
 ```cpp
 void process_data( work_data& );
@@ -153,7 +153,7 @@ while( result.wait_for(0s) != std::future_status::ready) {
 ```
 In this slightly contrived exampled some external api is used to generate and process `LargeData` objects supposedly in an asynchronous way that is out of our control. 
 
-Instead of using an entire thread to wait for `future_data` to be ready we can immediately submit this future with the data processor to the pool and it will use the wait time in the pool to check when the future is ready and start the processing function as promptly as possible.
+Instead of using an entire thread to wait for `future_data` to be ready we can immediately submit this future with the data processor to the pool and it will use the wait time in the pool to check when the future is ready and dispatch the function as promptly as possible.
 
 This works for all future-like objects. [^2]
 
@@ -243,11 +243,11 @@ int main()
 }
 
 ```
-The code using the standard api quickly becomes a lot more involved to read and verify as more lines need to change and more data dependencies need to be understood. The version using pipes in contrast features a single addition in the pipeline that is neatly diffirentiated from its previous iteration.
+The code using the standard api quickly becomes a lot more involved to read as more lines have changed and more data dependencies need to be understood. The version using pipes in contrast features a single addition in the pipeline that is neatly differentiated from its previous iteration.
 
-As `be::task_pool`s pipe implementation utilizes the lazy task arguments we read about previously to pass values between pipeline stages it also quite naturally falls into value oriented programing which is a much safer way to structure asynchronous programs. Functions used in such a pipeline can simply take and return inputs by value and `be::task_pool` will convert these into futures passed lazily between stages using `submit` by wrapping each stage into a dynamically generated type that suits the function, the `Pipe`. 
+As the pipe implementation utilizes the lazy task arguments we read about previously to pass values between pipeline stages it also quite naturally falls into value oriented programing which is a much safer way to structure asynchronous programs. Functions used in such a pipeline can simply take and return inputs by value and `be::task_pool` will convert these into futures passed lazily between stages using `submit` by wrapping each stage into a dynamically generated type that suits the function, the `Pipe`. 
 
-This type contains only a reference to the executing pool and the `Future` of the previous stage. When a new stage is added this future is moved into the task_pool as a lazy argument and as such the resulting temporaries require very little storage. There is only ever one future on the loose that can control the conclusion of the entire pipeline.
+This type contains only a reference to the executing pool and the `Future` of the previous stage. When a new stage is added this future is moved into the task_pool as a lazy argument and as such the resulting temporaries require very little storage. There is only ever one future on the loose that can control the conclusion of the entire pipeline to to that point.
 
 Pipe object that hold valid futures will call `Future::wait()` on destruction which means that uncaptured pipelines will safely block as if they where direct function calls while allowing cancellation.
 ```cpp
@@ -259,6 +259,18 @@ int main()
 }
 ```
 As the last binary operator concludes it leaves a temporary Pipe object that owns a valid future and since the destruction of this temporary must occur prior to executing the next expression we are guarenteed no dangling work is left over when returning.
+
+If desired pipelines may be detached from the current stack scope by chaining on `be::detach` to end of a pipeline
+
+```cpp
+void queue_process( be::task_pool& pool, Data x )
+{
+    pool | [data=std::move(x)]{ return data; } | log_data | api::process_data | be::detach;
+}
+```
+
+Now calls to `queue_process` will not block until the pipeline is completed before returning. Assuming no data is needed to be return from `api::process_data` this would still be safe with regards to the `Data` variable passed into the queue function.
+
 
 `Pipe` objects that are captured are also `future-like` objects and can as such be used as lazy arguments to other tasks.
 
@@ -511,20 +523,20 @@ First lets assume the `beans` library defines some allocator type that we would 
 
 ```cpp
 
-beans::pool_allocator<> alloc(1'000'000);
-be::task_pool_t<beans::pool_allocator> pool(alloc);
+beans::pool_allocator<LargeData> alloc(1'000'000);
+be::task_pool_t<beans::pool_allocator<LargeData>> pool(alloc);
 
 ```
 
 Here we initialize our (fictional) allocator with a million beans and then declare that our pool will use this allocator by passing it as a template parameter to `be::task_pool_t` following by constructing our pool taking a reference to the allocator instance. This would likely only be necessary if the allocator is stateful or if it can not be default constructible. 
 
-The default allocator for `be::task_pool_t` is perhaps unsupricingly [`std::allocator`](https://en.cppreference.com/w/cpp/memory/allocator) and it for example can be default constructed and hence does not need to be passed to the constructor. In fact `be::task_pool` that we have been using so far is just a type alias for `be::task_pool_t<std::allocator>`
+The default allocator for `be::task_pool_t` is perhaps unsupricingly [`std::allocator`](https://en.cppreference.com/w/cpp/memory/allocator) and it for example can be default constructed and hence does not need to be passed to the constructor. In fact `be::task_pool` that we have been using so far is just a type alias for `be::task_pool_t<std::allocator<void>>`
 
 ```cpp
 
 struct LargeData; // lets picture some large data there
 
-using Vector =  std::vector<LargeData, beans::pool_allocator<LargeData>>;
+using Vector =  std::vector<LargeData, beans::pool_allocator<LargeData>;
 auto make_data = [](std::allocator_arg_t, Allocator const& alloc, std::size_t x) {
     return Vector( x, alloc );
 }
