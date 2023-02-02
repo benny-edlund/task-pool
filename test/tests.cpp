@@ -2096,6 +2096,7 @@ TEST_CASE( "detach pipelines", "[pipe]" )
     {
         pool | first | second | be::detach;
     }
+    pool.wait();
     REQUIRE( called );
 }
 
