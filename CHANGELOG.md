@@ -5,6 +5,7 @@ Refined api after trials with various of allocator implementations.
   * Allowing the pool to be defined using only the allocator template was convinient however ultimately unhelpful when rebinding allocators that require many template arguments. This required a interface change to the pool class and hence bumps the major version but there are no interface changes other then this so v2.0 code will be source compatible.
 * Corrected detection of member function pointers used as task with lazy arguments.
   * This was a blind spot in the test suite
+* Allowing pipelines to be explicitly detatched
 * Added some example applications
 
 # v2.0
