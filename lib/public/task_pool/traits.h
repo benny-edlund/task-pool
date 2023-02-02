@@ -488,16 +488,10 @@ struct is_pipe< T, be_void_t< pipe_api::pool_t< T >, pipe_api::future_t< T > > >
 template< typename T,
           typename Allocator,
           std::enable_if_t< !std::is_void< T >::value, bool > = true >
-auto rebind_alloc( Allocator const& x )
-{
-    return typename std::allocator_traits< Allocator >::template rebind_alloc< T >( x );
-}
+auto rebind_alloc( Allocator const& x ) -> typename std::allocator_traits< Allocator >::template rebind_alloc< T >;
 
 template< typename T,
           typename Allocator,
           std::enable_if_t< std::is_void< T >::value, bool > = true >
-auto rebind_alloc( Allocator const& x )
-{
-    return Allocator( x );
-}
+auto rebind_alloc( Allocator const& x ) -> Allocator;
 } // namespace be
