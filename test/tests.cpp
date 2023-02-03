@@ -1179,12 +1179,12 @@ void func_run_( int value, std::atomic_bool& called )
 }
 TEST_CASE( "submit( f(free func), instance, future )->int ", "[task_pool][submit]" )
 {
-    std::atomic_bool   called{ false };
-    const int          expected = 42;
-    be::task_pool      pool( 1 );
-    auto               fun_a  = []( int x ) -> int { return x; };
-    std::future< int > future = pool.submit( fun_a, expected );
-    std::future< void > result = pool.submit( &func_run_, std::move( future ), std::ref(called) );
+    std::atomic_bool    called{ false };
+    const int           expected = 42;
+    be::task_pool       pool( 1 );
+    auto                fun_a  = []( int x ) -> int { return x; };
+    std::future< int >  future = pool.submit( fun_a, expected );
+    std::future< void > result = pool.submit( &func_run_, std::move( future ), std::ref( called ) );
     REQUIRE_NOTHROW( result.get() );
     REQUIRE( called );
 }
@@ -2077,7 +2077,6 @@ TEST_CASE( "pipe with allocator and stop_token", "[pipe][allocator][stop_token]"
     }
     REQUIRE( called );
 }
-
 
 TEST_CASE( "detach pipelines", "[pipe]" )
 {

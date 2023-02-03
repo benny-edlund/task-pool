@@ -43,7 +43,7 @@ auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func, Args&&... args 
                 future_.wait();
             }
         }
-        pipe_( pipe_ const& )            = delete;
+        pipe_( pipe_ const& ) = delete;
         pipe_& operator=( pipe_ const& ) = delete;
         pipe_( pipe_&& x ) noexcept
             : pool_( x.pool_ )
@@ -65,11 +65,11 @@ auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func, Args&&... args 
                   pool.submit( std::forward< Func >( func ), std::forward< Args >( args )... ) );
 }
 
-template<
-    typename TaskPool,
-    typename Func,
-    std::enable_if_t< is_pool< TaskPool >::value && !std::is_same< std::decay_t<Func>, be::detach_t >::value,
-                      bool > = true >
+template< typename TaskPool,
+          typename Func,
+          std::enable_if_t< is_pool< TaskPool >::value &&
+                                !std::is_same< std::decay_t< Func >, be::detach_t >::value,
+                            bool > = true >
 auto operator|( TaskPool& pool, Func&& f )
 {
     return make_pipe( pool, std::forward< Func >( f ) );
@@ -77,7 +77,8 @@ auto operator|( TaskPool& pool, Func&& f )
 
 template< typename Pipe,
           typename Func,
-          std::enable_if_t< is_pipe< Pipe >::value && !std::is_same< std::decay_t<Func>, be::detach_t >::value,
+          std::enable_if_t< is_pipe< Pipe >::value &&
+                                !std::is_same< std::decay_t< Func >, be::detach_t >::value,
                             bool > = true >
 auto operator|( Pipe&& p, Func&& f )
 {
