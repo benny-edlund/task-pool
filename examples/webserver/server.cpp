@@ -154,13 +154,13 @@ void tcp_server::serve_forever()
     {
         // blocking call on main
         auto socket = accept_connection();
-        // offload response to thread
-        auto work = m_pool | [=] { return socket; }  
-                           | &receive_data 
-                           | &parse_request 
-                           | &send_response;
-        // pipes block on destroy so last job we manually submit and disgard the future
-        auto end = m_pool.submit( &close_connection, std::move( work ) ); 
+        // offload response to detached pipeline
+        m_pool | [=] { return socket; }  
+               | &receive_data 
+               | &parse_request 
+               | &send_response
+               | &close_connection
+               | be::detach;
     }
 }
 // clang-format on

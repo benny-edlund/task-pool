@@ -1145,6 +1145,50 @@ TEST_CASE( "submit( f, future )->void throws", "[task_pool][submit][throws]" )
     REQUIRE_THROWS_AS( result.get(), test_exception );
 }
 
+struct test_processor
+{
+    int run( int value ) const noexcept // NOLINT
+    {
+        return value;
+    }
+};
+TEST_CASE( "submit( f(member), instance, future )->int ", "[task_pool][submit]" )
+{
+    const int          expected = 42;
+    be::task_pool      pool( 1 );
+    auto               fun_a  = []( int x ) -> int { return x; };
+    std::future< int > future = pool.submit( fun_a, expected );
+    test_processor     instance;
+    std::future< int > result = pool.submit( &test_processor::run, &instance, std::move( future ) );
+    REQUIRE( result.get() == expected );
+}
+TEST_CASE( "submit( f(member), instance, future )->int throws ", "[task_pool][submit][throws]" )
+{
+    const int          expected = 42;
+    be::task_pool      pool( 1 );
+    auto               fun_a  = []( int /*x*/ ) -> int { throw test_exception{}; };
+    std::future< int > future = pool.submit( fun_a, expected );
+    test_processor     instance;
+    std::future< int > result = pool.submit( &test_processor::run, &instance, std::move( future ) );
+    REQUIRE_THROWS_AS( result.get(), test_exception );
+}
+
+void func_run_( int value, std::atomic_bool& called )
+{
+    called = value != 0;
+}
+TEST_CASE( "submit( f(free func), instance, future )->int ", "[task_pool][submit]" )
+{
+    std::atomic_bool    called{ false };
+    const int           expected = 42;
+    be::task_pool       pool( 1 );
+    auto                fun_a  = []( int x ) -> int { return x; };
+    std::future< int >  future = pool.submit( fun_a, expected );
+    std::future< void > result = pool.submit( &func_run_, std::move( future ), std::ref( called ) );
+    REQUIRE_NOTHROW( result.get() );
+    REQUIRE( called );
+}
+
 TEST_CASE( "submit( f, future )->int throws", "[task_pool][submit][throws]" )
 {
     const int          expected = 42;
@@ -2031,6 +2075,27 @@ TEST_CASE( "pipe with allocator and stop_token", "[pipe][allocator][stop_token]"
     {
         pool | first | second;
     }
+    REQUIRE( called );
+}
+
+TEST_CASE( "detach pipelines", "[pipe]" )
+{
+    be::task_pool pool;
+
+    std::atomic_bool called{ false };
+    auto             first = [] {
+        std::this_thread::sleep_for( 1us );
+        return 1;
+    };
+
+    auto second = [&]( std::allocator_arg_t /*x*/,
+                       std::allocator< int > const& /*alloc*/,
+                       int /*value*/,
+                       be::stop_token /*token*/ ) { called = true; }; // NOLINT
+    {
+        pool | first | second | be::detach;
+    }
+    pool.wait();
     REQUIRE( called );
 }
 

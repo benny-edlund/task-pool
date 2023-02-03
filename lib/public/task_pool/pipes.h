@@ -8,6 +8,17 @@
 
 namespace be {
 
+struct detach_t
+{
+    template< typename Pipe, std::enable_if_t< is_pipe< Pipe >::value, bool > = true >
+    auto consume_future( Pipe& pipe ) const noexcept
+    {
+        auto future = std::move( pipe.future_ );
+        return future;
+    }
+};
+static detach_t detach{}; // NOLINT
+
 template< typename Allocator, typename Func, typename... Args >
 auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func, Args&&... args )
 {
@@ -56,16 +67,28 @@ auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func, Args&&... args 
 
 template< typename TaskPool,
           typename Func,
-          std::enable_if_t< is_pool< TaskPool >::value, bool > = true >
+          std::enable_if_t< is_pool< TaskPool >::value &&
+                                !std::is_same< std::decay_t< Func >, be::detach_t >::value,
+                            bool > = true >
 auto operator|( TaskPool& pool, Func&& f )
 {
     return make_pipe( pool, std::forward< Func >( f ) );
 }
 
-template< typename Pipe, typename Func, std::enable_if_t< is_pipe< Pipe >::value, bool > = true >
+template< typename Pipe,
+          typename Func,
+          std::enable_if_t< is_pipe< Pipe >::value &&
+                                !std::is_same< std::decay_t< Func >, be::detach_t >::value,
+                            bool > = true >
 auto operator|( Pipe&& p, Func&& f )
 {
     return make_pipe( p.pool_, std::forward< Func >( f ), std::move( p.future_ ) );
+}
+
+template< typename Pipe, std::enable_if_t< is_pipe< Pipe >::value, bool > = true >
+void operator|( Pipe&& p, detach_t const& x )
+{
+    x.consume_future( p );
 }
 
 } // namespace be
