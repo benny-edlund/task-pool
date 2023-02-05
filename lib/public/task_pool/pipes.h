@@ -13,25 +13,30 @@ struct detach_t
     template< typename Pipe, std::enable_if_t< is_pipe< Pipe >::value, bool > = true >
     auto consume_future( Pipe& pipe ) const noexcept
     {
-        auto future = std::move( pipe.future_ );
-        return future;
+        return static_cast< typename Pipe::future_type >( pipe );
     }
 };
 static detach_t detach{}; // NOLINT
 
 template< typename Allocator, typename Func, typename... Args >
-auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func, Args&&... args )
+TASKPOOL_HIDDEN auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func, Args&&... args )
 {
-    using Future    = decltype( std::declval< be::task_pool_t< Allocator > >().submit(
-        std::declval< Func >(), std::forward< Args >( std::declval< Args >() )... ) );
-    using ValueType = decltype( std::declval< Future >().get() );
-    using StatusType =
-        decltype( std::declval< Future >().wait_for( std::declval< std::chrono::seconds >() ) );
-    struct pipe_
+    struct TASKPOOL_HIDDEN pipe_
     {
-        be::task_pool_t< Allocator >& pool_;
-        Future                        future_;
-        pipe_( be::task_pool_t< Allocator >& x, Future&& y )
+        //
+        // For some reason these following typesdefs are considered unused by clang although they
+        // are most certainly used in the defined class
+        //
+        using future_type    = decltype( std::declval< be::task_pool_t< Allocator > >().submit(
+            std::declval< Func >(), std::forward< Args >( std::declval< Args >() )... ) );
+        using value_type     = decltype( std::declval< future_type >().get() );
+        using status_type    = decltype( std::declval< future_type >().wait_for(
+            std::declval< std::chrono::seconds >() ) );
+        using allocator_type = Allocator;
+
+        be::task_pool_t< allocator_type >& pool_;
+        future_type                        future_;
+        pipe_( be::task_pool_t< allocator_type >& x, future_type&& y )
             : pool_( x )
             , future_( std::move( y ) )
         {
@@ -50,13 +55,15 @@ auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func, Args&&... args 
             , future_( std::move( x.future_ ) ){};
         pipe_& operator=( pipe_&& x ) noexcept = delete;
 
-        void                    wait() const { future_.wait(); }
-        ValueType               get() { return future_.get(); }
-        BE_NODISGARD StatusType wait_for( std::chrono::steady_clock::duration ns ) const
+        explicit operator future_type() noexcept { return std::move( future_ ); }
+
+        void                     wait() const { future_.wait(); }
+        value_type               get() { return future_.get(); }
+        BE_NODISGARD status_type wait_for( std::chrono::steady_clock::duration ns ) const
         {
             return future_.wait_for( ns );
         }
-        BE_NODISGARD StatusType wait_until( std::chrono::steady_clock::time_point ns ) const
+        BE_NODISGARD status_type wait_until( std::chrono::steady_clock::time_point ns ) const
         {
             return future_.wait_until( ns );
         }

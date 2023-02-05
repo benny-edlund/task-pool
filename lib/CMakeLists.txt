@@ -28,8 +28,6 @@ if (UNIX)
   target_link_libraries(task_pool_static PRIVATE pthread)
 endif()
 
-
-
 # Shared library
 add_library(task_pool SHARED task_pool.cpp "${HEADER_LIST}")
 set_target_properties(task_pool PROPERTIES PUBLIC_HEADER "${HEADER_LIST}")
@@ -53,7 +51,6 @@ generate_export_header(
   EXPORT_MACRO_NAME TASKPOOL_API
   NO_EXPORT_MACRO_NAME TASKPOOL_HIDDEN
 )
-
 
 if ( CMAKE_COMPILER_IS_GNUCXX AND ENABLE_COVERAGE )
   target_compile_options(task_pool PRIVATE -g -coverage )

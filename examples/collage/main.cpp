@@ -116,7 +116,7 @@ public:
         other.dims_ = {};
     }
     Image& operator=( Image const& ) = delete;
-    Image& operator=( Image&& other ) noexcept
+    Image& operator                  =( Image&& other ) noexcept
     {
         dims_       = other.dims_;
         other.dims_ = {};
