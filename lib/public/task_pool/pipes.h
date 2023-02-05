@@ -21,11 +21,10 @@ static detach_t detach{}; // NOLINT
 template< typename Allocator, typename Func, typename... Args >
 TASKPOOL_HIDDEN auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func, Args&&... args )
 {
-
     //
     // Regarding Wno-unused-local-typedefs on APPLE. For some reason these following typesdefs are
     // considered unused by apple-clang although they are most certainly used in the defined class
-    // 
+    //
     struct TASKPOOL_HIDDEN pipe_
     {
         using future_type    = decltype( std::declval< be::task_pool_t< Allocator > >().submit(
