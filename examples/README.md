@@ -22,12 +22,12 @@ cmake --build ./build
 ```
 
 
-## image_processing
-(Windows, macOS, Linux)
+## collage
+(macOS, Linux)
 
-This example generates random images and builds a processing pipeline from a polymorphic processor class then compresses the resulting image to jpeg and saves it to disk. The pipeline is build mapping member function pointer onto base instances in the standard api.
+This example generates an image collage by querying Wikipedia using curl in multiple threads. It has an intentially poor design that requires jobs to handle failues and get retried.
 ```bash
-./{build_folder}/image_processing/example_img ./test.jpg
+./{build_folder}/collage/example_collage ./output.jpg
 ```
 
 ## webserver
@@ -35,5 +35,14 @@ This example generates random images and builds a processing pipeline from a pol
 This example contains a hello-world style webserver. It feature building a pipeline with the pipe api to handle requests without sharing any state with the main application.
 ```bash
 ./{build_folder}/webserver/example_http 127.0.0.1 -p 8081
+```
+
+
+## image_processing
+(Windows, macOS, Linux)
+
+This example generates random images and builds a processing pipeline from a polymorphic processor class then compresses the resulting image to jpeg and saves it to disk. The pipeline is build mapping member function pointer onto base instances in the standard api.
+```bash
+./{build_folder}/image_processing/example_img ./test.jpg
 ```
 
