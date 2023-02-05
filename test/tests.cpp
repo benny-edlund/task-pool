@@ -2078,6 +2078,34 @@ TEST_CASE( "pipe with allocator and stop_token", "[pipe][allocator][stop_token]"
     REQUIRE( called );
 }
 
+TEST_CASE( "pipe detatchment using conversion operator", "[pipe]" )
+{
+    be::task_pool pool;
+
+    std::atomic_bool start{ false };
+    std::atomic_bool called{ false };
+    auto             first = [] {
+        std::this_thread::sleep_for( 1us );
+        return 1;
+    };
+
+    auto second = [&]( int /*value*/ ) {
+        while ( !start )
+        {
+            std::this_thread::sleep_for( 1us );
+        }
+        called = true;
+    }; // NOLINT
+    std::future<void> future;
+    {
+        auto pipeline = pool | first | second;
+        future = static_cast<typename decltype(pipeline)::future_type>(pipeline);
+    }
+    start=true;
+    future.wait();
+    REQUIRE( called );
+}
+
 TEST_CASE( "detach pipelines", "[pipe]" )
 {
     be::task_pool pool;
