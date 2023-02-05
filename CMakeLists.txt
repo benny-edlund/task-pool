@@ -97,7 +97,8 @@ dynamic_project_options(
   ENABLE_CONAN
   # CONAN_OPTIONS    # Extra options to pass to conan
   # MSVC_WARNINGS    # Override the defaults for the MSVC warnings
-  # CLANG_WARNINGS   # Override the defaults for the CLANG warnings
+  CLANG_WARNINGS   # Override the defaults for the CLANG warnings
+  -Wno-unused-local-typedefs
   # GCC_WARNINGS     # Override the defaults for the GCC warnings
   CPPCHECK_OPTIONS
   --enable=style,performance,warning,portability
