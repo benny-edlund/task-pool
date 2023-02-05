@@ -29,7 +29,7 @@ if (UNIX)
 endif()
 if (APPLE)
   # see notes in task_pool/pipes.h
-  target_compile_definitions( task_pool_static "Wno-unused-local-typedef" )
+  target_compile_definitions( task_pool_static PRIVATE "Wno-unused-local-typedef" )
 endif()
 
 
@@ -51,7 +51,7 @@ if (UNIX)
 endif()
 if (APPLE)
   # see notes in task_pool/pipes.h
-  target_compile_definitions(task_pool_static  "Wno-unused-local-typedef" )
+  target_compile_definitions(task_pool_static PRIVATE "Wno-unused-local-typedef" )
 endif()
 
 generate_export_header(
