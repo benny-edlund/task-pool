@@ -27,6 +27,10 @@ target_compile_definitions( task_pool_static PUBLIC TASKPOOL_STATIC_DEFINE )
 if (UNIX)
   target_link_libraries(task_pool_static PRIVATE pthread)
 endif()
+if (APPLE)
+  # see notes in task_pool/pipes.h
+  target_compile_definitions( task_pool_static "Wno-unused-local-typedef" )
+endif()
 
 
 
@@ -44,6 +48,10 @@ target_include_directories(task_pool PRIVATE "${CMAKE_BINARY_DIR}/configured_fil
 target_link_libraries( task_pool PRIVATE project_options project_warnings)
 if (UNIX)
   target_link_libraries(task_pool PRIVATE pthread)
+endif()
+if (APPLE)
+  # see notes in task_pool/pipes.h
+  target_compile_definitions(task_pool_static  "Wno-unused-local-typedef" )
 endif()
 
 generate_export_header(
