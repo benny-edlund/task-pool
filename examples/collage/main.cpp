@@ -423,7 +423,7 @@ struct curses_contex
     {
         setlocale( LC_ALL, "" ); // NOLINT (not using return value)
         initscr();
-        nodelay(stdscr, true);
+        nodelay( stdscr, true );
         noecho();
     }
     ~curses_contex() { endwin(); }
@@ -594,12 +594,12 @@ int main( int argc, char** argv ) // NOLINT
             // well yeah...render the ui
             render_ui( status );
             static const int s_esc = 27;
-            if( getch() == s_esc)
+            if ( getch() == s_esc )
             {
-                printw("Stopping...");
+                printw( "Stopping..." );
                 refresh();
                 pool.abort();
-                printw("done\n");
+                printw( "done\n" );
                 pool.reset( 1 );
                 break;
             }
@@ -607,12 +607,12 @@ int main( int argc, char** argv ) // NOLINT
             // want to show we are responsive in the ui
             std::this_thread::sleep_for( 120ms );
         }
-        printw("%s", fmt::format( "Saving output to {} ...", filename ).c_str() );
+        printw( "%s", fmt::format( "Saving output to {} ...", filename ).c_str() );
         refresh();
         auto done = write_file();
         try
         {
-            printw("done!" );
+            printw( "done!" );
             refresh();
             done.get();
         }
