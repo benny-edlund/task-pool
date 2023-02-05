@@ -2096,12 +2096,12 @@ TEST_CASE( "pipe detatchment using conversion operator", "[pipe]" )
         }
         called = true;
     }; // NOLINT
-    std::future<void> future;
+    std::future< void > future;
     {
         auto pipeline = pool | first | second;
-        future = static_cast<typename decltype(pipeline)::future_type>(pipeline);
+        future        = static_cast< typename decltype( pipeline )::future_type >( pipeline );
     }
-    start=true;
+    start = true;
     future.wait();
     REQUIRE( called );
 }
