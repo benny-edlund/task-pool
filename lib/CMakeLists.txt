@@ -27,12 +27,6 @@ target_compile_definitions( task_pool_static PUBLIC TASKPOOL_STATIC_DEFINE )
 if (UNIX)
   target_link_libraries(task_pool_static PRIVATE pthread)
 endif()
-if (APPLE)
-  # see notes in task_pool/pipes.h
-  target_compile_definitions( task_pool_static PRIVATE "Wno-unused-local-typedef" )
-endif()
-
-
 
 # Shared library
 add_library(task_pool SHARED task_pool.cpp "${HEADER_LIST}")
@@ -49,10 +43,6 @@ target_link_libraries( task_pool PRIVATE project_options project_warnings)
 if (UNIX)
   target_link_libraries(task_pool PRIVATE pthread)
 endif()
-if (APPLE)
-  # see notes in task_pool/pipes.h
-  target_compile_definitions(task_pool_static PRIVATE "Wno-unused-local-typedef" )
-endif()
 
 generate_export_header(
   task_pool
@@ -61,7 +51,6 @@ generate_export_header(
   EXPORT_MACRO_NAME TASKPOOL_API
   NO_EXPORT_MACRO_NAME TASKPOOL_HIDDEN
 )
-
 
 if ( CMAKE_COMPILER_IS_GNUCXX AND ENABLE_COVERAGE )
   target_compile_options(task_pool PRIVATE -g -coverage )

@@ -21,18 +21,21 @@ static detach_t detach{}; // NOLINT
 template< typename Allocator, typename Func, typename... Args >
 TASKPOOL_HIDDEN auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func, Args&&... args )
 {
-    //
-    // Regarding Wno-unused-local-typedefs on APPLE. For some reason these following typesdefs are
-    // considered unused by apple-clang although they are most certainly used in the defined class
-    //
     struct TASKPOOL_HIDDEN pipe_
     {
+//
+// For some reason these following typesdefs are considered unused by clang although they are
+// most certainly used in the defined class
+//
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-local-typedefs"
         using future_type    = decltype( std::declval< be::task_pool_t< Allocator > >().submit(
             std::declval< Func >(), std::forward< Args >( std::declval< Args >() )... ) );
         using value_type     = decltype( std::declval< future_type >().get() );
         using status_type    = decltype( std::declval< future_type >().wait_for(
             std::declval< std::chrono::seconds >() ) );
         using allocator_type = Allocator;
+#pragma clang diagnostic pop
 
         be::task_pool_t< allocator_type >& pool_;
         future_type                        future_;
@@ -48,7 +51,7 @@ TASKPOOL_HIDDEN auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func,
                 future_.wait();
             }
         }
-        pipe_( pipe_ const& ) = delete;
+        pipe_( pipe_ const& )            = delete;
         pipe_& operator=( pipe_ const& ) = delete;
         pipe_( pipe_&& x ) noexcept
             : pool_( x.pool_ )
