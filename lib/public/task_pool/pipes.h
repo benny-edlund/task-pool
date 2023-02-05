@@ -24,8 +24,8 @@ TASKPOOL_HIDDEN auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func,
     struct TASKPOOL_HIDDEN pipe_
     {
         //
-        // For some reason these following typesdefs are considered unused by clang although they are
-        // most certainly used in the defined class
+        // For some reason these following typesdefs are considered unused by clang although they
+        // are most certainly used in the defined class
         //
         using future_type    = decltype( std::declval< be::task_pool_t< Allocator > >().submit(
             std::declval< Func >(), std::forward< Args >( std::declval< Args >() )... ) );
