@@ -3,7 +3,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_EXTENSIONS ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(ENABLE_DEVELOPER_MODE OFF CACHE BOOL "Enable 'developer mode'")
+set(ENABLE_DEVELOPER_MODE ON CACHE BOOL "Enable 'developer mode'")
 set(ENABLE_COVERAGE OFF CACHE BOOL "Enable 'coverage mode'")
 set(OPT_WARNINGS_AS_ERRORS_DEVELOPER_DEFAULT OFF)
 
@@ -89,6 +89,7 @@ dynamic_project_options(
   --inconclusive
 )
 
+
 target_compile_features(project_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 # TODO: The INTERFACE library NAMESPACE ALIAS are missing! CK
 add_library(task_pool_examples::project_options INTERFACE IMPORTED)
@@ -97,6 +98,7 @@ add_library(task_pool_examples::project_warnings INTERFACE IMPORTED)
 # configure files based on CMake configuration options
 add_subdirectory(image_processing)
 add_subdirectory(webserver)
+add_subdirectory(collage)
 
 # If MSVC is being used, and ASAN is enabled, we need to set the debugger environment
 # so that it behaves well with MSVC's debugger, and we can run the target from visual studio

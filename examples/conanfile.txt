@@ -7,6 +7,8 @@ libcurl/7.87.0
 libjpeg-turbo/2.1.4
 fmt/9.1.0
 boost/1.78.0
+nlohmann_json/3.11.2
+ncurses/6.3
 
 [generators]
 cmake_find_package_multi
