@@ -423,10 +423,13 @@ struct curses_contex
     {
         setlocale( LC_ALL, "" ); // NOLINT (not using return value)
         initscr();
+        nodelay(stdscr, true);
+        noecho();
     }
     ~curses_contex() { endwin(); }
 };
 
+using namespace std::chrono_literals;
 int main( int argc, char** argv ) // NOLINT
 {
     CLI::App    app;
@@ -484,7 +487,7 @@ int main( int argc, char** argv ) // NOLINT
                 "Building image collage from random Wikipedia articles contigously writing to '%s'",
                 filename.c_str() );
             move( ++row, 0 );
-            printw( "(ctrl-c to stop)" );
+            printw( "(Esc to stop)" );
             ++row;
             move( ++row, 0 );
             auto total   = s_total_queries.load();
@@ -549,7 +552,6 @@ int main( int argc, char** argv ) // NOLINT
         // until we are done
         for ( ;; )
         {
-            using namespace std::chrono_literals;
             if ( sections.empty() )
             {
                 break; // we are done
@@ -576,11 +578,6 @@ int main( int argc, char** argv ) // NOLINT
                 {
                     relaunch.push_back( tile.first );
                 }
-                catch ( std::exception const& e )
-                {
-                    fmt::print( e.what() );
-                    std::terminate(); // we have a bug
-                }
             } );
             // remove successful sections
             sections.erase( new_end, sections.end() );
@@ -596,19 +593,35 @@ int main( int argc, char** argv ) // NOLINT
             }
             // well yeah...render the ui
             render_ui( status );
+            static const int s_esc = 27;
+            if( getch() == s_esc)
+            {
+                printw("Stopping...");
+                refresh();
+                pool.abort();
+                printw("done\n");
+                pool.reset( 1 );
+                break;
+            }
             // We are IO bound on the internet queries so no need to busy check this but still we
             // want to show we are responsive in the ui
             std::this_thread::sleep_for( 120ms );
         }
+        printw("%s", fmt::format( "Saving output to {} ...", filename ).c_str() );
+        refresh();
         auto done = write_file();
         try
         {
+            printw("done!" );
+            refresh();
             done.get();
         }
         catch ( std::exception const& e )
         {
-            fmt::print( "Failed to write image [{}]\n", e.what() );
+            printw( "%s", fmt::format( "Failed to write image [{}]\n", e.what() ).c_str() );
+            refresh();
         }
+        std::this_thread::sleep_for( 2s );
     }
     return 0;
 }
