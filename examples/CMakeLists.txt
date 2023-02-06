@@ -6,6 +6,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(ENABLE_DEVELOPER_MODE ON CACHE BOOL "Enable 'developer mode'")
 set(ENABLE_COVERAGE OFF CACHE BOOL "Enable 'coverage mode'")
 set(OPT_WARNINGS_AS_ERRORS_DEVELOPER_DEFAULT OFF)
+set(WARNINGS_AS_ERRORS_DEVELOPER OFF)
 
 include(FetchContent)
 FetchContent_Declare(_project_options URL https://github.com/aminya/project_options/archive/refs/tags/v0.20.0.zip)

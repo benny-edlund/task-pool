@@ -35,15 +35,17 @@ TASKPOOL_HIDDEN auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func,
         using allocator_type = Allocator;
 
         be::task_pool_t< allocator_type >& pool_;
+        be::stop_token                     abort_;
         future_type                        future_;
         pipe_( be::task_pool_t< allocator_type >& x, future_type&& y )
             : pool_( x )
+            , abort_( x.get_stop_token() )
             , future_( std::move( y ) )
         {
         }
         ~pipe_()
         {
-            if ( future_.valid() )
+            if ( future_.valid() && !abort_ )
             {
                 future_.wait();
             }
@@ -52,6 +54,7 @@ TASKPOOL_HIDDEN auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func,
         pipe_& operator=( pipe_ const& ) = delete;
         pipe_( pipe_&& x ) noexcept
             : pool_( x.pool_ )
+            , abort_( x.abort_ )
             , future_( std::move( x.future_ ) ){};
         pipe_& operator=( pipe_&& x ) noexcept = delete;
 

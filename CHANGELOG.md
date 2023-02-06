@@ -1,5 +1,7 @@
 # Future
 
+- [ ] Use pool syntax to define cancelable groups
+- [x] Fixed bug causing pipelines to block on abort
 - [x] Conversion operator of pipes into futures that steal futures (  static_cast<std::future<T>>(pipe)  )
 - [ ] Pool injection, allow task functions to take a pool reference to generate tasks within the pool. Risky since its easy to deadlock by spawning jobs and then waiting for them to finish while in a job.
 - [x] Added 'collage' example program
