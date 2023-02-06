@@ -3,8 +3,23 @@
 
 The features of this library are certainly not unique and similar implementations can be found in many other libraries as well. What is a bit unique in this library however is that the feature we will cover here are found in a single library that works down to C++14 without relying on any external libraries.
 
+## Basic topics
+* [Typical usage](#typical-useage)
+* [Task types](#task-types)
+* [Return types](#return-values)
+* [Input arguments](#input-arguments)
+* [Life time](#initialization-and-lifetime)
+
+## Advanced topics
+* [Pipelines](#function-composition)
+* [Cancellation](#cooperative-cancellation)
+* [Custom promises](#custom-promise-types)
+* [Allocators](#using-allocators)
+
+
 &nbsp;
-## Basic use
+## Typical useage
+[*back to top*](#tutorial)
 ```cpp
 be::task_pool pool;
 auto task = []() { std::cerr<< "Hello World!\n"; };
@@ -18,6 +33,8 @@ Finally we use `wait` to ensure all tasks submitted to the pool are completed be
 &nbsp;
 
 ## Task types
+[*back to top*](#tutorial)
+
 Most callable value types can be used as a task. Free and member functions pointers can be passed by value. Callable objects such as lambdas and std::function as well as user defined types implementing an appropriate call operator can be passed both by value and by reference as long as relevant life time rules are observed.
 
 
@@ -66,6 +83,7 @@ Here we have a user defined type and we pass its `run` function pointer by value
 
 &nbsp;
 ## Return values
+[*back to top*](#tutorial)
 
 As we have seen any task submitted to a pool returns a [`std::future`](https://en.cppreference.com/w/cpp/thread/future) that can be used to get the result value when its available as the task function returns.
 
@@ -95,6 +113,7 @@ pool.submit( task, 42 ); // this will not compile
 
 &nbsp;
 ## Input arguments
+[*back to top*](#tutorial)
 
 Its possible to pass arguments to tasks when submitting them to the pool. Required arguments for functions are simply passed to `submit` after the function itself. This is for example how we pass the instance pointer to for member functions.
 
@@ -160,6 +179,8 @@ This works for all future-like objects. [^2]
 &nbsp;
 
 ## Function composition
+[*back to top*](#tutorial)
+
 By including `task_pool/pipes.h` applications may use the pipe operator to define pipelines out of descreet functions running in a task_pool. 
 
 This can help readability of your program a lot as it evolves.
@@ -272,7 +293,7 @@ void queue_process( be::task_pool& pool, Data x )
 Now calls to `queue_process` will not block until the pipeline is completed before returning. Assuming no data is needed to be return from `api::process_data` this would still be safe with regards to the `Data` variable passed into the queue function.
 
 
-`Pipe` objects that are captured are also `future-like` objects and can as such be used as lazy arguments to other tasks.
+`Pipe` objects are also `future-like` objects and can as such be used as lazy arguments to other tasks. 
 
 ```cpp
 int main()
@@ -292,7 +313,26 @@ int main()
 ```
 Above we use `task_pool`s type erased task storage to safely move the pipelines out of their stack scope to continue doing other work after leaving the scope where they where defined.
 
+At times it might also be desirable to make other asynchronous systems depend on pipelines and since pipelines cant be named this can be challenging. To help a there is a conversion operator defined that extracts the future type of a pipeline. Once the future has been disgarded the future will fall off the stack if desired.
+
+```cpp
+void continue_from_pipeline( std::future<int> )
+
+int queue_job()
+{
+    be::task_pool pool;
+    auto pipe_one = pool | api::make_data | log_data | api::process_data;
+    auto pipe_two = pool | api::make_data | log_data | api::process_data;
+
+    continue_from_pipeline( static_cast< std::future< int > >(pipe_one) );
+    continue_from_pipeline( static_cast< std::future< int > >(pipe_two) );
+    pool.wait();
+}
+```
+
+
 ## Cooperative cancellation
+[*back to top*](#tutorial)
 
 Task functions may also take a `be::stop_token` by value as their last argument to participate in the libraries support for cooperative cancellation. This type has a boolean conversion operator that will be true only if the pool has signalled abort.
 
@@ -359,6 +399,7 @@ Here our task functions take `be::stop_token` and lets assume they use them to b
 &nbsp;
 
 ## Initialization and lifetime
+[*back to top*](#tutorial)
   
 Default constructed task_pool objects will hold the amount of threads return by [`std::thread::hardware_concurrency`](https://en.cppreference.com/w/cpp/thread/thread/hardware_concurrency). This would typically be the amount of concurrent task a system can support in hardware.
 
@@ -425,6 +466,7 @@ When any task of check_data completes we will fall through the while loop and th
 
 
 ## Custom promise types
+[*back to top*](#tutorial)
 
 As afore mentioned it is possible to use any future-like object as a lazy argument provided they support the same api as std::future.
 ```cpp
@@ -505,6 +547,7 @@ auto result = pool.submit<Promise>(&process_data, std::move(data));
 
 
 ## Using allocators
+[*back to top*](#tutorial)
 
 Tasks submitted to `be::task_pool` require storage on the heap until the task is invoked and this can become a limiting factor to applications. 
 
