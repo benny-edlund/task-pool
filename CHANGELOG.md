@@ -1,10 +1,13 @@
 # Future
 
 - [ ] Use pool syntax to define cancelable groups
-- [x] Fixed bug causing pipelines to block on abort
-- [x] Conversion operator of pipes into futures that steal futures (  static_cast<std::future<T>>(pipe)  )
 - [ ] Pool injection, allow task functions to take a pool reference to generate tasks within the pool. Risky since its easy to deadlock by spawning jobs and then waiting for them to finish while in a job.
-- [x] Added 'collage' example program
+
+# v3.1
+Spending more time on examples using cancellation paid off as it revealed two bugs locking up the pool when using `abort()` if the tasks depended on pipelines with a valid future.
+* Fixed bug causing pipelines to block on abort
+* Conversion operator of pipes into futures that steal futures (  static_cast<std::future<T>>(pipe)  )
+* Added 'collage' example program
 
 # v3.0
 Refined api after trials with various of allocator implementations.
@@ -27,6 +30,7 @@ Refined version reducing overload set by binding allocator to the pool itself an
 * Allow pipeline tasks to take allocators and stop_tokens
 * Changed `task_pool.h` to simply `pool.h`
 * API is now const and noexcept correct ( to the best of my mortal abilities )
+
 # v1.0
 Initial version supporting full set of features
 

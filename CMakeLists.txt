@@ -28,7 +28,7 @@ include(${_project_options_SOURCE_DIR}/Index.cmake)
 # Set the project name and language
 project(
   task_pool
-  VERSION 3.0.0
+  VERSION 3.1.0
   DESCRIPTION ""
   HOMEPAGE_URL "%%https://github.com/benny-edlund/task-pool%%"
   LANGUAGES CXX C)
