@@ -2302,13 +2302,19 @@ TEST_CASE( "Execute in main with dependencies", "[std::launch::deferred]" )
     be::task_pool pool;
 
     std::atomic_bool waiting{ true };
-    auto dependency = pool.submit( std::launch::async, [waiting_ = std::ref( waiting )] {
-        while ( waiting_.get().load() )
-        {
-            std::this_thread::yield();
-        }
-        return true;
-    } );
+    std::atomic_bool dependency_called{ false };
+    auto             dependency = pool.submit(
+        std::launch::async,
+        []( std::atomic_bool& waiting_, std::atomic_bool& dependency_called_ ) {
+            while ( waiting_.load() )
+            {
+                std::this_thread::sleep_for( 1ms );
+            }
+            dependency_called_ = true;
+            return true;
+        },
+        std::ref( waiting ),
+        std::ref( dependency_called ) );
 
     std::atomic_bool called{ false };
     auto             future = pool.submit(
@@ -2319,6 +2325,12 @@ TEST_CASE( "Execute in main with dependencies", "[std::launch::deferred]" )
     pool.invoke_deferred();
     REQUIRE_FALSE( called.load() );
     waiting = false;
+    auto timeout = 10ms;
+    while( timeout.count() > 0 )
+    {
+        timeout -= 1ms;
+        std::this_thread::sleep_for(1ms);
+    }
     pool.invoke_deferred();
     REQUIRE( called.load() );
 }
