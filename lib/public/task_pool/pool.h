@@ -6,6 +6,7 @@
 #include <exception>
 #include <functional>
 #include <future>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <new>
@@ -13,12 +14,12 @@
 #include <task_pool/api.h>
 #include <task_pool/fallbacks.h>
 #include <task_pool/traits.h>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace be {
-
 /**
  * @brief Allows tasks to participate in cooperative cancellation
  *
@@ -79,7 +80,7 @@ public:
      * constructable allocator types.
      *
      */
-    task_pool_t()
+    explicit task_pool_t()
         : task_pool_t( std::thread::hardware_concurrency() )
     {
     }
@@ -334,6 +335,8 @@ public:
         return ( *runtime_ ).task_check_latency_;
     }
 
+    void invoke_deferred() { ( *runtime_ ).invoke_deferred(); }
+
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
      *
@@ -352,24 +355,25 @@ public:
                                     be::is_allocator_constructible< Promise< Return > >::value &&
                                     be_is_void_v< Return > && !wants_allocator_v< Func >,
                                 bool > = true >
-    Future submit( Func&& task, Args&&... args )
+    Future submit( std::launch launch, Func&& task, Args&&... args )
     {
         Promise< Return > promise( std::allocator_arg_t{}, allocator_ );
         auto              task_future = promise.get_future();
         ( *runtime_ )
-            .push_task( make_task( [task_function = std::bind( std::forward< Func >( task ),
+            .push_task( launch,
+                        make_task( [task_function = std::bind( std::forward< Func >( task ),
                                                                std::forward< Args >( args )... ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_function();
-                    task_promise.set_value();
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_function();
+                                task_promise.set_value();
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return task_future;
     }
 
@@ -396,26 +400,27 @@ public:
                                     be::is_allocator_constructible< Promise< Return > >::value &&
                                     be_is_void_v< Return > && wants_allocator_v< Func >,
                                 bool > = true >
-    Future submit( Func&& task, Args&&... args )
+    Future submit( std::launch launch, Func&& task, Args&&... args )
     {
         auto promise     = Promise< Return >( std::allocator_arg_t{}, allocator_ );
         auto task_future = promise.get_future();
         ( *runtime_ )
-            .push_task( make_task( [task_function = std::bind( std::forward< Func >( task ),
+            .push_task( launch,
+                        make_task( [task_function = std::bind( std::forward< Func >( task ),
                                                                std::allocator_arg_t{},
                                                                FunctionAllocator( allocator_ ),
                                                                std::forward< Args >( args )... ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_function();
-                    task_promise.set_value();
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_function();
+                                task_promise.set_value();
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return task_future;
     }
 
@@ -445,27 +450,28 @@ public:
                                     be_is_void_v< Return > && wants_stop_token_v< Func > &&
                                     wants_allocator_v< Func >,
                                 bool > = true >
-    Future submit( Func&& task, Args&&... args )
+    Future submit( std::launch launch, Func&& task, Args&&... args )
     {
         auto promise     = Promise< Return >( std::allocator_arg_t{}, allocator_ );
         auto task_future = promise.get_future();
         ( *runtime_ )
-            .push_task( make_task( [task_function = std::bind( std::forward< Func >( task ),
+            .push_task( launch,
+                        make_task( [task_function = std::bind( std::forward< Func >( task ),
                                                                std::allocator_arg_t{},
                                                                FunctionAllocator( allocator_ ),
                                                                std::forward< Args >( args )...,
                                                                get_stop_token() ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_function();
-                    task_promise.set_value();
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_function();
+                                task_promise.set_value();
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return task_future;
     }
     /**
@@ -486,25 +492,26 @@ public:
                                     be_is_void_v< Return > && wants_stop_token_v< Func > &&
                                     !wants_allocator_v< Func >,
                                 bool > = true >
-    Future submit( Func&& task, Args&&... args )
+    Future submit( std::launch launch, Func&& task, Args&&... args )
     {
         auto promise     = Promise< Return >( std::allocator_arg_t{}, allocator_ );
         auto task_future = promise.get_future();
         ( *runtime_ )
-            .push_task( make_task( [task_function = std::bind( std::forward< Func >( task ),
+            .push_task( launch,
+                        make_task( [task_function = std::bind( std::forward< Func >( task ),
                                                                std::forward< Args >( args )...,
                                                                get_stop_token() ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_function();
-                    task_promise.set_value();
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_function();
+                                task_promise.set_value();
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return task_future;
     }
     /**
@@ -526,23 +533,24 @@ public:
                                     !be_is_void_v< Return > && !wants_allocator_v< Func > &&
                                     !wants_stop_token_v< Func >,
                                 bool > = true >
-    BE_NODISGARD Future submit( Func&& task, Args&&... args )
+    BE_NODISGARD Future submit( std::launch launch, Func&& task, Args&&... args )
     {
         Promise< Return > promise( std::allocator_arg_t{}, allocator_ );
         auto              future = promise.get_future();
         ( *runtime_ )
-            .push_task( make_task( [task_function = std::bind( std::forward< Func >( task ),
+            .push_task( launch,
+                        make_task( [task_function = std::bind( std::forward< Func >( task ),
                                                                std::forward< Args >( args )... ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_promise.set_value( task_function() );
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_promise.set_value( task_function() );
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return future;
     }
 
@@ -570,25 +578,26 @@ public:
                                     be::is_allocator_constructible< Promise< Return > >::value &&
                                     !be_is_void_v< Return > && wants_allocator_v< Func >,
                                 bool > = true >
-    BE_NODISGARD Future submit( Func&& task, Args&&... args )
+    BE_NODISGARD Future submit( std::launch launch, Func&& task, Args&&... args )
     {
         Promise< Return > promise( std::allocator_arg_t{}, allocator_ );
         auto              future = promise.get_future();
         ( *runtime_ )
-            .push_task( make_task( [task_function = std::bind( std::forward< Func >( task ),
+            .push_task( launch,
+                        make_task( [task_function = std::bind( std::forward< Func >( task ),
                                                                std::allocator_arg_t{},
                                                                FunctionAllocator( allocator_ ),
                                                                std::forward< Args >( args )... ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_promise.set_value( task_function() );
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_promise.set_value( task_function() );
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return future;
     }
 
@@ -611,24 +620,25 @@ public:
                                     !be_is_void_v< Return > && wants_stop_token_v< Func > &&
                                     !wants_allocator_v< Func >,
                                 bool > = true >
-    BE_NODISGARD Future submit( Func&& task, Args&&... args )
+    BE_NODISGARD Future submit( std::launch launch, Func&& task, Args&&... args )
     {
         Promise< Return > promise( std::allocator_arg_t{}, allocator_ );
         auto              future = promise.get_future();
         ( *runtime_ )
-            .push_task( make_task( [task_function = std::bind( std::forward< Func >( task ),
+            .push_task( launch,
+                        make_task( [task_function = std::bind( std::forward< Func >( task ),
                                                                std::forward< Args >( args )...,
                                                                get_stop_token() ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_promise.set_value( task_function() );
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_promise.set_value( task_function() );
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return future;
     }
 
@@ -659,26 +669,27 @@ public:
                                     !be_is_void_v< Return > && wants_stop_token_v< Func > &&
                                     wants_allocator_v< Func >,
                                 bool > = true >
-    BE_NODISGARD Future submit( Func&& task, Args&&... args )
+    BE_NODISGARD Future submit( std::launch launch, Func&& task, Args&&... args )
     {
         Promise< Return > promise( std::allocator_arg_t{}, allocator_ );
         auto              future = promise.get_future();
         ( *runtime_ )
-            .push_task( make_task( [task_function = std::bind( std::forward< Func >( task ),
+            .push_task( launch,
+                        make_task( [task_function = std::bind( std::forward< Func >( task ),
                                                                std::allocator_arg_t{},
                                                                FunctionAllocator( allocator_ ),
                                                                std::forward< Args >( args )...,
                                                                get_stop_token() ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_promise.set_value( task_function() );
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_promise.set_value( task_function() );
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return future;
     }
 
@@ -699,9 +710,10 @@ public:
               std::enable_if_t< be::is_promise_v< Promise > &&
                                     contains_future< std::decay_t< Args >... >::value,
                                 bool > = true >
-    BE_NODISGARD Future submit( Func&& task, Args&&... args )
+    BE_NODISGARD Future submit( std::launch launch, Func&& task, Args&&... args )
     {
         return make_defered_task(
+            launch,
             Promise< Return >{ std::allocator_arg_t{}, allocator_ },
             std::forward< Func >( task ),
             std::make_tuple( wrap_future_argument( std::forward< Args >( args ) )... ) );
@@ -731,7 +743,7 @@ public:
                                     !wants_stop_token_v< Func > &&
                                     contains_future< std::decay_t< Args >... >::value,
                                 bool > = true >
-    BE_NODISGARD Future submit( Func&& task, Args&&... args )
+    BE_NODISGARD Future submit( std::launch launch, Func&& task, Args&&... args )
     {
         // note that if task is a member function it can not be forwared the allocator
         // since we use arg0 for the allocator...member functions should likely tie
@@ -740,7 +752,8 @@ public:
             std::make_tuple( wrap_future_argument( std::allocator_arg_t{} ),
                              wrap_future_argument( FunctionAllocator( allocator_ ) ),
                              wrap_future_argument( std::forward< Args >( args ) )... );
-        return make_defered_task( Promise< Return >{ std::allocator_arg_t{}, allocator_ },
+        return make_defered_task( launch,
+                                  Promise< Return >{ std::allocator_arg_t{}, allocator_ },
                                   std::forward< Func >( task ),
                                   std::move( args_tuple ) );
     }
@@ -770,7 +783,7 @@ public:
                                     wants_stop_token_v< Func > &&
                                     contains_future< std::decay_t< Args >... >::value,
                                 bool > = true >
-    BE_NODISGARD Future submit( Func&& task, Args&&... args )
+    BE_NODISGARD Future submit( std::launch launch, Func&& task, Args&&... args )
     {
         // note that if task is a member function it can not be forwared the allocator
         // since we use arg0 for the allocator...member functions should likely tie
@@ -779,7 +792,8 @@ public:
                                            wrap_future_argument( FunctionAllocator( allocator_ ) ),
                                            wrap_future_argument( std::forward< Args >( args ) )...,
                                            wrap_future_argument( get_stop_token() ) );
-        return make_defered_task( Promise< Return >{ std::allocator_arg_t{}, allocator_ },
+        return make_defered_task( launch,
+                                  Promise< Return >{ std::allocator_arg_t{}, allocator_ },
                                   std::forward< Func >( task ),
                                   std::move( args_tuple ) );
     }
@@ -803,11 +817,12 @@ public:
                                     wants_stop_token_v< Func > &&
                                     contains_future< std::decay_t< Args >... >::value,
                                 bool > = true >
-    BE_NODISGARD Future submit( Func&& task, Args&&... args )
+    BE_NODISGARD Future submit( std::launch launch, Func&& task, Args&&... args )
     {
         auto args_tuple = std::make_tuple( wrap_future_argument( std::forward< Args >( args ) )...,
                                            wrap_future_argument( get_stop_token() ) );
-        return make_defered_task( Promise< Return >{ std::allocator_arg_t{}, allocator_ },
+        return make_defered_task( launch,
+                                  Promise< Return >{ std::allocator_arg_t{}, allocator_ },
                                   std::forward< Func >( task ),
                                   std::move( args_tuple ) );
     }
@@ -903,7 +918,8 @@ private:
                   std::is_class< std::remove_reference_t< std::remove_cv_t< Func > > >::value,
                   bool > = true >
 
-    Future make_defered_task( Promise promise, Func&& task, ArgsTuple args_tuple )
+    Future
+    make_defered_task( std::launch launch, Promise promise, Func&& task, ArgsTuple args_tuple )
     {
         using FuncType = std::remove_reference_t< std::remove_cv_t< Func > >;
         struct TASKPOOL_HIDDEN Task : FuncType
@@ -959,7 +975,7 @@ private:
             std::move( promise ),
             std::forward< Func >( task ),
             std::move( args_tuple ) );
-        ( *runtime_ ).push_task( task_proxy( typed_task ) );
+        ( *runtime_ ).push_task( launch, task_proxy( typed_task ) );
         return future;
     }
 
@@ -969,7 +985,8 @@ private:
               typename Future = promise_api::get_future_t< Promise >,
               typename Return = future_api::get_result_t< Future >,
               std::enable_if_t< be::is_function_pointer_v< Func >, bool > = true >
-    Future make_defered_task( Promise promise, Func&& task, ArgsTuple args_tuple )
+    Future
+    make_defered_task( std::launch launch, Promise promise, Func&& task, ArgsTuple args_tuple )
     {
         struct TASKPOOL_HIDDEN Task
         {
@@ -1024,7 +1041,7 @@ private:
             std::move( promise ),
             std::forward< Func >( task ),
             std::move( args_tuple ) );
-        ( *runtime_ ).push_task( task_proxy( typed_task ) );
+        ( *runtime_ ).push_task( launch, task_proxy( typed_task ) );
         return future;
     }
 
@@ -1035,7 +1052,7 @@ private:
               typename Return = future_api::get_result_t< Future >,
               std::enable_if_t< std::is_member_function_pointer< Func >::value, bool > = true >
 
-    Future make_defered_task( Promise promise, Func task, ArgsTuple args_tuple )
+    Future make_defered_task( std::launch launch, Promise promise, Func task, ArgsTuple args_tuple )
     {
         struct TASKPOOL_HIDDEN Task
         {
@@ -1092,7 +1109,7 @@ private:
                                                                           std::move( promise ),
                                                                           task,
                                                                           std::move( args_tuple ) );
-        ( *runtime_ ).push_task( task_proxy( typed_task ) );
+        ( *runtime_ ).push_task( launch, task_proxy( typed_task ) );
         return future;
     }
 
@@ -1118,7 +1135,10 @@ private:
         std::atomic< std::size_t >       tasks_queued_{ 0 };
         std::atomic< std::size_t >       tasks_waiting_{ 0 };
         std::atomic< std::size_t >       tasks_running_{ 0 };
-        std::queue< task_proxy >         tasks_             = {};
+        std::queue< task_proxy >         tasks_;
+        mutable std::mutex               deferred_mutex_ = {};
+        std::queue< task_proxy >         deferred_;
+        std::atomic< std::size_t >       deferred_queued_{ 0 };
         mutable std::mutex               check_tasks_mutex_ = {};
         std::vector< task_proxy >        tasks_to_check_    = {};
         std::atomic< bool >              waiting_{ false };
@@ -1128,10 +1148,9 @@ private:
         std::unique_ptr< std::thread[] > threads_; //  NOLINT (c-arrays)
         std::chrono::nanoseconds         task_check_latency_ = std::chrono::microseconds( 1 );
 
-        pool_runtime( std::chrono::nanoseconds latency, unsigned int requested_count )
+        explicit pool_runtime( std::chrono::nanoseconds latency, unsigned int requested_count )
             : thread_count_( compute_thread_count( requested_count ) )
-            , threads_( std::make_unique< std::thread[] >( thread_count_ ) ) // NOLINT
-                                                                             // (c-arrays)
+            , threads_( std::make_unique< std::thread[] >( thread_count_ ) ) // NOLINT (c-arrays)
             , task_check_latency_( latency )
         {
             create_threads();
@@ -1167,7 +1186,7 @@ private:
                     threads_[i].join();
                 }
             }
-            threads_.reset();
+            threads_.reset(); //  NOLINT (c-arrays)
             thread_count_ = 0;
         }
 
@@ -1255,25 +1274,34 @@ private:
             return std::future_status::ready;
         }
 
-        void push_task( task_proxy proxy )
+        void push_task( std::launch launch, task_proxy proxy )
         {
             if ( proxy.storage.get() == nullptr ) // NOLINT
             {
                 throw std::invalid_argument{ "'add_task' called with invalid task_proxy" };
             }
-            if ( proxy.check_task( proxy.storage.get() ) )
+            if ( launch == std::launch::async )
             {
-                std::unique_lock< std::mutex > lock( tasks_mutex_ );
-                tasks_.push( std::move( proxy ) );
-                ++tasks_queued_;
+                if ( proxy.check_task( proxy.storage.get() ) )
+                {
+                    std::unique_lock< std::mutex > lock( tasks_mutex_ );
+                    tasks_.push( std::move( proxy ) );
+                    ++tasks_queued_;
+                }
+                else
+                {
+                    std::unique_lock< std::mutex > lock( check_tasks_mutex_ );
+                    tasks_to_check_.push_back( std::move( proxy ) );
+                    ++tasks_waiting_;
+                }
+                task_added_.notify_one();
             }
             else
             {
-                std::unique_lock< std::mutex > lock( check_tasks_mutex_ );
-                tasks_to_check_.push_back( std::move( proxy ) );
-                ++tasks_waiting_;
+                std::unique_lock< std::mutex > lock( deferred_mutex_ );
+                deferred_.push( std::move( proxy ) );
+                ++deferred_queued_;
             }
-            task_added_.notify_one();
         }
 
         // must run with waiting_task_mutex held
@@ -1298,6 +1326,31 @@ private:
             return ready_tasks;
         }
 
+        void invoke_deferred()
+        {
+            std::queue< task_proxy > tasks;
+            {
+                std::unique_lock< std::mutex > deferred_lock( deferred_mutex_ );
+                std::swap( tasks, deferred_ );
+                deferred_queued_ = 0;
+            }
+            while ( !tasks.empty() )
+            {
+                task_proxy proxy( std::move( tasks.front() ) );
+                tasks.pop();
+                if ( proxy.check_task( proxy.storage.get() ) )
+                {
+                    ++tasks_running_;
+                    proxy.execute_task( proxy.storage.get() );
+                    --tasks_running_;
+                }
+                else
+                {
+                    push_task( std::launch::deferred, std::move( proxy ) );
+                }
+            }
+        }
+
         /**
          * @brief thread_worker thread task
          *
@@ -1316,33 +1369,41 @@ private:
          * Once we have checked the futures we wake up any waiting thread to be the next
          * task_checker .
          */
-
         void thread_worker( std::chrono::nanoseconds latency )
         {
             for ( ;; )
             {
                 {
-                    std::vector< task_proxy > ready_tasks;
                     // thread_workers first tries to become the next task_checker
                     std::unique_lock< std::mutex > lock( check_tasks_mutex_, std::try_to_lock );
-                    if ( lock.owns_lock() && !tasks_to_check_.empty() )
+                    if ( lock.owns_lock() && ( tasks_waiting_.load() != 0U ) )
                     {
-                        ready_tasks = task_checker();
-                    }
-                    for ( task_proxy& proxy_ready : ready_tasks )
-                    {
-                        push_task( std::move( proxy_ready ) );
-                        --tasks_waiting_;
+                        std::vector< task_proxy > ready_tasks = task_checker();
+                        for ( task_proxy& proxy_ready : ready_tasks )
+                        {
+                            push_task( std::launch::async, std::move( proxy_ready ) );
+                            --tasks_waiting_;
+                        }
                     }
                 }
                 std::unique_lock< std::mutex > tasks_lock( tasks_mutex_ );
                 if ( abort_ )
                 {
                     break;
-                };
+                }
                 using namespace std::chrono_literals;
-                task_added_.wait_for(
-                    tasks_lock, latency, [this] { return !tasks_.empty() || abort_; } );
+                if ( tasks_waiting_.load() != 0U )
+                {
+                    task_added_.wait_for(
+                        tasks_lock, latency, [this] { return !tasks_.empty() || abort_; } );
+                }
+                else
+                {
+                    task_added_.wait_for( tasks_lock, std::chrono::milliseconds( 1 ), [this] {
+                        bool has_tasks = !tasks_.empty();
+                        return has_tasks || abort_;
+                    } );
+                }
                 if ( abort_ )
                 {
                     return;

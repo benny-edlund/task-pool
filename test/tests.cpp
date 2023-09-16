@@ -66,7 +66,7 @@ TEST_CASE( "move construct", "[task_pool]" )
     std::atomic_bool finish{ false };
     be::task_pool    from( 1 );
     auto             thread_count = from.get_thread_count();
-    auto             future       = from.submit( [&]() {
+    auto             future       = from.submit( std::launch::async, [&]() {
         while ( !finish )
         {
             std::this_thread::sleep_for( 1ms );
@@ -91,7 +91,7 @@ TEST_CASE( "move assign", "[task_pool]" )
     REQUIRE( to.get_tasks_running() == 0 );
     std::future< void > future = [&] {
         be::task_pool from( 1 );
-        auto          f = from.submit( [&]() -> void {
+        auto          f = from.submit( std::launch::async, [&]() -> void {
             while ( !finish )
             {
                 std::this_thread::sleep_for( 1ms );
@@ -132,7 +132,7 @@ TEST_CASE( "get_tasks_queued", "[task_pool]" )
     be::task_pool    pool( 1 );
     REQUIRE( pool.get_tasks_queued() == 0 );
     pool.pause();
-    auto future = pool.submit( [&]() -> void {
+    auto future = pool.submit( std::launch::async, [&]() -> void {
         while ( !finish )
         {
             std::this_thread::sleep_for( 1ms );
@@ -151,7 +151,7 @@ TEST_CASE( "get_tasks_running", "[task_pool]" )
     std::atomic_bool finish{ false };
     be::task_pool    pool( 1 );
     REQUIRE( pool.get_tasks_running() == 0 );
-    auto future = pool.submit( [&]() -> void {
+    auto future = pool.submit( std::launch::async, [&]() -> void {
         started = true;
         while ( !finish )
         {
@@ -174,7 +174,7 @@ TEST_CASE( "get_tasks_waiting", "[task_pool]" )
     std::atomic_bool finish{ false };
     be::task_pool    pool( 1 );
     REQUIRE( pool.get_tasks_waiting() == 0 );
-    auto future = pool.submit( [&]() {
+    auto future = pool.submit( std::launch::async, [&]() {
         started = true;
         while ( !finish )
         {
@@ -182,7 +182,8 @@ TEST_CASE( "get_tasks_waiting", "[task_pool]" )
         }
         return true;
     } );
-    auto done   = pool.submit( []( bool /*yup*/ ) {}, std::move( future ) );
+    auto done   = pool.submit(
+        std::launch::async, []( bool /*yup*/ ) {}, std::move( future ) );
     while ( !started )
     {
         std::this_thread::sleep_for( 1ms );
@@ -199,14 +200,14 @@ TEST_CASE( "get_tasks_total", "[task_pool]" )
     be::task_pool    pool( 1 );
     pool.pause();
     REQUIRE( pool.get_tasks_total() == 0 );
-    pool.submit( [&]() -> void {
+    pool.submit( std::launch::async, [&]() -> void {
         while ( !finish )
         {
             std::this_thread::sleep_for( 1ms );
         }
     } );
     REQUIRE( pool.get_tasks_total() == 1 );
-    pool.submit( [&]() -> void {
+    pool.submit( std::launch::async, [&]() -> void {
         while ( !finish )
         {
             std::this_thread::sleep_for( 1ms );
@@ -233,9 +234,9 @@ TEST_CASE( "wait()", "[task_pool]" )
     be::task_pool pool( 1 );
     pool.pause();
     REQUIRE( pool.get_tasks_total() == 0 );
-    pool.submit( [&]() -> void { std::this_thread::sleep_for( 1ms ); } );
-    pool.submit( [&]() -> void { std::this_thread::sleep_for( 1ms ); } );
-    pool.submit( [&]() -> void { std::this_thread::sleep_for( 1ms ); } );
+    pool.submit( std::launch::async, [&]() -> void { std::this_thread::sleep_for( 1ms ); } );
+    pool.submit( std::launch::async, [&]() -> void { std::this_thread::sleep_for( 1ms ); } );
+    pool.submit( std::launch::async, [&]() -> void { std::this_thread::sleep_for( 1ms ); } );
     REQUIRE( pool.get_tasks_total() == 3 );
     pool.unpause();
     pool.wait();
@@ -247,9 +248,9 @@ TEST_CASE( "wait() when paused", "[task_pool]" )
     be::task_pool pool( 1 );
     pool.pause();
     REQUIRE( pool.get_tasks_total() == 0 );
-    pool.submit( [&]() -> void { std::this_thread::sleep_for( 1ms ); } );
-    pool.submit( [&]() -> void { std::this_thread::sleep_for( 1ms ); } );
-    pool.submit( [&]() -> void { std::this_thread::sleep_for( 1ms ); } );
+    pool.submit( std::launch::async, [&]() -> void { std::this_thread::sleep_for( 1ms ); } );
+    pool.submit( std::launch::async, [&]() -> void { std::this_thread::sleep_for( 1ms ); } );
+    pool.submit( std::launch::async, [&]() -> void { std::this_thread::sleep_for( 1ms ); } );
     REQUIRE( pool.get_tasks_total() == 3 );
     pool.wait(); // this must not block
 }
@@ -264,7 +265,7 @@ TEST_CASE( "free function", "[task_pool][submit]" )
     std::atomic_bool called{ false };
     {
         be::task_pool pool( 1 );
-        pool.submit( &test_func_, &called );
+        pool.submit( std::launch::async, &test_func_, &called );
         pool.wait();
         REQUIRE( called );
     }
@@ -281,7 +282,7 @@ TEST_CASE( "member function", "[task_pool][submit]" )
     {
         test_         x;
         be::task_pool pool( 1 );
-        pool.submit( &test_::test_func_, &x ).wait();
+        pool.submit( std::launch::async, &test_::test_func_, &x ).wait();
         REQUIRE( x.called );
     }
 }
@@ -292,7 +293,7 @@ TEST_CASE( "lambda pure by &", "[task_pool][submit]" )
         std::atomic_bool called{ false };
         auto             fun = []( std::atomic_bool* x ) { ( *x ) = true; };
         be::task_pool    pool( 1 );
-        pool.submit( fun, &called ).wait();
+        pool.submit( std::launch::async, fun, &called ).wait();
         REQUIRE( called );
     }
 }
@@ -302,7 +303,9 @@ TEST_CASE( "lambda pure by &&", "[task_pool][submit]" )
     {
         std::atomic_bool called{ false };
         be::task_pool    pool( 1 );
-        pool.submit( []( std::atomic_bool* x ) { ( *x ) = true; }, &called ).wait();
+        pool.submit(
+                std::launch::async, []( std::atomic_bool* x ) { ( *x ) = true; }, &called )
+            .wait();
         REQUIRE( called );
     }
 }
@@ -313,7 +316,7 @@ TEST_CASE( "lambda with capture by &", "[task_pool][submit]" )
         std::atomic_bool called{ false };
         auto             x = [&]() { called = true; };
         be::task_pool    pool( 1 );
-        pool.submit( x ).wait();
+        pool.submit( std::launch::async, x ).wait();
         REQUIRE( called );
     }
 }
@@ -322,7 +325,7 @@ TEST_CASE( "lambda with capture by &&", "[task_pool][submit]" )
 {
     std::atomic_bool called{ false };
     be::task_pool    pool( 1 );
-    pool.submit( [&]() { called = true; } ).wait();
+    pool.submit( std::launch::async, [&]() { called = true; } ).wait();
     REQUIRE( called );
 }
 
@@ -330,7 +333,7 @@ TEST_CASE( "std::function capture by &&", "[task_pool][submit]" )
 {
     std::atomic_bool called{ false };
     be::task_pool    pool( 1 );
-    pool.submit( std::function< void() >( [&]() { called = true; } ) ).wait();
+    pool.submit( std::launch::async, std::function< void() >( [&]() { called = true; } ) ).wait();
     REQUIRE( called );
 }
 
@@ -339,7 +342,7 @@ TEST_CASE( "std::function capture by &", "[task_pool][submit]" )
     std::atomic_bool called{ false };
     be::task_pool    pool( 1 );
     auto             x = std::function< void() >( [&]() { called = true; } );
-    pool.submit( x ).wait();
+    pool.submit( std::launch::async, x ).wait();
     REQUIRE( called );
 }
 
@@ -347,7 +350,8 @@ TEST_CASE( "std::function pure by &&", "[task_pool][submit]" )
 {
     std::atomic_bool called{ false };
     be::task_pool    pool( 1 );
-    pool.submit( std::function< void( std::atomic_bool* ) >( []( auto* x ) { ( *x ) = true; } ),
+    pool.submit( std::launch::async,
+                 std::function< void( std::atomic_bool* ) >( []( auto* x ) { ( *x ) = true; } ),
                  &called )
         .wait();
     REQUIRE( called );
@@ -359,7 +363,7 @@ TEST_CASE( "std::function pure by &", "[task_pool][submit]" )
     be::task_pool    pool( 1 );
     auto             fun =
         std::function< void( std::atomic_bool* ) >( []( std::atomic_bool* x ) { ( *x ) = true; } );
-    pool.submit( fun, &called ).wait();
+    pool.submit( std::launch::async, fun, &called ).wait();
     REQUIRE( called );
 }
 
@@ -367,7 +371,10 @@ TEST_CASE( "stateful lambda by &&", "[task_pool][submit]" )
 {
     be::task_pool    pool( 1 );
     std::atomic_bool called{ false };
-    pool.submit( [value = 2]( std::atomic_bool* x ) mutable { ( *x ) = --value == 1; }, &called )
+    pool.submit(
+            std::launch::async,
+            [value = 2]( std::atomic_bool* x ) mutable { ( *x ) = --value == 1; },
+            &called )
         .wait();
     REQUIRE( called );
 }
@@ -379,8 +386,10 @@ TEST_CASE( "stateful lambda from inner scope", "[task_pool][submit]" )
     std::atomic_bool    called{ false };
     std::future< void > f;
     {
-        f = pool.submit( [value = 2]( std::atomic_bool* x ) mutable { ( *x ) = --value == 1; },
-                         &called );
+        f = pool.submit(
+            std::launch::async,
+            [value = 2]( std::atomic_bool* x ) mutable { ( *x ) = --value == 1; },
+            &called );
     }
     pool.unpause();
     f.wait();
@@ -395,6 +404,7 @@ TEST_CASE( "submit with result", "[task_pool][submit]" )
     std::future< int > f;
     {
         f = pool.submit(
+            std::launch::async,
             [value = 2]( std::atomic_bool* x ) mutable {
                 ( *x ) = --value == 1;
                 return value;
@@ -418,8 +428,9 @@ TEST_CASE( "void( int ) with future ", "[task_pool][submit]" )
     {
         be::task_pool    pool( 1 );
         static const int s_value( 42 );
-        auto             future = pool.submit( []() { return s_value; } );
-        auto             done   = pool.submit( &func_with_future_, std::move( future ), &called );
+        auto             future = pool.submit( std::launch::async, []() { return s_value; } );
+        auto             done =
+            pool.submit( std::launch::async, &func_with_future_, std::move( future ), &called );
         done.wait();
         REQUIRE( called );
     }
@@ -429,8 +440,9 @@ TEST_CASE( "void( int ) with future throws ", "[task_pool][submit]" )
     std::atomic_bool called{ false };
     {
         be::task_pool pool( 1 );
-        auto          future = pool.submit( []() -> int { throw test_exception{}; } );
-        auto          done   = pool.submit( &func_with_future_, std::move( future ), &called );
+        auto future = pool.submit( std::launch::async, []() -> int { throw test_exception{}; } );
+        auto done =
+            pool.submit( std::launch::async, &func_with_future_, std::move( future ), &called );
         REQUIRE_THROWS_AS( done.get(), test_exception );
     }
 }
@@ -521,7 +533,7 @@ TEST_CASE( "submit with result allocator", "[task_pool][submit][allocator]" )
                 return value;
             };
             STATIC_REQUIRE_FALSE( be::wants_allocator< decltype( func ) >::value );
-            f = pool.submit( func, &called );
+            f = pool.submit( std::launch::async, func, &called );
         }
         pool.unpause();
         auto result = f.get();
@@ -551,7 +563,7 @@ TEST_CASE( "submit with stop token", "[task_pool][submit][stop_token]" )
     std::atomic_bool    called{ false };
     std::future< void > f;
     {
-        f = pool.submit( [&called]( be::stop_token stop ) mutable {
+        f = pool.submit( std::launch::async, [&called]( be::stop_token stop ) mutable {
             called = true;
             while ( !stop )
             {
@@ -575,7 +587,7 @@ TEST_CASE( "void()& function", "[task_pool][submit]" )
     std::atomic_bool called;
     auto             fun = [&]() { called = true; };
     be::task_pool    pool( 1 );
-    auto             future = pool.submit( fun );
+    auto             future = pool.submit( std::launch::async, fun );
     future.wait();
     REQUIRE( called == true );
 }
@@ -583,7 +595,7 @@ TEST_CASE( "void()&& function", "[task_pool][submit]" )
 {
     std::atomic_bool called;
     be::task_pool    pool( 1 );
-    auto             future = pool.submit( [&]() { called = true; } );
+    auto             future = pool.submit( std::launch::async, [&]() { called = true; } );
     future.wait();
     REQUIRE( called == true );
 }
@@ -596,7 +608,7 @@ TEST_CASE( "void()& function throws", "[task_pool][submit][throws]" )
         throw test_exception{};
     };
     be::task_pool pool( 1 );
-    auto          future = pool.submit( fun );
+    auto          future = pool.submit( std::launch::async, fun );
     REQUIRE_THROWS_AS( future.get(), test_exception );
     REQUIRE( called == true );
 }
@@ -606,7 +618,7 @@ TEST_CASE( "void(... be::stop_token)& function", "[task_pool][submit][stop_token
     std::atomic_bool called;
     auto fun = []( std::atomic_bool* check, be::stop_token /*abort*/ ) mutable { *check = true; };
     be::task_pool pool( 1 );
-    auto          future = pool.submit( fun, &called );
+    auto          future = pool.submit( std::launch::async, fun, &called );
     future.wait();
     REQUIRE( called == true );
 }
@@ -616,6 +628,7 @@ TEST_CASE( "void(... be::stop_token)&& function", "[task_pool][submit][stop_toke
     std::atomic_bool called;
     be::task_pool    pool( 1 );
     auto             future = pool.submit(
+        std::launch::async,
         []( std::atomic_bool* check, be::stop_token /*abort*/ ) mutable { *check = true; },
         &called );
     future.wait();
@@ -627,6 +640,7 @@ TEST_CASE( "void(... be::stop_token)&& function throws", "[task_pool][submit][st
     std::atomic_bool called;
     be::task_pool    pool( 1 );
     auto             future = pool.submit(
+        std::launch::async,
         []( std::atomic_bool* check, be::stop_token /*abort*/ ) mutable {
             *check = true;
             throw test_exception{};
@@ -644,7 +658,7 @@ TEST_CASE( "bool()& function", "[task_pool][submit]" )
         return true;
     };
     be::task_pool pool( 1 );
-    auto          future = pool.submit( fun );
+    auto          future = pool.submit( std::launch::async, fun );
     auto          actual = future.get();
     REQUIRE( called == true );
     REQUIRE( actual == true );
@@ -654,7 +668,7 @@ TEST_CASE( "bool()&& function", "[task_pool][submit]" )
 {
     std::atomic_bool called;
     be::task_pool    pool( 1 );
-    auto             future = pool.submit( [&]() {
+    auto             future = pool.submit( std::launch::async, [&]() {
         called = true;
         return true;
     } );
@@ -671,7 +685,7 @@ TEST_CASE( "bool()& function throws", "[task_pool][submit][throws]" )
         throw test_exception{};
     };
     be::task_pool pool( 1 );
-    auto          future = pool.submit( fun );
+    auto          future = pool.submit( std::launch::async, fun );
     REQUIRE_THROWS_AS( future.get(), test_exception );
     REQUIRE( called == true );
 }
@@ -684,7 +698,7 @@ TEST_CASE( "bool(... be::stop_token)& function", "[task_pool][submit][stop_token
         return true;
     };
     be::task_pool pool( 1 );
-    auto          future = pool.submit( fun, &called );
+    auto          future = pool.submit( std::launch::async, fun, &called );
     auto          actual = future.get();
     REQUIRE( called == true );
     REQUIRE( actual == true );
@@ -695,6 +709,7 @@ TEST_CASE( "bool(... be::stop_token)&& function", "[task_pool][submit][stop_toke
     std::atomic_bool called;
     be::task_pool    pool( 1 );
     auto             future = pool.submit(
+        std::launch::async,
         []( std::atomic_bool* check, be::stop_token /*abort*/ ) mutable {
             *check = true;
             return true;
@@ -713,7 +728,7 @@ TEST_CASE( "bool(... be::stop_token)& function throws", "[task_pool][submit][sto
         throw test_exception{};
     };
     be::task_pool pool( 1 );
-    auto          future = pool.submit( fun, &called );
+    auto          future = pool.submit( std::launch::async, fun, &called );
     REQUIRE_THROWS_AS( future.get(), test_exception );
     REQUIRE( called == true );
 }
@@ -725,7 +740,7 @@ TEST_CASE( "void(allocator)& function ", "[task_pool][submit][allocator]" )
         called = true;
     };
     be::task_pool pool( 1 );
-    auto          future = pool.submit( fun );
+    auto          future = pool.submit( std::launch::async, fun );
     future.wait();
     REQUIRE( called == true );
 }
@@ -740,7 +755,7 @@ TEST_CASE( "void(allocator)& function throws ", "[task_pool][submit][allocator][
         throw test_exception{};
     };
     be::task_pool pool( 1 );
-    auto          future = pool.submit( fun );
+    auto          future = pool.submit( std::launch::async, fun );
     REQUIRE_THROWS_AS( future.get(), test_exception );
     REQUIRE( called == true );
 }
@@ -754,7 +769,7 @@ TEST_CASE( "void(allocator, ... be::stop_token)& function with allocator",
                    std::atomic_bool* check,
                    be::stop_token /*abort*/ ) mutable { *check = true; };
     be::task_pool    pool( 1 );
-    auto             future = pool.submit( fun, &called );
+    auto             future = pool.submit( std::launch::async, fun, &called );
     future.wait();
     REQUIRE( called == true );
 }
@@ -771,7 +786,7 @@ TEST_CASE( "void(allocator, ... be::stop_token)& function with allocator throws"
         throw test_exception{};
     };
     be::task_pool pool( 1 );
-    auto          future = pool.submit( fun, &called );
+    auto          future = pool.submit( std::launch::async, fun, &called );
     REQUIRE_THROWS_AS( future.get(), test_exception );
     REQUIRE( called == true );
 }
@@ -781,6 +796,7 @@ TEST_CASE( "bool( allocator, ...  )&& function ", "[task_pool][submit][allocator
     std::atomic_bool called;
     be::task_pool    pool( 1 );
     auto             future = pool.submit(
+        std::launch::async,
         [&]( std::allocator_arg_t /*tag*/, std::allocator< int > const& /*alloc*/ ) -> bool {
             called = true;
             return true;
@@ -794,6 +810,7 @@ TEST_CASE( "bool( allocator, ... )&& function throws", "[task_pool][submit][allo
     std::atomic_bool called;
     be::task_pool    pool( 1 );
     auto             future = pool.submit(
+        std::launch::async,
         [&]( std::allocator_arg_t /*tag*/, std::allocator< int > const& /*alloc*/ ) -> bool {
             called = true;
             throw test_exception{};
@@ -816,7 +833,7 @@ TEST_CASE( "bool(allocator, ... be::stop_token)&& function",
         return true;
     };
 
-    auto future = pool.submit( function, std::ref( called ) );
+    auto future = pool.submit( std::launch::async, function, std::ref( called ) );
     auto actual = future.get();
     REQUIRE( called == true );
     REQUIRE( actual == true );
@@ -828,6 +845,7 @@ TEST_CASE( "bool(allocator, ... be::stop_token)&& function throws",
     std::atomic_bool called;
     be::task_pool    pool( 1 );
     auto             future = pool.submit(
+        std::launch::async,
 
         []( std::allocator_arg_t /*tag*/,
             std::allocator< bool > const& /* alloc*/,
@@ -947,151 +965,155 @@ TEST_CASE( "future_argument<T>", "[task_pool][traits]" )
     STATIC_REQUIRE( std::is_same< void, be::future_argument< std::future< void > >::type >::value );
 }
 
-TEST_CASE( "submit( void(int), future )->void", "[task_pool][submit]" )
+TEST_CASE( "submit( std::launch::async,  void(int), future )->void", "[task_pool][submit]" )
 {
     const int           expected = 42;
     std::atomic_int     actual{ 0 };
     be::task_pool       pool( 1 );
     auto                fun_a  = []( int x ) { return x; };
     auto                fun_b  = [&]( int x ) { actual = x; };
-    std::future< int >  future = pool.submit( fun_a, expected );
-    std::future< void > result = pool.submit( fun_b, std::move( future ) );
+    std::future< int >  future = pool.submit( std::launch::async, fun_a, expected );
+    std::future< void > result = pool.submit( std::launch::async, fun_b, std::move( future ) );
     result.wait();
     REQUIRE( expected == actual );
 }
 
-TEST_CASE( "submit( int(int), future )->int", "[task_pool][submit]" )
+TEST_CASE( "submit( std::launch::async,  int(int), future )->int", "[task_pool][submit]" )
 {
     const int          expected = 42;
     be::task_pool      pool( 1 );
     auto               fun    = []( int x ) { return x; };
-    std::future< int > future = pool.submit( fun, expected );
-    std::future< int > result = pool.submit( fun, std::move( future ) );
+    std::future< int > future = pool.submit( std::launch::async, fun, expected );
+    std::future< int > result = pool.submit( std::launch::async, fun, std::move( future ) );
     result.wait();
     REQUIRE( result.get() == expected );
 }
 
-TEST_CASE( "submit( f, future, ... ) -> void", "[task_pool][submit]" )
+TEST_CASE( "submit( std::launch::async,  f, future, ... ) -> void", "[task_pool][submit]" )
 {
     const int           X = 42;
     const int           Y = 42;
     std::atomic_int     actual{ 0 };
     be::task_pool       pool( 1 );
     auto                fun_a    = []( int x ) { return x; };
-    std::future< int >  future_a = pool.submit( fun_a, X );
+    std::future< int >  future_a = pool.submit( std::launch::async, fun_a, X );
     auto                fun_b    = [&]( int x, int y ) { actual = x * y; };
-    std::future< void > result   = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< void > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     result.wait();
     REQUIRE( actual == X * Y );
 }
 
-TEST_CASE( "submit( f, future, ... ) -> int", "[task_pool][submit]" )
+TEST_CASE( "submit( std::launch::async,  f, future, ... ) -> int", "[task_pool][submit]" )
 {
     const int          X = 42;
     const int          Y = 42;
-    be::task_pool      pool( 1 );
+    be::task_pool      pool( 2 );
     auto               fun_a    = []( int x ) { return x; };
-    std::future< int > future_a = pool.submit( fun_a, X );
+    std::future< int > future_a = pool.submit( std::launch::async, fun_a, X );
     auto               fun_b    = []( int x, int y ) { return x * y; };
-    std::future< int > result   = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< int > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     result.wait();
     REQUIRE( result.get() == X * Y );
 }
 
-TEST_CASE( "submit( f(stop_token), future, ... ) -> int", "[task_pool][submit][stop_token]" )
+TEST_CASE( "submit( std::launch::async,  f(stop_token), future, ... ) -> int",
+           "[task_pool][submit][stop_token]" )
 {
     const int          X = 42;
     const int          Y = 42;
     be::task_pool      pool( 1 );
     auto               fun_a    = []( int x, be::stop_token /*abort*/ ) { return x; };
-    std::future< int > future_a = pool.submit( fun_a, X );
+    std::future< int > future_a = pool.submit( std::launch::async, fun_a, X );
     auto               fun_b    = []( int x, int y, be::stop_token /*abort*/ ) { return x * y; };
-    std::future< int > result   = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< int > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     result.wait();
     REQUIRE( result.get() == X * Y );
 }
 
-TEST_CASE( "submit( f(stop_token), future, ... ) -> void", "[task_pool][submit][stop_token]" )
+TEST_CASE( "submit( std::launch::async,  f(stop_token), future, ... ) -> void",
+           "[task_pool][submit][stop_token]" )
 {
     const int           X = 42;
     const int           Y = 42;
     std::atomic_int     actual{ 0 };
     be::task_pool       pool( 1 );
     auto                fun_a    = []( int x, be::stop_token /*abort*/ ) { return x; };
-    std::future< int >  future_a = pool.submit( fun_a, X );
+    std::future< int >  future_a = pool.submit( std::launch::async, fun_a, X );
     auto                fun_b  = [&]( int x, int y, be::stop_token /*abort*/ ) { actual = x * y; };
-    std::future< void > result = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< void > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     result.wait();
     REQUIRE( actual == X * Y );
 }
 
-TEST_CASE( "submit( f(allocator), future, ... ) -> int", "[task_pool][submit][allocator]" )
+TEST_CASE( "submit( std::launch::async,  f(allocator), future, ... ) -> int",
+           "[task_pool][submit][allocator]" )
 {
     const int          X = 42;
     const int          Y = 42;
-    be::task_pool      pool( 1 );
+    be::task_pool      pool( 2 );
     auto               fun_a    = []( int x ) { return x; };
-    std::future< int > future_a = pool.submit( fun_a, X );
+    std::future< int > future_a = pool.submit( std::launch::async, fun_a, X );
     auto               fun_b =
         []( std::allocator_arg_t /*tag*/, std::allocator< int > const& /*alloc*/, int x, int y ) {
             return x * y;
         };
-    std::future< int > result = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< int > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     result.wait();
     REQUIRE( result.get() == X * Y );
 }
 
-TEST_CASE( "submit( f(allocator), future, ... ) -> int throws",
+TEST_CASE( "submit( std::launch::async,  f(allocator), future, ... ) -> int throws",
            "[task_pool][submit][allocator][throws]" )
 {
     const int          X = 42;
     const int          Y = 42;
     be::task_pool      pool( 1 );
     auto               fun_a    = []( int x ) { return x; };
-    std::future< int > future_a = pool.submit( fun_a, X );
+    std::future< int > future_a = pool.submit( std::launch::async, fun_a, X );
     auto               fun_b    = []( std::allocator_arg_t /*tag*/,
                      std::allocator< int > const& /*alloc*/,
                      int /*x*/,
                      int /*y*/ ) -> int { throw test_exception{}; };
-    std::future< int > result   = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< int > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     result.wait();
     REQUIRE_THROWS_AS( result.get(), test_exception );
 }
 
-TEST_CASE( "submit( f(allocator,...), future, ... ) -> void", "[task_pool][submit][allocator]" )
+TEST_CASE( "submit( std::launch::async,  f(allocator,...), future, ... ) -> void",
+           "[task_pool][submit][allocator]" )
 {
     const int          X = 42;
     const int          Y = 42;
     std::atomic_int    actual{ 0 };
     be::task_pool      pool( 1 );
     auto               fun_a    = []( int x ) { return x; };
-    std::future< int > future_a = pool.submit( fun_a, X );
+    std::future< int > future_a = pool.submit( std::launch::async, fun_a, X );
     auto               fun_b =
         [&]( std::allocator_arg_t /*tag*/, std::allocator< int > const& /*alloc*/, int x, int y ) {
             actual = x * y;
         };
-    std::future< void > result = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< void > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     result.wait();
     REQUIRE( actual == X * Y );
 }
 
-TEST_CASE( "submit( f(allocator,...), future, ... ) -> void throws",
+TEST_CASE( "submit( std::launch::async,  f(allocator,...), future, ... ) -> void throws",
            "[task_pool][submit][allocator][throws]" )
 {
     const int           X = 42;
     const int           Y = 42;
     be::task_pool       pool( 1 );
     auto                fun_a    = []( int x ) { return x; };
-    std::future< int >  future_a = pool.submit( fun_a, X );
+    std::future< int >  future_a = pool.submit( std::launch::async, fun_a, X );
     auto                fun_b    = [&]( std::allocator_arg_t /*tag*/,
                       std::allocator< int > const& /*alloc*/,
                       int /*x*/,
                       int /*y*/ ) -> void { throw test_exception{}; };
-    std::future< void > result   = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< void > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     REQUIRE_THROWS_AS( result.get(), test_exception );
 }
 
-TEST_CASE( "submit( f(allocator,... , stop_token), future, ... ) -> void",
+TEST_CASE( "submit( std::launch::async,  f(allocator,... , stop_token), future, ... ) -> void",
            "[task_pool][submit][allocator]" )
 {
     const int           X = 42;
@@ -1099,26 +1121,27 @@ TEST_CASE( "submit( f(allocator,... , stop_token), future, ... ) -> void",
     std::atomic_int     actual{ 0 };
     be::task_pool       pool( 1 );
     auto                fun_a    = []( int x ) { return x; };
-    std::future< int >  future_a = pool.submit( fun_a, X );
+    std::future< int >  future_a = pool.submit( std::launch::async, fun_a, X );
     auto                fun_b    = [&]( std::allocator_arg_t /*tag*/,
                       std::allocator< int > const& /*alloc*/,
                       int x,
                       int y,
                       be::stop_token /*token*/ ) { actual = x * y; };
-    std::future< void > result   = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< void > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     result.wait();
     REQUIRE( actual == X * Y );
 }
 
-TEST_CASE( "submit( f(allocator,... , stop_token), future, ... ) -> void throws",
-           "[task_pool][submit][allocator][throws]" )
+TEST_CASE(
+    "submit( std::launch::async,  f(allocator,... , stop_token), future, ... ) -> void throws",
+    "[task_pool][submit][allocator][throws]" )
 {
     const int          X = 42;
     const int          Y = 42;
     std::atomic_int    actual{ 0 };
     be::task_pool      pool( 1 );
     auto               fun_a    = []( int x ) { return x; };
-    std::future< int > future_a = pool.submit( fun_a, X );
+    std::future< int > future_a = pool.submit( std::launch::async, fun_a, X );
     auto               fun_b    = [&]( std::allocator_arg_t /*tag*/,
                       std::allocator< int > const& /*alloc*/,
                       int x,
@@ -1127,21 +1150,21 @@ TEST_CASE( "submit( f(allocator,... , stop_token), future, ... ) -> void throws"
         actual = x * y;
         throw test_exception{};
     };
-    std::future< void > result = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< void > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     REQUIRE_THROWS_AS( result.get(), test_exception );
     REQUIRE( actual == X * Y );
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEST_CASE( "submit( f, future )->void throws", "[task_pool][submit][throws]" )
+TEST_CASE( "submit( std::launch::async,  f, future )->void throws", "[task_pool][submit][throws]" )
 {
     const int           expected = 42;
     be::task_pool       pool( 1 );
     auto                fun_a  = []( int x ) -> int { return x; };
     auto                fun_b  = [&]( int ) { throw test_exception{}; }; // NOLINT
-    std::future< int >  future = pool.submit( fun_a, expected );
-    std::future< void > result = pool.submit( fun_b, std::move( future ) );
+    std::future< int >  future = pool.submit( std::launch::async, fun_a, expected );
+    std::future< void > result = pool.submit( std::launch::async, fun_b, std::move( future ) );
     REQUIRE_THROWS_AS( result.get(), test_exception );
 }
 
@@ -1152,24 +1175,28 @@ struct test_processor
         return value;
     }
 };
-TEST_CASE( "submit( f(member), instance, future )->int ", "[task_pool][submit]" )
+TEST_CASE( "submit( std::launch::async,  f(member), instance, future )->int ",
+           "[task_pool][submit]" )
 {
     const int          expected = 42;
     be::task_pool      pool( 1 );
     auto               fun_a  = []( int x ) -> int { return x; };
-    std::future< int > future = pool.submit( fun_a, expected );
+    std::future< int > future = pool.submit( std::launch::async, fun_a, expected );
     test_processor     instance;
-    std::future< int > result = pool.submit( &test_processor::run, &instance, std::move( future ) );
+    std::future< int > result =
+        pool.submit( std::launch::async, &test_processor::run, &instance, std::move( future ) );
     REQUIRE( result.get() == expected );
 }
-TEST_CASE( "submit( f(member), instance, future )->int throws ", "[task_pool][submit][throws]" )
+TEST_CASE( "submit( std::launch::async,  f(member), instance, future )->int throws ",
+           "[task_pool][submit][throws]" )
 {
     const int          expected = 42;
     be::task_pool      pool( 1 );
     auto               fun_a  = []( int /*x*/ ) -> int { throw test_exception{}; };
-    std::future< int > future = pool.submit( fun_a, expected );
+    std::future< int > future = pool.submit( std::launch::async, fun_a, expected );
     test_processor     instance;
-    std::future< int > result = pool.submit( &test_processor::run, &instance, std::move( future ) );
+    std::future< int > result =
+        pool.submit( std::launch::async, &test_processor::run, &instance, std::move( future ) );
     REQUIRE_THROWS_AS( result.get(), test_exception );
 }
 
@@ -1177,76 +1204,80 @@ void func_run_( int value, std::atomic_bool& called )
 {
     called = value != 0;
 }
-TEST_CASE( "submit( f(free func), instance, future )->int ", "[task_pool][submit]" )
+TEST_CASE( "submit( std::launch::async,  f(free func), instance, future )->int ",
+           "[task_pool][submit]" )
 {
     std::atomic_bool    called{ false };
     const int           expected = 42;
     be::task_pool       pool( 1 );
     auto                fun_a  = []( int x ) -> int { return x; };
-    std::future< int >  future = pool.submit( fun_a, expected );
-    std::future< void > result = pool.submit( &func_run_, std::move( future ), std::ref( called ) );
+    std::future< int >  future = pool.submit( std::launch::async, fun_a, expected );
+    std::future< void > result =
+        pool.submit( std::launch::async, &func_run_, std::move( future ), std::ref( called ) );
     REQUIRE_NOTHROW( result.get() );
     REQUIRE( called );
 }
 
-TEST_CASE( "submit( f, future )->int throws", "[task_pool][submit][throws]" )
+TEST_CASE( "submit( std::launch::async,  f, future )->int throws", "[task_pool][submit][throws]" )
 {
     const int          expected = 42;
     be::task_pool      pool( 1 );
     auto               fun    = []( int ) -> int { throw test_exception{}; }; // NOLINT
-    std::future< int > result = pool.submit( fun, expected );
+    std::future< int > result = pool.submit( std::launch::async, fun, expected );
     REQUIRE_THROWS_AS( result.get(), test_exception );
 }
 
-TEST_CASE( "submit( f, future, ... ) -> void throws", "[task_pool][submit][throws]" )
+TEST_CASE( "submit( std::launch::async,  f, future, ... ) -> void throws",
+           "[task_pool][submit][throws]" )
 {
     const int           X = 42;
     const int           Y = 42;
     be::task_pool       pool( 1 );
     auto                fun_a    = []( int x ) { return x; };
-    std::future< int >  future_a = pool.submit( fun_a, X );
+    std::future< int >  future_a = pool.submit( std::launch::async, fun_a, X );
     auto                fun_b    = [&]( int, int ) { throw test_exception{}; }; // NOLINT
-    std::future< void > result   = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< void > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     REQUIRE_THROWS_AS( result.get(), test_exception );
 }
 
-TEST_CASE( "submit( f, future, ... ) -> int throws", "[task_pool][submit][throws]" )
+TEST_CASE( "submit( std::launch::async,  f, future, ... ) -> int throws",
+           "[task_pool][submit][throws]" )
 {
     const int          X = 42;
     const int          Y = 42;
     be::task_pool      pool( 1 );
     auto               fun_a    = []( int x ) { return x; };
-    std::future< int > future_a = pool.submit( fun_a, X );
+    std::future< int > future_a = pool.submit( std::launch::async, fun_a, X );
     auto               fun_b    = []( int, int ) -> int { throw test_exception{}; }; // NOLINT
-    std::future< int > result   = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< int > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     REQUIRE_THROWS_AS( result.get(), test_exception );
 }
 
-TEST_CASE( "submit( f(stop_token), future, ... ) -> int throws",
+TEST_CASE( "submit( std::launch::async,  f(stop_token), future, ... ) -> int throws",
            "[task_pool][submit][stop_token][throws]" )
 {
     const int          X = 42;
     const int          Y = 42;
     be::task_pool      pool( 1 );
     auto               fun_a    = []( int x, be::stop_token /*abort*/ ) { return x; };
-    std::future< int > future_a = pool.submit( fun_a, X );
+    std::future< int > future_a = pool.submit( std::launch::async, fun_a, X );
     auto               fun_b    = []( int, int, be::stop_token /*abort*/ ) -> int { // NOLINT
         throw test_exception{};
     };
-    std::future< int > result = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< int > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     REQUIRE_THROWS_AS( result.get(), test_exception );
 }
 
-TEST_CASE( "submit( f(stop_token), future, ... ) -> void throws",
+TEST_CASE( "submit( std::launch::async,  f(stop_token), future, ... ) -> void throws",
            "[task_pool][submit][stop_token][throws]" )
 {
     const int          X = 42;
     const int          Y = 42;
     be::task_pool      pool( 1 );
     auto               fun_a    = []( int x, be::stop_token /*abort*/ ) { return x; };
-    std::future< int > future_a = pool.submit( fun_a, X );
+    std::future< int > future_a = pool.submit( std::launch::async, fun_a, X );
     auto fun_b = [&]( int, int, be::stop_token /*abort*/ ) { throw test_exception{}; }; // NOLINT
-    std::future< void > result = pool.submit( fun_b, std::move( future_a ), Y );
+    std::future< void > result = pool.submit( std::launch::async, fun_b, std::move( future_a ), Y );
     REQUIRE_THROWS_AS( result.get(), test_exception );
 }
 
@@ -1258,10 +1289,10 @@ TEST_CASE( "reference_wrapper to & argument", "[task_pool][submit]" )
     be::task_pool pool( 1 );
     pool.pause();
     std::atomic_int actual{ 0 };
-    auto            task     = [&]( int& x ) { actual = x; };
+    auto            task     = [&]( int const& x ) { actual = x; };
     const int       value    = 42;
     int             expected = value;
-    auto            future   = pool.submit( task, std::ref( expected ) );
+    auto            future   = pool.submit( std::launch::async, task, std::ref( expected ) );
     expected *= 2;
     pool.unpause();
     future.wait();
@@ -1323,7 +1354,7 @@ TEST_CASE( "( allocator, ... ) -> void", "[task_pool][submit][allocator]" )
 
     std::size_t const                            value_counts = 1000;
     be::task_pool_t< counting_allocator< int > > pool( allocator );
-    auto result = pool.submit( make_data, std::size_t{ value_counts } );
+    auto result = pool.submit( std::launch::async, make_data, std::size_t{ value_counts } );
     pool.wait();
     REQUIRE_NOTHROW( result.get() );
     CHECK( allocations.allocations > 0 );
@@ -1347,7 +1378,7 @@ TEST_CASE( "( allocator, ... ) -> void throws", "[task_pool][submit][allocator][
 
     std::size_t const                            value_counts = 1000;
     be::task_pool_t< counting_allocator< int > > pool( allocator );
-    auto result = pool.submit( make_data, std::size_t{ value_counts } );
+    auto result = pool.submit( std::launch::async, make_data, std::size_t{ value_counts } );
     pool.wait();
     REQUIRE_THROWS_AS( result.get(), test_exception );
     CHECK( allocations.allocations > 0 );
@@ -1375,7 +1406,7 @@ TEST_CASE( "( allocator, ... ) -> size_t", "[task_pool][submit][allocator]" )
     std::size_t const                            value_counts = 1000;
     be::task_pool_t< counting_allocator< int > > pool( allocator );
 
-    auto result = pool.submit( make_data, std::size_t{ value_counts } );
+    auto result = pool.submit( std::launch::async, make_data, std::size_t{ value_counts } );
     pool.wait();
     // REQUIRE( result.get().size() == value_counts ); // doh
     CHECK( allocations.allocations > 0 );
@@ -1398,8 +1429,8 @@ TEST_CASE( "( allocator, ..., stop_token) -> size_t", "[task_pool][submit][alloc
 
     std::size_t const                            value_counts = 1000;
     be::task_pool_t< counting_allocator< int > > pool( allocator );
-    auto data   = pool.submit( make_data, std::size_t{ value_counts } );
-    auto result = pool.submit( process_data, std::move( data ) );
+    auto data   = pool.submit( std::launch::async, make_data, std::size_t{ value_counts } );
+    auto result = pool.submit( std::launch::async, process_data, std::move( data ) );
     pool.wait();
     REQUIRE( value_counts == result.get() ); // doh
     REQUIRE( allocations.allocations > 0 );
@@ -1423,8 +1454,8 @@ TEST_CASE( "( allocator, ..., stop_token) -> size_t throws",
 
     std::size_t const                            value_counts = 1000;
     be::task_pool_t< counting_allocator< int > > pool( allocator );
-    auto data   = pool.submit( make_data, std::size_t{ value_counts } );
-    auto result = pool.submit( process_data, std::move( data ) );
+    auto data   = pool.submit( std::launch::async, make_data, std::size_t{ value_counts } );
+    auto result = pool.submit( std::launch::async, process_data, std::move( data ) );
     pool.wait();
     REQUIRE_THROWS_AS( result.get(), test_exception ); // doh
 }
@@ -1443,8 +1474,8 @@ TEST_CASE( "( allocator, ... ) -> void no.2", "[task_pool][submit][allocator]" )
 
     std::size_t const                            value_counts = 1000;
     be::task_pool_t< counting_allocator< int > > pool( allocator );
-    auto data   = pool.submit( make_data, std::size_t{ value_counts } );
-    auto result = pool.submit( process_data, std::move( data ) );
+    auto data   = pool.submit( std::launch::async, make_data, std::size_t{ value_counts } );
+    auto result = pool.submit( std::launch::async, process_data, std::move( data ) );
     pool.wait();
     result.wait();
     REQUIRE( allocations.allocations > 0 );
@@ -1467,8 +1498,8 @@ TEST_CASE( "( allocator, ..., stop_token ) -> void", "[task_pool][submit][alloca
 
     std::size_t const                            value_counts = 1000;
     be::task_pool_t< counting_allocator< int > > pool( allocator );
-    auto data   = pool.submit( make_data, std::size_t{ value_counts } );
-    auto result = pool.submit( process_data, std::move( data ) );
+    auto data   = pool.submit( std::launch::async, make_data, std::size_t{ value_counts } );
+    auto result = pool.submit( std::launch::async, process_data, std::move( data ) );
     pool.wait();
     result.wait();
     REQUIRE( allocations.allocations > 0 );
@@ -1495,9 +1526,9 @@ TEST_CASE( "( allocator, future ) -> size_t", "[task_pool][submit][allocator]" )
     {
         be::task_pool_t< counting_allocator< int > > pool( allocator );
         auto                                         get_count = []() { return value_counts; };
-        auto                                         value     = pool.submit( get_count );
-        auto data   = pool.submit( make_data, std::move( value ) );
-        auto result = pool.submit( process_data, std::move( data ) );
+        auto value  = pool.submit( std::launch::async, get_count );
+        auto data   = pool.submit( std::launch::async, make_data, std::move( value ) );
+        auto result = pool.submit( std::launch::async, process_data, std::move( data ) );
         REQUIRE( value_counts == result.get() ); // doh
         REQUIRE( allocations.allocations > 0 );
         REQUIRE( allocations.constructions > value_counts );
@@ -1522,9 +1553,9 @@ TEST_CASE( "( allocator, future ) -> size_t throws #1", "[task_pool][submit][all
         be::task_pool_t< counting_allocator< int > > pool( allocator );
 
         auto get_count = []() { return value_counts; };
-        auto value     = pool.submit( get_count );
-        auto data      = pool.submit( make_data, std::move( value ) );
-        auto result    = pool.submit( process_data, std::move( data ) );
+        auto value     = pool.submit( std::launch::async, get_count );
+        auto data      = pool.submit( std::launch::async, make_data, std::move( value ) );
+        auto result    = pool.submit( std::launch::async, process_data, std::move( data ) );
         REQUIRE_THROWS_AS( result.get(), test_exception );
     }
 }
@@ -1544,12 +1575,12 @@ TEST_CASE( "( allocator, future ) -> size_t throws #2", "[task_pool][submit][all
     }; // NOLINT
 
     {
-        be::task_pool_t< counting_allocator< int > > pool( allocator );
+        be::task_pool_t< counting_allocator< int > > pool( 4, allocator );
 
         auto get_count = []() { return value_counts; };
-        auto value     = pool.submit( get_count );
-        auto data      = pool.submit( make_data, std::move( value ) );
-        auto result    = pool.submit( process_data, std::move( data ) );
+        auto value     = pool.submit( std::launch::async, get_count );
+        auto data      = pool.submit( std::launch::async, make_data, std::move( value ) );
+        auto result    = pool.submit( std::launch::async, process_data, std::move( data ) );
         REQUIRE_THROWS_AS( result.get(), test_exception );
     }
 }
@@ -1574,9 +1605,9 @@ TEST_CASE( "( allocator, future, stop_token ) -> void",
         be::task_pool_t< counting_allocator< int > > pool( allocator );
 
         auto get_count = []() { return value_counts; };
-        auto value     = pool.submit( get_count );
-        auto data      = pool.submit( make_data, std::move( value ) );
-        auto result    = pool.submit( process_data, std::move( data ) );
+        auto value     = pool.submit( std::launch::async, get_count );
+        auto data      = pool.submit( std::launch::async, make_data, std::move( value ) );
+        auto result    = pool.submit( std::launch::async, process_data, std::move( data ) );
         REQUIRE_THROWS_AS( result.get(), test_exception );
     }
 }
@@ -1601,9 +1632,9 @@ TEST_CASE( "( allocator, future, stop_token ) -> void throws",
         be::task_pool_t< counting_allocator< int > > pool( allocator );
 
         auto get_count = []() { return value_counts; };
-        auto value     = pool.submit( get_count );
-        auto data      = pool.submit( make_data, std::move( value ) );
-        auto result    = pool.submit( process_data, std::move( data ) );
+        auto value     = pool.submit( std::launch::async, get_count );
+        auto data      = pool.submit( std::launch::async, make_data, std::move( value ) );
+        auto result    = pool.submit( std::launch::async, process_data, std::move( data ) );
         REQUIRE_THROWS_AS( result.get(), test_exception );
     }
 }
@@ -1623,12 +1654,12 @@ TEST_CASE( "( allocator, future, stop_token ) -> size_t throws #1",
                             be::stop_token /*token*/ ) { throw test_exception{}; }; // NOLINT
 
     {
-        be::task_pool_t< counting_allocator< int > > pool( allocator );
+        be::task_pool_t< counting_allocator< int > > pool( 4, allocator );
 
         auto get_count = []() { return value_counts; };
-        auto value     = pool.submit( get_count );
-        auto data      = pool.submit( make_data, std::move( value ) );
-        auto result    = pool.submit( process_data, std::move( data ) );
+        auto value     = pool.submit( std::launch::async, get_count );
+        auto data      = pool.submit( std::launch::async, make_data, std::move( value ) );
+        auto result    = pool.submit( std::launch::async, process_data, std::move( data ) );
         REQUIRE_THROWS_AS( result.get(), test_exception );
     }
 }
@@ -1651,9 +1682,9 @@ TEST_CASE( "( allocator, future, stop_token ) -> size_t",
 
     be::task_pool_t< counting_allocator< int > > pool( allocator );
 
-    auto value  = pool.submit( get_count );
-    auto data   = pool.submit( make_data, std::move( value ) );
-    auto result = pool.submit( process_data, std::move( data ) );
+    auto value  = pool.submit( std::launch::async, get_count );
+    auto data   = pool.submit( std::launch::async, make_data, std::move( value ) );
+    auto result = pool.submit( std::launch::async, process_data, std::move( data ) );
     pool.wait();
     REQUIRE( value_counts == result.get() ); // doh
     REQUIRE( allocations.allocations > 0 );
@@ -1682,9 +1713,9 @@ TEST_CASE( "( allocator, future, stop_token ) -> size_t no.2",
 
     be::task_pool_t< counting_allocator< int > > pool( allocator );
 
-    auto value  = pool.submit( get_count );
-    auto data   = pool.submit( make_data, std::move( value ) );
-    auto result = pool.submit( process_data, std::move( data ) );
+    auto value  = pool.submit( std::launch::async, get_count );
+    auto data   = pool.submit( std::launch::async, make_data, std::move( value ) );
+    auto result = pool.submit( std::launch::async, process_data, std::move( data ) );
     pool.wait();
     REQUIRE_THROWS_AS( result.get(), test_exception ); // doh
     REQUIRE( allocations.allocations > 0 );
@@ -1710,9 +1741,9 @@ TEST_CASE( "( allocator, future ) -> void", "[task_pool][submit][allocator]" )
 
     be::task_pool_t< counting_allocator< int > > pool( allocator );
 
-    auto value  = pool.submit( get_count );
-    auto data   = pool.submit( make_data, std::move( value ) );
-    auto result = pool.submit( process_data, std::move( data ) );
+    auto value  = pool.submit( std::launch::async, get_count );
+    auto data   = pool.submit( std::launch::async, make_data, std::move( value ) );
+    auto result = pool.submit( std::launch::async, process_data, std::move( data ) );
     pool.wait();
     result.wait();
     REQUIRE( allocations.allocations > 0 );
@@ -1741,9 +1772,9 @@ TEST_CASE( "( allocator, future, stop_token ) -> void no.2",
 
     be::task_pool_t< counting_allocator< int > > pool( allocator );
 
-    auto value  = pool.submit( get_count );
-    auto data   = pool.submit( make_data, std::move( value ) );
-    auto result = pool.submit( process_data, std::move( data ) );
+    auto value  = pool.submit( std::launch::async, get_count );
+    auto data   = pool.submit( std::launch::async, make_data, std::move( value ) );
+    auto result = pool.submit( std::launch::async, process_data, std::move( data ) );
     pool.wait();
     result.wait();
     REQUIRE( allocations.allocations > 0 );
@@ -1834,8 +1865,8 @@ TEST_CASE( "submit<my_promise>( ... )", "[submit][promises]" )
         REQUIRE( vec.size() == counts );
     };
     be::task_pool pool;
-    auto          value  = pool.submit( make_data, counts );
-    auto          result = pool.submit( check_values, std::move( value ) );
+    auto          value  = pool.submit( std::launch::async, make_data, counts );
+    auto          result = pool.submit( std::launch::async, check_values, std::move( value ) );
     pool.wait();
 }
 
@@ -1863,8 +1894,8 @@ TEST_CASE( "abort when not started", "[stop_token]" )
         vec.clear();
     };
     static const std::size_t s_count = 1'000;
-    auto                     data    = pool.submit( make_data, s_count );
-    auto                     result  = pool.submit( check_values, std::move( data ) );
+    auto                     data    = pool.submit( std::launch::async, make_data, s_count );
+    auto result = pool.submit( std::launch::async, check_values, std::move( data ) );
     while ( !started )
     {
         std::this_thread::sleep_for( 1us );
@@ -1915,21 +1946,30 @@ TEST_CASE( "task_proxy move assignment", "[task_proxy]" )
     // and this should test that our task_proxy::operator= function works as expected and transfers
     // the correct function pointers and storage
 
-    namespace cc = std::chrono;
-    auto res_10ms =
-        pool.submit( [v = s_ms_10]( cc::milliseconds x ) { return x + v; }, pool.submit( ms_10 ) );
-    auto res_1ms =
-        pool.submit( [v = s_ms_1]( cc::milliseconds x ) { return x + v; }, pool.submit( ms_1 ) );
+    namespace cc  = std::chrono;
+    auto res_10ms = pool.submit(
+        std::launch::async,
+        [v = s_ms_10]( cc::milliseconds x ) { return x + v; },
+        pool.submit( std::launch::async, ms_10 ) );
+    auto res_1ms = pool.submit(
+        std::launch::async,
+        [v = s_ms_1]( cc::milliseconds x ) { return x + v; },
+        pool.submit( std::launch::async, ms_1 ) );
     auto res_1us = pool.submit(
+        std::launch::async,
         [v = s_us_1]( cc::microseconds x ) {
             auto value = v;
             return x + value;
         },
-        pool.submit( us_1 ) );
-    auto res_10us =
-        pool.submit( [v = s_us_10]( cc::microseconds x ) { return x + v; }, pool.submit( us_10 ) );
-    auto res_100us = pool.submit( [v = s_us_100]( cc::microseconds x ) { return x + v; },
-                                  pool.submit( us_100 ) );
+        pool.submit( std::launch::async, us_1 ) );
+    auto res_10us = pool.submit(
+        std::launch::async,
+        [v = s_us_10]( cc::microseconds x ) { return x + v; },
+        pool.submit( std::launch::async, us_10 ) );
+    auto res_100us = pool.submit(
+        std::launch::async,
+        [v = s_us_100]( cc::microseconds x ) { return x + v; },
+        pool.submit( std::launch::async, us_100 ) );
 
     pool.wait();
     REQUIRE( res_10ms.get() == s_ms_10 * 2 );
@@ -2242,4 +2282,54 @@ TEST_CASE( "pipe::wait_until, when paused", "[future]" )
              std::future_status::ready );
     pool.unpause();
     pipe.wait();
+}
+
+TEST_CASE( "Execute in main", "[std::launch::deferred]" )
+{
+    be::task_pool    pool;
+    std::atomic_bool called{ false };
+    auto             future = pool.submit(
+        std::launch::deferred,
+        []( std::atomic_bool& status ) { status = true; },
+        std::ref( called ) );
+    REQUIRE_FALSE( called.load() );
+    pool.invoke_deferred();
+    REQUIRE( called.load() );
+}
+
+TEST_CASE( "Execute in main with dependencies", "[std::launch::deferred]" )
+{
+    be::task_pool pool;
+
+    std::atomic_bool waiting{ true };
+    std::atomic_bool dependency_called{ false };
+    auto             dependency = pool.submit(
+        std::launch::async,
+        []( std::atomic_bool& waiting_, std::atomic_bool& dependency_called_ ) {
+            while ( waiting_.load() )
+            {
+                std::this_thread::sleep_for( 1ms );
+            }
+            dependency_called_ = true;
+            return true;
+        },
+        std::ref( waiting ),
+        std::ref( dependency_called ) );
+
+    std::atomic_bool called{ false };
+    auto             future = pool.submit(
+        std::launch::deferred,
+        []( std::atomic_bool& status, bool /*input*/ ) { status = true; },
+        std::ref( called ),
+        std::move( dependency ) );
+    pool.invoke_deferred();
+    REQUIRE_FALSE( called.load() );
+    waiting                     = false;
+    static auto const s_timeout = 10ms;
+    for ( auto timeout = s_timeout; timeout.count() > 0; timeout -= 1ms )
+    {
+        std::this_thread::sleep_for( 1ms );
+    }
+    pool.invoke_deferred();
+    REQUIRE( called.load() );
 }
