@@ -1,5 +1,6 @@
 #pragma once
 #include <chrono>
+#include <future>
 #include <task_pool/fallbacks.h>
 #include <task_pool/pool.h>
 #include <task_pool/traits.h>
@@ -28,7 +29,9 @@ TASKPOOL_HIDDEN auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func,
         // are most certainly used in the defined class
         //
         using future_type    = decltype( std::declval< be::task_pool_t< Allocator > >().submit(
-            std::declval< Func >(), std::forward< Args >( std::declval< Args >() )... ) );
+            std::launch::async,
+            std::declval< Func >(),
+            std::forward< Args >( std::declval< Args >() )... ) );
         using value_type     = decltype( std::declval< future_type >().get() );
         using status_type    = decltype( std::declval< future_type >().wait_for(
             std::declval< std::chrono::seconds >() ) );
@@ -50,7 +53,7 @@ TASKPOOL_HIDDEN auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func,
                 future_.wait();
             }
         }
-        pipe_( pipe_ const& ) = delete;
+        pipe_( pipe_ const& )            = delete;
         pipe_& operator=( pipe_ const& ) = delete;
         pipe_( pipe_&& x ) noexcept
             : pool_( x.pool_ )
@@ -72,7 +75,9 @@ TASKPOOL_HIDDEN auto make_pipe( be::task_pool_t< Allocator >& pool, Func&& func,
         }
     };
     return pipe_( pool,
-                  pool.submit( std::forward< Func >( func ), std::forward< Args >( args )... ) );
+                  pool.submit( std::launch::async,
+                               std::forward< Func >( func ),
+                               std::forward< Args >( args )... ) );
 }
 
 template< typename TaskPool,
