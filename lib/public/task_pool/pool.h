@@ -335,9 +335,9 @@ public:
         return ( *runtime_ ).task_check_latency_;
     }
 
-    void evaluate_deferred()
+    void invoke_deferred()
     {
-        ( *runtime_ ).evaluate_deferred();
+        ( *runtime_ ).invoke_deferred();
     }
 
     /**
@@ -367,16 +367,16 @@ public:
                         make_task( [task_function = std::bind( std::forward< Func >( task ),
                                                                std::forward< Args >( args )... ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_function();
-                    task_promise.set_value();
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_function();
+                                task_promise.set_value();
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return task_future;
     }
 
@@ -414,16 +414,16 @@ public:
                                                                FunctionAllocator( allocator_ ),
                                                                std::forward< Args >( args )... ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_function();
-                    task_promise.set_value();
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_function();
+                                task_promise.set_value();
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return task_future;
     }
 
@@ -465,16 +465,16 @@ public:
                                                                std::forward< Args >( args )...,
                                                                get_stop_token() ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_function();
-                    task_promise.set_value();
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_function();
+                                task_promise.set_value();
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return task_future;
     }
     /**
@@ -505,16 +505,16 @@ public:
                                                                std::forward< Args >( args )...,
                                                                get_stop_token() ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_function();
-                    task_promise.set_value();
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_function();
+                                task_promise.set_value();
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return task_future;
     }
     /**
@@ -545,15 +545,15 @@ public:
                         make_task( [task_function = std::bind( std::forward< Func >( task ),
                                                                std::forward< Args >( args )... ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_promise.set_value( task_function() );
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_promise.set_value( task_function() );
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return future;
     }
 
@@ -592,15 +592,15 @@ public:
                                                                FunctionAllocator( allocator_ ),
                                                                std::forward< Args >( args )... ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_promise.set_value( task_function() );
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_promise.set_value( task_function() );
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return future;
     }
 
@@ -633,15 +633,15 @@ public:
                                                                std::forward< Args >( args )...,
                                                                get_stop_token() ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_promise.set_value( task_function() );
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_promise.set_value( task_function() );
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return future;
     }
 
@@ -684,15 +684,15 @@ public:
                                                                std::forward< Args >( args )...,
                                                                get_stop_token() ),
                                     task_promise  = std::move( promise )]() mutable {
-                try
-                {
-                    task_promise.set_value( task_function() );
-                }
-                catch ( ... )
-                {
-                    task_promise.set_exception( std::current_exception() );
-                }
-            } ) );
+                            try
+                            {
+                                task_promise.set_value( task_function() );
+                            }
+                            catch ( ... )
+                            {
+                                task_promise.set_exception( std::current_exception() );
+                            }
+                        } ) );
         return future;
     }
 
@@ -1285,20 +1285,20 @@ private:
             }
             if ( launch == std::launch::async )
             {
-            if ( proxy.check_task( proxy.storage.get() ) )
-            {
-                std::unique_lock< std::mutex > lock( tasks_mutex_ );
-                tasks_.push( std::move( proxy ) );
-                ++tasks_queued_;
+                if ( proxy.check_task( proxy.storage.get() ) )
+                {
+                    std::unique_lock< std::mutex > lock( tasks_mutex_ );
+                    tasks_.push( std::move( proxy ) );
+                    ++tasks_queued_;
+                }
+                else
+                {
+                    std::unique_lock< std::mutex > lock( check_tasks_mutex_ );
+                    tasks_to_check_.push_back( std::move( proxy ) );
+                    ++tasks_waiting_;
+                }
+                task_added_.notify_one();
             }
-            else
-            {
-                std::unique_lock< std::mutex > lock( check_tasks_mutex_ );
-                tasks_to_check_.push_back( std::move( proxy ) );
-                ++tasks_waiting_;
-            }
-            task_added_.notify_one();
-        }
             else
             {
                 std::unique_lock< std::mutex > lock( deferred_mutex_ );
@@ -1329,7 +1329,7 @@ private:
             return ready_tasks;
         }
 
-        void evaluate()
+        void invoke_deferred()
         {
             std::queue< task_proxy > tasks;
             {
@@ -1372,33 +1372,38 @@ private:
          * Once we have checked the futures we wake up any waiting thread to be the next
          * task_checker .
          */
-
         void thread_worker( std::chrono::nanoseconds latency )
         {
             for ( ;; )
             {
                 {
-                    std::vector< task_proxy > ready_tasks;
                     // thread_workers first tries to become the next task_checker
                     std::unique_lock< std::mutex > lock( check_tasks_mutex_, std::try_to_lock );
-                    if ( lock.owns_lock() && !tasks_to_check_.empty() )
+                    if ( lock.owns_lock() && ( tasks_waiting_.load() != 0U ) )
                     {
-                        ready_tasks = task_checker();
-                    }
-                    for ( task_proxy& proxy_ready : ready_tasks )
-                    {
-                        push_task( std::move( proxy_ready ) );
-                        --tasks_waiting_;
+                        std::vector< task_proxy > ready_tasks = task_checker();
+                        for ( task_proxy& proxy_ready : ready_tasks )
+                        {
+                            push_task( std::launch::async, std::move( proxy_ready ) );
+                            --tasks_waiting_;
+                        }
                     }
                 }
                 std::unique_lock< std::mutex > tasks_lock( tasks_mutex_ );
                 if ( abort_ )
                 {
                     break;
-                };
+                }
                 using namespace std::chrono_literals;
-                task_added_.wait_for(
-                    tasks_lock, latency, [this] { return !tasks_.empty() || abort_; } );
+                if ( tasks_waiting_.load() != 0U )
+                {
+                    task_added_.wait_for(
+                        tasks_lock, latency, [this] { return !tasks_.empty() || abort_; } );
+                }
+                else
+                {
+                    task_added_.wait( tasks_lock, [this] { return !tasks_.empty() || abort_; } );
+                }
                 if ( abort_ )
                 {
                     return;
