@@ -116,6 +116,7 @@ jobs:
 
       - name: Install dependencies
         run:
+          conan profile detect;
           conan install . --output-folder=build --build=missing --settings=build_type=${{matrix.build_type}};
 
       - name: Configure
