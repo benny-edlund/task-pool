@@ -22,7 +22,6 @@ target_include_directories(
   $<INSTALL_INTERFACE:include> 
 )
 target_include_directories(task_pool_static PRIVATE "${CMAKE_BINARY_DIR}/configured_files/include")
-target_link_libraries( task_pool_static PRIVATE project_options project_warnings)
 target_compile_definitions( task_pool_static PUBLIC TASKPOOL_STATIC_DEFINE )
 if (UNIX)
   target_link_libraries(task_pool_static PRIVATE pthread)
@@ -39,7 +38,6 @@ target_include_directories(
   $<INSTALL_INTERFACE:include> 
 )
 target_include_directories(task_pool PRIVATE "${CMAKE_BINARY_DIR}/configured_files/include")
-target_link_libraries( task_pool PRIVATE project_options project_warnings)
 if (UNIX)
   target_link_libraries(task_pool PRIVATE pthread)
 endif()
@@ -55,4 +53,8 @@ generate_export_header(
 if ( CMAKE_COMPILER_IS_GNUCXX AND ENABLE_COVERAGE )
   target_compile_options(task_pool PRIVATE -g -coverage )
   target_compile_options(task_pool_static PRIVATE -g -coverage )
+endif()
+
+if ( ENABLE_DEVELOPER_MODE )
+  target_compile_options(task_pool PRIVATE -fsanitize=thread )
 endif()
