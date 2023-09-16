@@ -2324,12 +2324,12 @@ TEST_CASE( "Execute in main with dependencies", "[std::launch::deferred]" )
         std::move( dependency ) );
     pool.invoke_deferred();
     REQUIRE_FALSE( called.load() );
-    waiting = false;
+    waiting      = false;
     auto timeout = 10ms;
-    while( timeout.count() > 0 )
+    while ( timeout.count() > 0 )
     {
         timeout -= 1ms;
-        std::this_thread::sleep_for(1ms);
+        std::this_thread::sleep_for( 1ms );
     }
     pool.invoke_deferred();
     REQUIRE( called.load() );
