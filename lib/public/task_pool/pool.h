@@ -335,10 +335,7 @@ public:
         return ( *runtime_ ).task_check_latency_;
     }
 
-    void invoke_deferred()
-    {
-        ( *runtime_ ).invoke_deferred();
-    }
+    void invoke_deferred() { ( *runtime_ ).invoke_deferred(); }
 
     /**
      * @brief Adds a callable to the task_pool returning a future with the result
