@@ -121,6 +121,7 @@ jobs:
 
       - name: Install dependencies
         run:
+          conan profile update settings.compiler.libcxx=libstdc++14 default
           conan install . --output-folder=build --build=missing --settings=build_type=${{matrix.build_type}}
 
       - name: Configure CMake
