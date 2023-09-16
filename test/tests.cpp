@@ -2328,7 +2328,7 @@ TEST_CASE( "Execute in main with dependencies", "[std::launch::deferred]" )
     for( auto timeout = 10ms; timeout.count() > 0; timeout -= 1ms )
     {
         timeout -= 1ms;
-        std::this_thread::sleep_for(1ms);
+        std::this_thread::sleep_for( 1ms );
     }
     pool.invoke_deferred();
     REQUIRE( called.load() );
