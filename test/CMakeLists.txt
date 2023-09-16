@@ -47,3 +47,8 @@ catch_discover_tests(
   OUTPUT_SUFFIX
   .xml)
 endif()
+
+if ( ENABLE_DEVELOPER_MODE )
+  target_compile_options(test_taskpool PRIVATE -fsanitize=thread )
+  target_link_options(test_taskpool PRIVATE -fsanitize=thread )
+endif()
