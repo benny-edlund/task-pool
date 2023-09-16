@@ -1258,7 +1258,7 @@ TEST_CASE( "reference_wrapper to & argument", "[task_pool][submit]" )
     be::task_pool pool( 1 );
     pool.pause();
     std::atomic_int actual{ 0 };
-    auto            task     = [&]( int& x ) { actual = x; };
+    auto            task     = [&]( int const& x ) { actual = x; };
     const int       value    = 42;
     int             expected = value;
     auto            future   = pool.submit( std::launch::async,  task, std::ref( expected ) );
