@@ -8,7 +8,6 @@ on:
     tags:
     branches:
       - main
-      - develop
 
 env:
   # Conan cache environment variables
@@ -121,7 +120,7 @@ jobs:
 
       - name: Configure
         run:         
-          cd build; cmake .. -G "${{matrix.generator}}" -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE:STRING=${{matrix.build_type}} -DENABLE_DEVELOPER_MODE:BOOL=${{matrix.developer_mode}} -DENABLE_COVERAGE:BOOL=${{ matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF' }} -DGIT_SHA:STRING=${{ github.sha }};
+          cd build; cmake .. -G "${{matrix.generator}}" -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DENABLE_DEVELOPER_MODE=${{matrix.developer_mode}} -DENABLE_COVERAGE=${{ matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF' }} -DGIT_SHA:STRING=${{ github.sha }};
 
       - name: Build
         # Remove llvm from env to avoid issues with gcc
