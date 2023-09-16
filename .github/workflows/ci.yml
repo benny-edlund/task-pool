@@ -140,7 +140,7 @@ jobs:
       - name: CTest
         working-directory: ./build
         run: |
-          ctest -C ${{matrix.build_type}}
+          ctest -C ${{matrix.build_type}} --output-on-failure
 
       - name: CPack
         if: matrix.package_generator != ''
