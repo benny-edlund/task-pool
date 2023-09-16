@@ -2296,3 +2296,24 @@ TEST_CASE( "Execute in main", "[std::launch::deferred]" )
     pool.invoke_deferred();
     REQUIRE( called.load() );
 }
+
+TEST_CASE( "Execute in main with dependencies", "[std::launch::deferred]" )
+{
+    be::task_pool pool;
+
+    auto dependency = pool.submit(
+        std::launch::async, [start = std::chrono::steady_clock::now() + std::chrono::seconds( 1 )] {
+            std::this_thread::sleep_until( start );
+            return true;
+        } );
+
+    std::atomic_bool called{ false };
+    auto             future = pool.submit(
+        std::launch::deferred,
+        []( std::atomic_bool& status, bool /*input*/ ) { status = true; },
+        std::ref( called ),
+        std::move( dependency ) );
+    REQUIRE_FALSE( called.load() );
+    pool.invoke_deferred();
+    REQUIRE( called.load() );
+}
