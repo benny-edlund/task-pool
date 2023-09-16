@@ -1007,7 +1007,7 @@ TEST_CASE( "submit( std::launch::async,  f, future, ... ) -> int", "[task_pool][
 {
     const int          X = 42;
     const int          Y = 42;
-    be::task_pool      pool( 1 );
+    be::task_pool      pool( 2 );
     auto               fun_a    = []( int x ) { return x; };
     std::future< int > future_a = pool.submit( std::launch::async, fun_a, X );
     auto               fun_b    = []( int x, int y ) { return x * y; };
@@ -1050,7 +1050,7 @@ TEST_CASE( "submit( std::launch::async,  f(allocator), future, ... ) -> int",
 {
     const int          X = 42;
     const int          Y = 42;
-    be::task_pool      pool( 1 );
+    be::task_pool      pool( 2 );
     auto               fun_a    = []( int x ) { return x; };
     std::future< int > future_a = pool.submit( std::launch::async, fun_a, X );
     auto               fun_b =
@@ -1575,7 +1575,7 @@ TEST_CASE( "( allocator, future ) -> size_t throws #2", "[task_pool][submit][all
     }; // NOLINT
 
     {
-        be::task_pool_t< counting_allocator< int > > pool( allocator );
+        be::task_pool_t< counting_allocator< int > > pool( 4, allocator );
 
         auto get_count = []() { return value_counts; };
         auto value     = pool.submit( std::launch::async, get_count );
@@ -1654,7 +1654,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> size_t throws #1",
                             be::stop_token /*token*/ ) { throw test_exception{}; }; // NOLINT
 
     {
-        be::task_pool_t< counting_allocator< int > > pool( allocator );
+        be::task_pool_t< counting_allocator< int > > pool( 4, allocator );
 
         auto get_count = []() { return value_counts; };
         auto value     = pool.submit( std::launch::async, get_count );
@@ -2301,9 +2301,13 @@ TEST_CASE( "Execute in main with dependencies", "[std::launch::deferred]" )
 {
     be::task_pool pool;
 
+    std::atomic_bool waiting{ true };
     auto dependency = pool.submit(
-        std::launch::async, [start = std::chrono::steady_clock::now() + std::chrono::seconds( 1 )] {
-            std::this_thread::sleep_until( start );
+        std::launch::async, [waiting_ = std::ref(waiting)] {
+            while ( waiting_.get().load() )
+            {
+                std::this_thread::yield();
+            }
             return true;
         } );
 
@@ -2313,7 +2317,9 @@ TEST_CASE( "Execute in main with dependencies", "[std::launch::deferred]" )
         []( std::atomic_bool& status, bool /*input*/ ) { status = true; },
         std::ref( called ),
         std::move( dependency ) );
+    pool.invoke_deferred();
     REQUIRE_FALSE( called.load() );
+    waiting = false;
     pool.invoke_deferred();
     REQUIRE( called.load() );
 }
