@@ -49,6 +49,6 @@ catch_discover_tests(
 endif()
 
 if ( ENABLE_DEVELOPER_MODE )
-  target_compile_options(test_taskpool PRIVATE -fsanitize=thread )
-  target_link_options(test_taskpool PRIVATE -fsanitize=thread )
+  target_compile_options(test_taskpool PRIVATE -fsanitize=address,undefined )
+  target_link_options(test_taskpool PRIVATE -fsanitize=address,undefined )
 endif()

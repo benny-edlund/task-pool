@@ -56,6 +56,6 @@ if ( CMAKE_COMPILER_IS_GNUCXX AND ENABLE_COVERAGE )
 endif()
 
 if ( ENABLE_DEVELOPER_MODE )
-  target_compile_options(task_pool PRIVATE -fsanitize=thread )
-  target_link_options(task_pool PRIVATE -fsanitize=thread )
+  target_compile_options(task_pool PRIVATE -fsanitize=address,undefined,leak )
+  target_link_options(task_pool PRIVATE -fsanitize=address,undefined,leak )
 endif()
