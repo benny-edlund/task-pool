@@ -107,8 +107,7 @@ jobs:
 
           cmake: true
           ninja: true
-          conan: true
-          vcpkg: false
+          conan: 2.0.10
           ccache: true
           clangtidy: ${{ env.CLANG_TIDY_VERSION }}
           cppcheck: true
