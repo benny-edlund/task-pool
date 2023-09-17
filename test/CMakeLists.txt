@@ -19,33 +19,36 @@ if ( CMAKE_COMPILER_IS_GNUCXX AND ENABLE_COVERAGE )
 endif()
 # automatically discover tests that are defined in catch based test files you can modify the unittests. Set TEST_PREFIX
 # to whatever you want, or use different for different binaries
+if(MSVC)
+endif()
 
 if (MSVC)
-catch_discover_tests(
-  test_taskpool
-  TEST_PREFIX
-  "unittests."
-  #REPORTER     Seems windows doesnt like the REPORTER option
-  #xml
-  OUTPUT_DIR
-  .
-  OUTPUT_PREFIX
-  "unittests."
-  OUTPUT_SUFFIX
-  .xml)
+  set_target_properties(task_pool PROPERTIES VS_DEBUGGER_ENVIRONMENT "PATH=$(VC_ExecutablePath_x64);%PATH%")
+  catch_discover_tests(
+    test_taskpool
+    TEST_PREFIX
+    "unittests."
+    #REPORTER     Seems windows doesnt like the REPORTER option
+    #xml
+    OUTPUT_DIR
+    .
+    OUTPUT_PREFIX
+    "unittests."
+    OUTPUT_SUFFIX
+    .xml)
 else() 
-catch_discover_tests(
-  test_taskpool
-  TEST_PREFIX
-  "unittests."
-  REPORTER
-  xml
-  OUTPUT_DIR
-  .
-  OUTPUT_PREFIX
-  "unittests."
-  OUTPUT_SUFFIX
-  .xml)
+  catch_discover_tests(
+    test_taskpool
+    TEST_PREFIX
+    "unittests."
+    REPORTER
+    xml
+    OUTPUT_DIR
+    .
+    OUTPUT_PREFIX
+    "unittests."
+    OUTPUT_SUFFIX
+    .xml)
 endif()
 
 if ( ENABLE_DEVELOPER_MODE )

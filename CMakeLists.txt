@@ -43,11 +43,6 @@ endif()
 
 # If MSVC is being used, and ASAN is enabled, we need to set the debugger environment
 # so that it behaves well with MSVC's debugger, and we can run the target from visual studio
-if(MSVC)
-  get_all_installable_targets(all_targets)
-  message("all_targets=${all_targets}")
-  set_target_properties(${all_targets} PROPERTIES VS_DEBUGGER_ENVIRONMENT "PATH=$(VC_ExecutablePath_x64);%PATH%")
-endif()
 
 if(CMAKE_SKIP_INSTALL_RULES)
   return()

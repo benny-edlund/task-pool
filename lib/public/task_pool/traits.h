@@ -155,7 +155,7 @@ template< std::size_t N,
 auto nth_allocator_value( TupleArgs& ) ->
     typename allocator_value< std::tuple_element_t< N, std::decay_t< TupleArgs > > >::type;
 
-template< typename T, typename Functor = std::decay_t< T > >
+template< typename T, class Functor = std::decay_t< T > >
 struct wants_allocator : public wants_allocator< decltype( &Functor::operator() ) >
 {
 };

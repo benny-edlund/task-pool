@@ -59,3 +59,7 @@ if ( ENABLE_DEVELOPER_MODE )
   target_compile_options(task_pool PRIVATE -fsanitize=address,undefined,leak )
   target_link_options(task_pool PRIVATE -fsanitize=address,undefined,leak )
 endif()
+
+if(MSVC)
+  set_target_properties(task_pool PROPERTIES VS_DEBUGGER_ENVIRONMENT "PATH=$(VC_ExecutablePath_x64);%PATH%")
+endif()
