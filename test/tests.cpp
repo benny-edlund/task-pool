@@ -1515,9 +1515,9 @@ TEST_CASE( "( allocator, future ) -> size_t", "[task_pool][submit][allocator]" )
     counts                    allocations;
     counting_allocator< int > allocator( allocations );
 
-    using data_type                = std::vector< int, counting_allocator< int > >;
-    std::size_t const value_counts = 1000;
-    auto              make_data    = []( std::allocator_arg_t /*tag*/,
+    using data_type                       = std::vector< int, counting_allocator< int > >;
+    static std::size_t const value_counts = 1000;
+    auto                     make_data    = []( std::allocator_arg_t /*tag*/,
                          counting_allocator< int > const& alloc,
                          std::size_t count ) { return data_type( count, 1, alloc ); };
 
@@ -1552,7 +1552,7 @@ TEST_CASE( "( allocator, future ) -> size_t throws #1", "[task_pool][submit][all
     {
         be::task_pool_t< counting_allocator< int > > pool( allocator );
 
-        auto get_count = []() { return value_counts; };
+        auto get_count = [=]() { return value_counts; };
         auto value     = pool.submit( std::launch::async, get_count );
         auto data      = pool.submit( std::launch::async, make_data, std::move( value ) );
         auto result    = pool.submit( std::launch::async, process_data, std::move( data ) );
@@ -1566,7 +1566,7 @@ TEST_CASE( "( allocator, future ) -> size_t throws #2", "[task_pool][submit][all
     counting_allocator< int > allocator( allocations );
 
     std::size_t const value_counts = 1000;
-    auto              make_data = []( std::size_t count ) { return std::vector< int >( count ); };
+    auto              make_data = [=]( std::size_t count ) { return std::vector< int >( count ); };
 
     auto process_data = []( std::allocator_arg_t /*tag*/,
                             counting_allocator< int > const& /*alloc*/,
@@ -1577,7 +1577,7 @@ TEST_CASE( "( allocator, future ) -> size_t throws #2", "[task_pool][submit][all
     {
         be::task_pool_t< counting_allocator< int > > pool( 4, allocator );
 
-        auto get_count = []() { return value_counts; };
+        auto get_count = [=]() { return value_counts; };
         auto value     = pool.submit( std::launch::async, get_count );
         auto data      = pool.submit( std::launch::async, make_data, std::move( value ) );
         auto result    = pool.submit( std::launch::async, process_data, std::move( data ) );
@@ -1604,7 +1604,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> void",
     {
         be::task_pool_t< counting_allocator< int > > pool( allocator );
 
-        auto get_count = []() { return value_counts; };
+        auto get_count = [=]() { return value_counts; };
         auto value     = pool.submit( std::launch::async, get_count );
         auto data      = pool.submit( std::launch::async, make_data, std::move( value ) );
         auto result    = pool.submit( std::launch::async, process_data, std::move( data ) );
@@ -1631,7 +1631,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> void throws",
     {
         be::task_pool_t< counting_allocator< int > > pool( allocator );
 
-        auto get_count = []() { return value_counts; };
+        auto get_count = [=]() { return value_counts; };
         auto value     = pool.submit( std::launch::async, get_count );
         auto data      = pool.submit( std::launch::async, make_data, std::move( value ) );
         auto result    = pool.submit( std::launch::async, process_data, std::move( data ) );
@@ -1656,7 +1656,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> size_t throws #1",
     {
         be::task_pool_t< counting_allocator< int > > pool( 4, allocator );
 
-        auto get_count = []() { return value_counts; };
+        auto get_count = [=]() { return value_counts; };
         auto value     = pool.submit( std::launch::async, get_count );
         auto data      = pool.submit( std::launch::async, make_data, std::move( value ) );
         auto result    = pool.submit( std::launch::async, process_data, std::move( data ) );
@@ -1672,7 +1672,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> size_t",
     using data_type = std::vector< int, counting_allocator< int > >;
 
     std::size_t const value_counts = 1000;
-    auto              get_count    = []() { return value_counts; };
+    auto              get_count    = [=]() { return value_counts; };
     auto              make_data    = []( std::allocator_arg_t /*tag*/,
                          counting_allocator< int > const& alloc,
                          std::size_t                      count,
@@ -1700,7 +1700,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> size_t no.2",
     using data_type = std::vector< int, counting_allocator< int > >;
 
     std::size_t const value_counts = 1000;
-    auto              get_count    = []() { return value_counts; };
+    auto              get_count    = [=]() { return value_counts; };
     auto              make_data    = []( std::allocator_arg_t /*tag*/,
                          counting_allocator< int > const& alloc,
                          std::size_t                      count,
@@ -1731,7 +1731,7 @@ TEST_CASE( "( allocator, future ) -> void", "[task_pool][submit][allocator]" )
     using data_type = std::vector< int, counting_allocator< int > >;
 
     std::size_t const value_counts = 1000;
-    auto              get_count    = []() { return value_counts; };
+    auto              get_count    = [=]() { return value_counts; };
 
     auto make_data = []( std::allocator_arg_t /*tag*/,
                          counting_allocator< int > const& alloc,
@@ -1759,7 +1759,7 @@ TEST_CASE( "( allocator, future, stop_token ) -> void no.2",
 
     using data_type                = std::vector< int, counting_allocator< int > >;
     std::size_t const value_counts = 1000;
-    auto              get_count    = []() { return value_counts; };
+    auto              get_count    = [=]() { return value_counts; };
 
     auto make_data = []( std::allocator_arg_t /*tag*/,
                          counting_allocator< int > const& alloc,
@@ -2326,10 +2326,7 @@ TEST_CASE( "Execute in main with dependencies", "[std::launch::deferred]" )
     REQUIRE_FALSE( called.load() );
     waiting                     = false;
     static auto const s_timeout = 10ms;
-    for ( auto timeout = s_timeout; timeout.count() > 0; timeout -= 1ms )
-    {
-        std::this_thread::sleep_for( 1ms );
-    }
+    pool.wait_for( s_timeout );
     pool.invoke_deferred();
     REQUIRE( called.load() );
 }

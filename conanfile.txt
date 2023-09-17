@@ -4,5 +4,9 @@
 # for tests
 catch2/2.13.9
 
+[tool_requires]
+cmake/3.22.6
+
 [generators]
-cmake_find_package_multi
+CMakeDeps
+CMakeToolchain

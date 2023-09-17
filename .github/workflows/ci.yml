@@ -8,7 +8,6 @@ on:
     tags:
     branches:
       - main
-      - develop
 
 env:
   # Conan cache environment variables
@@ -107,23 +106,21 @@ jobs:
 
           cmake: true
           ninja: true
-          conan: true
-          vcpkg: false
-          ccache: true
+          conan: 2.0.10
+          ccache: false
           clangtidy: ${{ env.CLANG_TIDY_VERSION }}
-          cppcheck: true
+          cppcheck: false
           gcovr: true
           opencppcoverage: false
 
-      - name: Cleanup Conan system packages (they are not properly cached)
-        run: 
-          conan remove -f '*/system'
+      - name: Install dependencies
+        run:
+          conan profile detect;
+          conan install . --output-folder=build --build=missing --settings=build_type=${{matrix.build_type}};
 
-        # make sure coverage is only enabled for Debug builds, since it sets -O0 to make sure coverage
-        # has meaningful results
-      - name: Configure CMake
-        run: 
-          cmake -S . -B ./build -G "${{matrix.generator}}" -DCMAKE_BUILD_TYPE:STRING=${{matrix.build_type}} -DENABLE_DEVELOPER_MODE:BOOL=${{matrix.developer_mode}} -DENABLE_COVERAGE:BOOL=${{ matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF' }} -DGIT_SHA:STRING=${{ github.sha }}
+      - name: Configure
+        run:         
+          cd build; cmake .. -G "${{matrix.generator}}" -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake" -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DENABLE_DEVELOPER_MODE=${{matrix.developer_mode}} -DENABLE_COVERAGE=${{ matrix.build_type == 'Debug' && matrix.developer_mode == 'OFF' }} -DGIT_SHA:STRING=${{ github.sha }};
 
       - name: Build
         # Remove llvm from env to avoid issues with gcc
@@ -143,7 +140,7 @@ jobs:
       - name: CTest
         working-directory: ./build
         run: |
-          ctest -C ${{matrix.build_type}}
+          ctest -C ${{matrix.build_type}} --output-on-failure
 
       - name: CPack
         if: matrix.package_generator != ''
