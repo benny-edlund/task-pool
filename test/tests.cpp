@@ -1515,9 +1515,9 @@ TEST_CASE( "( allocator, future ) -> size_t", "[task_pool][submit][allocator]" )
     counts                    allocations;
     counting_allocator< int > allocator( allocations );
 
-    using data_type                = std::vector< int, counting_allocator< int > >;
+    using data_type                       = std::vector< int, counting_allocator< int > >;
     static std::size_t const value_counts = 1000;
-    auto              make_data    = []( std::allocator_arg_t /*tag*/,
+    auto                     make_data    = []( std::allocator_arg_t /*tag*/,
                          counting_allocator< int > const& alloc,
                          std::size_t count ) { return data_type( count, 1, alloc ); };
 
