@@ -19,6 +19,8 @@
 #include <utility>
 #include <vector>
 
+#include <tracy/Tracy.hpp>
+
 namespace be {
 /**
  * @brief Allows tasks to participate in cooperative cancellation
@@ -853,8 +855,8 @@ private:
             } )
         {
         }
-        ~task_proxy()                   = default;
-        task_proxy( task_proxy const& ) = delete;
+        ~task_proxy()                              = default;
+        task_proxy( task_proxy const& )            = delete;
         task_proxy& operator=( task_proxy const& ) = delete;
         task_proxy( task_proxy&& other ) noexcept
             : check_task( other.check_task )
@@ -894,11 +896,11 @@ private:
             using FuncType::operator();
             static bool     is_ready() { return true; }
             TaskAllocator   alloc;
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
 
         typename Task::TaskAllocator task_allocator( allocator_ );
@@ -958,11 +960,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         auto                         future = promise.get_future();
         typename Task::TaskAllocator task_allocator( allocator_ );
@@ -1024,11 +1026,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         auto                         future = promise.get_future();
         typename Task::TaskAllocator task_allocator( allocator_ );
@@ -1093,11 +1095,11 @@ private:
                     promise_.set_exception( std::current_exception() );
                 }
             }
-            ~Task()             = default;
-            Task( Task const& ) = delete;
+            ~Task()                        = default;
+            Task( Task const& )            = delete;
             Task& operator=( Task const& ) = delete;
             Task( Task&& ) noexcept        = delete;
-            Task& operator=( Task&& ) = delete;
+            Task& operator=( Task&& )      = delete;
         };
         auto                         future = promise.get_future();
         typename Task::TaskAllocator task_allocator( allocator_ );
@@ -1156,10 +1158,10 @@ private:
             create_threads();
         }
         ~pool_runtime() { destroy_threads(); }
-        pool_runtime( pool_runtime const& ) = delete;
+        pool_runtime( pool_runtime const& )            = delete;
         pool_runtime& operator=( pool_runtime const& ) = delete;
         pool_runtime( pool_runtime&& )                 = delete;
-        pool_runtime& operator=( pool_runtime&& ) = delete;
+        pool_runtime& operator=( pool_runtime&& )      = delete;
 
         void create_threads()
         {
@@ -1276,6 +1278,8 @@ private:
 
         void push_task( std::launch launch, task_proxy proxy )
         {
+            ZoneScoped;
+
             if ( proxy.storage.get() == nullptr ) // NOLINT
             {
                 throw std::invalid_argument{ "'add_task' called with invalid task_proxy" };
@@ -1307,6 +1311,7 @@ private:
         // must run with waiting_task_mutex held
         std::vector< task_proxy > task_checker()
         {
+            ZoneScoped;
             if ( abort_ )
             {
                 return {};
@@ -1328,6 +1333,7 @@ private:
 
         void invoke_deferred()
         {
+            ZoneScoped;
             std::queue< task_proxy > tasks;
             {
                 std::unique_lock< std::mutex > deferred_lock( deferred_mutex_ );
@@ -1373,6 +1379,7 @@ private:
         {
             for ( ;; )
             {
+                ZoneScopedN( "Thread Worker" );
                 {
                     // thread_workers first tries to become the next task_checker
                     std::unique_lock< std::mutex > lock( check_tasks_mutex_, std::try_to_lock );
@@ -1391,46 +1398,52 @@ private:
                 {
                     break;
                 }
-                using namespace std::chrono_literals;
-                if ( tasks_waiting_.load() != 0U )
                 {
-                    task_added_.wait_for(
-                        tasks_lock, latency, [this] { return !tasks_.empty() || abort_; } );
+                    ZoneScopedN( "Wait task" );
+                    using namespace std::chrono_literals;
+                    if ( tasks_waiting_.load() != 0U )
+                    {
+                        task_added_.wait_for(
+                            tasks_lock, latency, [this] { return !tasks_.empty() || abort_; } );
+                    }
+                    else
+                    {
+                        task_added_.wait_for( tasks_lock, std::chrono::milliseconds( 1 ), [this] {
+                            bool has_tasks = !tasks_.empty();
+                            return has_tasks || abort_;
+                        } );
+                    }
+                    if ( abort_ )
+                    {
+                        return;
+                    }
+                    if ( tasks_.empty() )
+                    {
+                        // we where woken to be the next task_checker
+                        if ( waiting_ )
+                        {
+                            task_completed_.notify_one();
+                        }
+                        continue;
+                    }
+                    if ( paused_ )
+                    {
+                        continue;
+                    }
                 }
-                else
                 {
-                    task_added_.wait_for( tasks_lock, std::chrono::milliseconds( 1 ), [this] {
-                        bool has_tasks = !tasks_.empty();
-                        return has_tasks || abort_;
-                    } );
-                }
-                if ( abort_ )
-                {
-                    return;
-                }
-                if ( tasks_.empty() )
-                {
-                    // we where woken to be the next task_checker
+                    ZoneScopedN( "Execute task" );
+                    task_proxy proxy( std::move( tasks_.front() ) );
+                    tasks_.pop();
+                    --tasks_queued_;
+                    ++tasks_running_;
+                    tasks_lock.unlock();
+                    proxy.execute_task( proxy.storage.get() );
+                    --tasks_running_;
                     if ( waiting_ )
                     {
                         task_completed_.notify_one();
                     }
-                    continue;
-                }
-                if ( paused_ )
-                {
-                    continue;
-                }
-                task_proxy proxy( std::move( tasks_.front() ) );
-                tasks_.pop();
-                --tasks_queued_;
-                ++tasks_running_;
-                tasks_lock.unlock();
-                proxy.execute_task( proxy.storage.get() );
-                --tasks_running_;
-                if ( waiting_ )
-                {
-                    task_completed_.notify_one();
                 }
             }
         }

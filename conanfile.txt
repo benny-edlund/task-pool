@@ -1,11 +1,8 @@
 # Docs at https://docs.conan.io/en/latest/reference/conanfile_txt.html
 
 [requires]
-# for tests
 catch2/2.13.9
-
-[tool_requires]
-cmake/3.22.6
+tracy/0.9.1
 
 [generators]
 CMakeDeps

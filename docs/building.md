@@ -5,27 +5,22 @@ The project is built with [`cmake`](https://cmake.org/install) and it uses [`con
 A standard release configuration may be produced in the following way
 ```bash
 conan install . --output-folder=build --build=missing --settings=build_type=Release
-cd build
-(linux/macos)
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake
-(windows) 
-cmake .. -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake"
-cmake --build .
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j8
 ```
 &nbsp;
 ### Developer mode
 
 ```bash
 conan install . --output-folder=build --build=missing --settings=build_type=Debug
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DENABLE_DEVELOPER_MODE=ON -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake
-cmake --build .
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_DEVELOPER_MODE=ON -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake
+cmake --build build
 ```
 
 &nbsp;
 
 If desired developer mode may be disabled for a more convential Debug library build
 ```bash
-cmake -S . -B ./build  -DENABLE_DEVELOPER_MODE:BOOL=OFF
-cmake --build ./build
+cmake -S . -B build  -DENABLE_DEVELOPER_MODE:BOOL=OFF
+cmake --build build
 ```

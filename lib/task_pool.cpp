@@ -1,5 +1,4 @@
 #include <task_pool/pool.h>
-
 namespace be {
 
 TASKPOOL_API stop_token::operator bool()

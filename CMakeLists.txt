@@ -32,6 +32,8 @@ endif()
 set(GIT_SHA "Unknown" CACHE STRING "SHA this build was generated from")
 string( SUBSTRING "${GIT_SHA}" 0 8 GIT_SHORT_SHA)
 
+set( CMAKE_TOOLCHAIN_FILE ${CMAKE_BINARY_DIR}/conan_toolchain.cmake )
+
 add_subdirectory(lib)
 
 # Adding the tests:

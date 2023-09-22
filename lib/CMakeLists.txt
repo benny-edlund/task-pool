@@ -1,15 +1,9 @@
 include(GenerateExportHeader)
 
+find_package(Tracy REQUIRED)
+
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
-
-set(HEADER_LIST 
-	${CMAKE_CURRENT_BINARY_DIR}/task_pool/api.h
-	${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/fallbacks.h
-	${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/traits.h
-	${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/pool.h 
-	${CMAKE_CURRENT_SOURCE_DIR}/public/task_pool/pipes.h 
-)
 
 # Static library
 add_library(task_pool_static task_pool.cpp "${HEADER_LIST}")
@@ -63,3 +57,19 @@ endif()
 if(MSVC)
   set_target_properties(task_pool PROPERTIES VS_DEBUGGER_ENVIRONMENT "PATH=$(VC_ExecutablePath_x64);%PATH%")
 endif()
+
+# if(TRACY_PROFILING_ENABLED)
+  target_link_libraries(task_pool PRIVATE Tracy::TracyClient)
+  target_include_directories(task_pool PRIVATE ${Tracy_INCLUDE_DIRS})
+  target_compile_definitions(task_pool PRIVATE ${Tracy_DEFINITIONS})
+
+  target_link_libraries(task_pool_static PRIVATE Tracy::TracyClient)
+  target_include_directories(task_pool_static PRIVATE ${Tracy_INCLUDE_DIRS})
+  target_compile_definitions(task_pool_static PRIVATE ${Tracy_DEFINITIONS})
+
+  # endif()
+
+
+install(TARGETS task_pool_static task_pool )
+install(DIRECTORY public/task_pool DESTINATION include )
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/task_pool/api.h DESTINATION include/task_pool )

@@ -7,6 +7,7 @@ First build task-pool and install to some temporary location
 ```bash
 git clone https://github.com/benny-edlund/task-pool.git
 cd task-pool
+conan install . --output-folder=build --build=missing --settings=build_type=Release
 cmake -S . -B ./build -DCMAKE_INSTALL_PREFIX=/path/to/install
 cmake --build ./build
 cmake --install ./build

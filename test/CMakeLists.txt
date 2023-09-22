@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.15...3.23)
 project(TaskPoolTests LANGUAGES CXX)
 
 find_package(Catch2 REQUIRED)
+find_package(Tracy REQUIRED)
 include(Catch)
 
 add_library(catch_main OBJECT catch_main.cpp)
@@ -55,3 +56,7 @@ if ( ENABLE_DEVELOPER_MODE )
   target_compile_options(test_taskpool PRIVATE -fsanitize=address,undefined )
   target_link_options(test_taskpool PRIVATE -fsanitize=address,undefined )
 endif()
+
+target_link_libraries(test_taskpool PRIVATE Tracy::TracyClient)
+target_include_directories(test_taskpool PRIVATE ${Tracy_INCLUDE_DIRS})
+target_compile_definitions(test_taskpool PRIVATE ${Tracy_DEFINITIONS})
