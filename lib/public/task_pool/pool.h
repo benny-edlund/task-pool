@@ -6,7 +6,6 @@
 #include <exception>
 #include <functional>
 #include <future>
-#include <iostream>
 #include <memory>
 #include <mutex>
 #include <new>

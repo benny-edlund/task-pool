@@ -1184,10 +1184,16 @@ struct test_processor
 //     auto               fun_a  = []( int x ) -> int { return x; };
 //     std::future< int > future = pool.submit( std::launch::async, fun_a, expected );
 //     test_processor     instance;
+
+//     using T = std::decay_t<decltype(&test_processor::run)>;
+//     using M = be::wants_allocator<int (test_processor::*)(int) const noexcept>;
+//     static_assert( std::is_member_pointer_v<T> );
+//     // static_assert( be::is_function_pointer_v<decltype(&test_processor::run)>);
 //     std::future< int > result =
 //         pool.submit( std::launch::async, &test_processor::run, &instance, std::move( future ) );
 //     REQUIRE( result.get() == expected );
 // }
+
 // TEST_CASE( "submit( std::launch::async,  f(member), instance, future )->int throws ",
 //            "[task_pool][submit][throws]" )
 // {

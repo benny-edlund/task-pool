@@ -11,7 +11,7 @@ set(OPT_WARNINGS_AS_ERRORS_DEVELOPER_DEFAULT TRUE)
 # Set the project name and language
 project(
   task_pool
-  VERSION 3.1.0
+  VERSION 4.0.0
   DESCRIPTION ""
   HOMEPAGE_URL "%%https://github.com/benny-edlund/task-pool%%"
   LANGUAGES CXX )
@@ -50,8 +50,8 @@ elseif(NOT PROJECT_IS_TOP_LEVEL)
   return()
 endif()
 
-set(CPACK_PACKAGE_FILE_NAME
-    "${CMAKE_PROJECT_NAME}-${CMAKE_PROJECT_VERSION}-${GIT_SHORT_SHA}-${CMAKE_SYSTEM_NAME}-${CMAKE_BUILD_TYPE}-${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}"
-)
-
+include(InstallRequiredSystemLibraries)
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+set(CPACK_PACKAGE_VERSION_MAJOR "${task_pool_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${task_pool_VERSION_MINOR}")
 include(CPack)

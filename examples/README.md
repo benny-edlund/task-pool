@@ -17,6 +17,7 @@ The examples has some external dependencies, fmt, CLI11, boost (headers) and tur
 
 ```bash
 cd examples
+conan install . --output-folder=build
 cmake -S . -B ./build -DCMAKE_PREFIX_PATH=/path/to/install
 cmake --build ./build
 ```

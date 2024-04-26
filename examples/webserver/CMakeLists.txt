@@ -11,5 +11,4 @@ target_link_libraries(example_http PRIVATE task_pool::task_pool )
 target_link_libraries(example_http PRIVATE Boost::headers )
 target_link_libraries(example_http PRIVATE fmt::fmt)
 target_link_libraries(example_http PRIVATE CLI11::CLI11 )
-target_link_libraries(example_http PRIVATE project_warnings project_options )
 

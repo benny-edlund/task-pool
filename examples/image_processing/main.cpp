@@ -206,7 +206,7 @@ int main( int argc, char** argv ) // NOLINT
     CLI11_PARSE( app, argc, argv );
 
     be::task_pool        pool;
-    std::future< Image > result = pool.submit( []() {
+    std::future< Image > result = pool.submit( std::launch::async, []() {
         return Image( dimentions{ s_max, s_max } );
     } );
 
@@ -215,11 +215,11 @@ int main( int argc, char** argv ) // NOLINT
                                   scaler< 50 > >();                           // NOLINT
     for ( auto const& work : workload )
     {
-        result = pool.submit( &processor::run, work.get(), std::move( result ) );
+        result = pool.submit( std::launch::async, &processor::run, work.get(), std::move( result ) );
     }
-    auto jpeg_data = pool.submit( &compress, std::move( result ) );
-    auto jpeg_ptr  = pool.submit( &write, std::move( jpeg_data ), std::ref( filename ) );
-    auto done      = pool.submit( &tjFree, std::move( jpeg_ptr ) );
+    auto jpeg_data = pool.submit( std::launch::async, &compress, std::move( result ) );
+    auto jpeg_ptr  = pool.submit( std::launch::async, &write, std::move( jpeg_data ), std::ref( filename ) );
+    auto done      = pool.submit( std::launch::async, &tjFree, std::move( jpeg_ptr ) );
     try
     {
         done.get();

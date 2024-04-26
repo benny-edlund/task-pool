@@ -11,8 +11,9 @@ nlohmann_json/3.11.2
 ncurses/6.3
 
 [generators]
-cmake_find_package_multi
+CMakeDeps
+CMakeToolchain
 
 [options]
-boost:header_only=True
-turbojpeg:shared=True
+boost/*:header_only=True
+turbojpeg/*:shared=True
