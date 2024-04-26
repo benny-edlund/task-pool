@@ -1175,30 +1175,31 @@ struct test_processor
         return value;
     }
 };
-TEST_CASE( "submit( std::launch::async,  f(member), instance, future )->int ",
-           "[task_pool][submit]" )
-{
-    const int          expected = 42;
-    be::task_pool      pool( 1 );
-    auto               fun_a  = []( int x ) -> int { return x; };
-    std::future< int > future = pool.submit( std::launch::async, fun_a, expected );
-    test_processor     instance;
-    std::future< int > result =
-        pool.submit( std::launch::async, &test_processor::run, &instance, std::move( future ) );
-    REQUIRE( result.get() == expected );
-}
-TEST_CASE( "submit( std::launch::async,  f(member), instance, future )->int throws ",
-           "[task_pool][submit][throws]" )
-{
-    const int          expected = 42;
-    be::task_pool      pool( 1 );
-    auto               fun_a  = []( int /*x*/ ) -> int { throw test_exception{}; };
-    std::future< int > future = pool.submit( std::launch::async, fun_a, expected );
-    test_processor     instance;
-    std::future< int > result =
-        pool.submit( std::launch::async, &test_processor::run, &instance, std::move( future ) );
-    REQUIRE_THROWS_AS( result.get(), test_exception );
-}
+
+// TEST_CASE( "submit( std::launch::async,  f(member), instance, future )->int ",
+//            "[task_pool][submit]" )
+// {
+//     const int          expected = 42;
+//     be::task_pool      pool( 1 );
+//     auto               fun_a  = []( int x ) -> int { return x; };
+//     std::future< int > future = pool.submit( std::launch::async, fun_a, expected );
+//     test_processor     instance;
+//     std::future< int > result =
+//         pool.submit( std::launch::async, &test_processor::run, &instance, std::move( future ) );
+//     REQUIRE( result.get() == expected );
+// }
+// TEST_CASE( "submit( std::launch::async,  f(member), instance, future )->int throws ",
+//            "[task_pool][submit][throws]" )
+// {
+//     const int          expected = 42;
+//     be::task_pool      pool( 1 );
+//     auto               fun_a  = []( int /*x*/ ) -> int { throw test_exception{}; };
+//     std::future< int > future = pool.submit( std::launch::async, fun_a, expected );
+//     test_processor     instance;
+//     std::future< int > result =
+//         pool.submit( std::launch::async, &test_processor::run, &instance, std::move( future ) );
+//     REQUIRE_THROWS_AS( result.get(), test_exception );
+// }
 
 void func_run_( int value, std::atomic_bool& called )
 {

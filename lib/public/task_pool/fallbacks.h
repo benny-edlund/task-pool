@@ -83,7 +83,7 @@ struct invoke_result< decltype( void(
 
 } // namespace detail
 #else
-#    define BE_NODISGARD [[nodisguard]]
+#    define BE_NODISGARD [[nodiscard]]
 #endif
 
 namespace be {
@@ -118,7 +118,7 @@ template< typename T >
 constexpr bool be_is_void_v = std::is_void_v< T >;
 
 template< typename... Ts >
-using be_void_t = void_t< Ts... >;
+using be_void_t = std::void_t< Ts... >;
 
 #endif
 
